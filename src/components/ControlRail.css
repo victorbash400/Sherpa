@@ -1,0 +1,77 @@
+.control-rail {
+  position: absolute;
+  top: 45px;
+  left: 12px;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+}
+
+.control-rail__title {
+  display: block;
+  color: #1d1d1f;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.control-rail__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 17px;
+  margin-left: -8px;
+}
+
+.control-rail button,
+.audio-controls button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  color: #555;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.control-rail button:hover,
+.audio-controls button:hover,
+.control-rail button[aria-pressed="true"] {
+  color: #171717;
+  background: #f3f3f3;
+}
+
+.control-rail button:focus-visible,
+.audio-controls button:focus-visible,
+.audio-controls input:focus-visible {
+  outline: 2px solid #7c6cff;
+  outline-offset: 2px;
+}
+
+.control-rail svg,
+.control-rail img,
+.audio-controls svg {
+  width: 18px;
+  height: 18px;
+}
+
+.control-rail svg,
+.audio-controls svg {
+  stroke-width: 1.7;
+}
+
+.control-rail img {
+  opacity: 0.66;
+}
+
+.control-rail .control-rail__orb-icon {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.5;
+}
+
+.control-rail button:hover img,
+.control-rail button[aria-pressed="true"] img {
+  opacity: 0.92;
+}

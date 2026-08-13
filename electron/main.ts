@@ -6,10 +6,12 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 function createWindow() {
   const window = new BrowserWindow({
-    width: 900,
-    height: 600,
+    width: 720,
+    height: 480,
     minWidth: 640,
     minHeight: 420,
+    maxWidth: 760,
+    maxHeight: 520,
     backgroundColor: "#ffffff",
     titleBarStyle: "hiddenInset",
     webPreferences: {
