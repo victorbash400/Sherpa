@@ -1,0 +1,36 @@
+.refresh-button {
+  position: absolute;
+  top: 8px;
+  right: 40px;
+  z-index: 3;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  color: #676762;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.refresh-button:hover {
+  background: #f3f3f3;
+}
+
+.refresh-button:focus-visible {
+  outline: 2px solid #7c6cff;
+  outline-offset: 2px;
+}
+
+.refresh-button img {
+  width: 18px;
+  height: 18px;
+  opacity: .68;
+}
+
+.refresh-button:hover img {
+  opacity: .92;
+}

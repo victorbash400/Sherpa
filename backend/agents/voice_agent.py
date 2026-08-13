@@ -1,4 +1,7 @@
+import os
+
 from google.adk.agents import Agent
+from google.adk.apps import App
 from google.adk.models import Gemini
 from google.genai import types
 
@@ -9,6 +12,10 @@ voice_agent = Agent(
     description="Owns Sherpa's realtime voice conversation.",
     model=Gemini(
         model=VOICE_MODEL,
+        client_kwargs={
+            "api_key": os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"),
+            "vertexai": False,
+        },
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     generate_content_config=types.GenerateContentConfig(
@@ -17,3 +24,5 @@ voice_agent = Agent(
     instruction="Speak naturally and concisely with the user.",
     tools=[],
 )
+
+voice_app = App(name="sherpa_voice", root_agent=voice_agent)

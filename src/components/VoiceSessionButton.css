@@ -1,0 +1,51 @@
+.voice-session-button {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  color: #3f3f3d;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 560;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.voice-session-button:hover:not(:disabled) {
+  color: #171717;
+  background: rgb(255 255 255 / 42%);
+}
+
+.voice-session-button img {
+  width: 30px;
+  height: 30px;
+}
+
+.voice-session-button__start-icon {
+  width: 27px;
+  height: 27px;
+  background: currentColor;
+  mask: url("/voice-svgrepo-com%20(1).svg") center / contain no-repeat;
+  -webkit-mask: url("/voice-svgrepo-com%20(1).svg") center / contain no-repeat;
+}
+
+.voice-session-button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.voice-session-button svg {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+  stroke-width: 0;
+}

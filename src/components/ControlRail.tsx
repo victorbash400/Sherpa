@@ -1,13 +1,14 @@
-import { Circle, Settings } from "lucide-react";
+import { Circle, Mic, Settings } from "lucide-react";
 import "./ControlRail.css";
 
 interface ControlRailProps {
-  activeView: "voice" | "chat";
+  activeView: "voice" | "chat" | "voices";
+  onOpenVoices: () => void;
   onToggleChat: () => void;
   onOpenSettings: () => void;
 }
 
-export function ControlRail({ activeView, onToggleChat, onOpenSettings }: ControlRailProps) {
+export function ControlRail({ activeView, onOpenVoices, onToggleChat, onOpenSettings }: ControlRailProps) {
   return (
     <nav className="control-rail" aria-label="Sherpa controls">
       <span className="control-rail__title">Sherpa</span>
@@ -20,6 +21,15 @@ export function ControlRail({ activeView, onToggleChat, onOpenSettings }: Contro
           onClick={onToggleChat}
         >
           {activeView === "chat" ? <Circle aria-hidden="true" className="control-rail__orb-icon" /> : <img alt="" aria-hidden="true" src="/logs-svgrepo-com.svg" />}
+        </button>
+        <button
+          type="button"
+          aria-label="Choose voice"
+          aria-pressed={activeView === "voices"}
+          title="Voice"
+          onClick={onOpenVoices}
+        >
+          <Mic aria-hidden="true" />
         </button>
         <button type="button" aria-label="Settings" title="Settings" onClick={onOpenSettings}>
           <Settings aria-hidden="true" />

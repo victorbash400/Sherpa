@@ -2,7 +2,7 @@ import { Mesh, Program, Renderer, Triangle, Vec3 } from "ogl";
 import { useEffect, useRef } from "react";
 import "./Orb.css";
 
-export type OrbMode = "listening" | "speaking";
+export type OrbMode = "idle" | "listening" | "speaking";
 
 interface OrbProps {
   mode: OrbMode;
@@ -254,7 +254,8 @@ export function Orb({
       const level = Math.min(Math.max(audioLevelRef.current, 0), 1);
       const targetSpeechActivity = modeRef.current === "speaking" ? 0.16 + level * 0.34 : 0;
       currentSpeechActivity += (targetSpeechActivity - currentSpeechActivity) * 0.12;
-      elapsed += delta * (modeRef.current === "speaking" ? 1.2 + level : 0.34);
+      const speed = modeRef.current === "speaking" ? 1.2 + level : modeRef.current === "listening" ? 0.62 : 0.34;
+      elapsed += delta * speed;
       const effectiveHover = forceHoverState ? 1 : targetHover;
 
       program.uniforms.iTime.value = elapsed;
