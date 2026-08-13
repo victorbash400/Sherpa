@@ -1,0 +1,22 @@
+.send-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: #fff;
+  background: #3f423e;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.send-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.send-button:disabled {
+  background: #c8cac6;
+  cursor: default;
+}

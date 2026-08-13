@@ -1,0 +1,47 @@
+.tool-call-indicator {
+  position: relative;
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin: 3px 0;
+  align-items: center;
+  gap: 6px;
+  color: #59605b;
+  font-size: 10px;
+  overflow: hidden;
+}
+
+.tool-call-indicator svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tool-call-indicator strong {
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tool-call-indicator[data-status="error"] {
+  color: #9d3f35;
+}
+
+.tool-call-indicator[data-status="running"]::after {
+  position: absolute;
+  inset: -4px auto -4px -45%;
+  width: 42%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 96%), transparent);
+  content: "";
+  animation: tool-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes tool-shimmer {
+  to { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-call-indicator[data-status="running"]::after {
+    animation: none;
+  }
+}

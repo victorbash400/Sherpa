@@ -1,0 +1,51 @@
+.thinking-indicator {
+  display: grid;
+  margin: 3px 0;
+  gap: 6px;
+  color: #737373;
+}
+
+.thinking-indicator button {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.thinking-indicator button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.thinking-indicator button i {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: thinking-pulse 1.1s ease-in-out infinite;
+}
+
+.thinking-indicator > .markdown {
+  padding-left: 17px;
+  color: #777;
+  font-size: 11px;
+}
+
+@keyframes thinking-pulse {
+  0%,
+  100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-indicator button i {
+    animation: none;
+  }
+}

@@ -1,0 +1,24 @@
+.message-list {
+  display: flex;
+  min-height: 0;
+  padding: 6px 18px 16px 8px;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #c6c7c4 transparent;
+}
+
+.message-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-list::-webkit-scrollbar-thumb {
+  background: #c6c7c4;
+  border-radius: 999px;
+}
