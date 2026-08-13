@@ -7,10 +7,10 @@
 .chat-input {
   position: relative;
   margin-top: -4px;
-  padding: 15px 13px 10px;
+  padding: 11px 11px 8px;
   background: rgb(255 255 255 / 97%);
   border: 1px solid #dededc;
-  border-radius: 17px;
+  border-radius: 15px;
 }
 
 .chat-input:focus-within {
@@ -21,8 +21,8 @@
 .chat-input textarea {
   display: block;
   width: 100%;
-  min-height: 48px;
-  max-height: 160px;
+  min-height: 34px;
+  max-height: 120px;
   padding: 0;
   color: #252525;
   background: transparent;

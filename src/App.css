@@ -7,6 +7,20 @@
   -webkit-app-region: drag;
 }
 
+.shell::before {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 0;
+  width: 12px;
+  height: 12px;
+  background: #ababab;
+  border-radius: 50%;
+  box-shadow: 23px 0 #ababab, 46px 0 #ababab;
+  content: "";
+  pointer-events: none;
+}
+
 .orb-stage {
   position: absolute;
   inset: 0;

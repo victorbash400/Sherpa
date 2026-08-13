@@ -1,7 +1,7 @@
 .chat-history-button {
   position: absolute;
-  top: 40px;
-  right: 12px;
+  top: 8px;
+  right: 4px;
   z-index: 3;
   display: grid;
   width: 34px;

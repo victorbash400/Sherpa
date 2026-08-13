@@ -1,13 +1,13 @@
 .chat-context {
   display: flex;
-  height: 42px;
-  padding: 0 17px 5px;
+  height: 34px;
+  padding: 0 14px 4px;
   align-items: center;
   gap: 8px;
   color: #343434;
   background: #f0f0ef;
-  border-radius: 19px 19px 0 0;
-  font-size: 14px;
+  border-radius: 16px 16px 0 0;
+  font-size: 12px;
 }
 
 .chat-context svg {
