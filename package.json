@@ -9,6 +9,7 @@
   },
   "main": "dist-electron/main.js",
   "dependencies": {
+    "@steipete/peekaboo": "^4.0.0",
     "@vitejs/plugin-react": "latest",
     "concurrently": "latest",
     "electron": "latest",
