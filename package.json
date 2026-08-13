@@ -1,0 +1,26 @@
+{
+  "name": "sherpa",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsc -p electron/tsconfig.json && concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "build": "tsc && vite build && tsc -p electron/tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit"
+  },
+  "main": "dist-electron/main.js",
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "concurrently": "latest",
+    "electron": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "wait-on": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest"
+  }
+}
