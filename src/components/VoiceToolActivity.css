@@ -1,0 +1,47 @@
+.voice-tool-activity {
+  position: absolute;
+  top: calc(50% + clamp(126px, 28vmin, 166px));
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  width: min(390px, calc(100% - 190px));
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  transform: translateX(-50%);
+  color: #8a8a86;
+  font-size: 10px;
+  line-height: 1.4;
+  pointer-events: none;
+  -webkit-app-region: no-drag;
+}
+
+.voice-tool-activity span {
+  background: linear-gradient(90deg, #8b8b87 25%, #d2d2cf 48%, #8b8b87 72%);
+  background-size: 220% 100%;
+  color: transparent;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: voice-tool-shimmer 1.45s linear infinite;
+  white-space: nowrap;
+}
+
+.voice-tool-activity span[data-status="done"] {
+  color: #9c9c98;
+  background: none;
+  animation: none;
+}
+
+.voice-tool-activity span[data-status="error"] {
+  color: #a75b54;
+  background: none;
+  animation: none;
+}
+
+@keyframes voice-tool-shimmer {
+  to { background-position: -220% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-tool-activity span { animation: none; color: #8b8b87; background: none; }
+}

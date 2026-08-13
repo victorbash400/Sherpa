@@ -28,6 +28,16 @@
   place-items: center;
 }
 
+.orb-stage[data-transcript-expanded="true"] {
+  transform: translateY(78px) scale(.78);
+  transition: transform 180ms ease;
+}
+
+.orb-stage[data-transcript-expanded="false"] {
+  transform: none;
+  transition: transform 180ms ease;
+}
+
 .voice-error {
   position: absolute;
   right: 18px;

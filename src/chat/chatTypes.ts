@@ -15,10 +15,17 @@ export type ChatMessage = {
   blocks: ChatBlock[];
 };
 
+export type VoiceTranscriptEntry = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
+
 export type SherpaChat = {
   id: string;
   title: string;
   messages: ChatMessage[];
+  transcript: VoiceTranscriptEntry[];
   createdAt: number;
   updatedAt: number;
 };

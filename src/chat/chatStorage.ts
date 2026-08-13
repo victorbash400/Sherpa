@@ -8,6 +8,7 @@ export function createSherpaChat(): SherpaChat {
     id: crypto.randomUUID(),
     title: "New chat",
     messages: [],
+    transcript: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -18,7 +19,9 @@ export function loadSherpaChats(): SherpaChat[] {
   if (!stored) return [];
   const parsed = JSON.parse(stored) as unknown;
   if (!Array.isArray(parsed)) throw new Error("The saved Sherpa chats are invalid.");
-  return (parsed as SherpaChat[]).sort((left, right) => right.updatedAt - left.updatedAt);
+  return (parsed as SherpaChat[])
+    .map((chat) => ({ ...chat, transcript: Array.isArray(chat.transcript) ? chat.transcript : [] }))
+    .sort((left, right) => right.updatedAt - left.updatedAt);
 }
 
 export function saveSherpaChats(chats: SherpaChat[]) {

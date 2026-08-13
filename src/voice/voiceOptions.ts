@@ -6,15 +6,15 @@ export type VoiceOption = {
 };
 
 export const voiceOptions: VoiceOption[] = [
-  { id: "Kore", name: "Kore", description: "Firm, feminine", hue: 0 },
-  { id: "Aoede", name: "Aoede", description: "Breezy, feminine", hue: 38 },
-  { id: "Leda", name: "Leda", description: "Youthful, feminine", hue: 75 },
-  { id: "Zephyr", name: "Zephyr", description: "Bright, feminine", hue: 128 },
-  { id: "Puck", name: "Puck", description: "Upbeat, masculine", hue: 178 },
-  { id: "Charon", name: "Charon", description: "Informative, masculine", hue: 220 },
-  { id: "Fenrir", name: "Fenrir", description: "Excitable, masculine", hue: 262 },
-  { id: "Orus", name: "Orus", description: "Firm, masculine", hue: 304 },
-  { id: "Sulafat", name: "Sulafat", description: "Warm, feminine", hue: 338 },
+  { id: "Kore", name: "Kore", description: "Firm", hue: 0 },
+  { id: "Aoede", name: "Aoede", description: "Breezy", hue: 38 },
+  { id: "Leda", name: "Leda", description: "Youthful", hue: 75 },
+  { id: "Zephyr", name: "Zephyr", description: "Bright", hue: 128 },
+  { id: "Puck", name: "Puck", description: "Upbeat", hue: 178 },
+  { id: "Charon", name: "Charon", description: "Informative", hue: 220 },
+  { id: "Fenrir", name: "Fenrir", description: "Excitable", hue: 262 },
+  { id: "Orus", name: "Orus", description: "Firm", hue: 304 },
+  { id: "Sulafat", name: "Sulafat", description: "Warm", hue: 338 },
 ];
 
 export function loadVoice(): VoiceOption {

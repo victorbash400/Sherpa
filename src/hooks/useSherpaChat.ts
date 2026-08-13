@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { applyChatEvent, finishReasoning } from "../chat/chatEvents";
 import { createSherpaChat, loadSherpaChats, saveSherpaChats } from "../chat/chatStorage";
 import { streamChat } from "../chat/chatStream";
-import type { ChatMessage, SherpaChat } from "../chat/chatTypes";
+import type { ChatMessage, SherpaChat, VoiceTranscriptEntry } from "../chat/chatTypes";
 
 export function useSherpaChat() {
   const [chats, setChats] = useState<SherpaChat[]>(() => {
@@ -24,6 +24,18 @@ export function useSherpaChat() {
       messages: update(chat.messages),
       updatedAt: Date.now(),
     } : chat));
+  }, []);
+
+  const appendTranscript = useCallback((chatId: string, role: VoiceTranscriptEntry["role"], text: string) => {
+    if (!text) return;
+    setChats((current) => current.map((chat) => {
+      if (chat.id !== chatId) return chat;
+      const latest = chat.transcript.at(-1);
+      const transcript = latest?.role === role
+        ? [...chat.transcript.slice(0, -1), { ...latest, text: mergeTranscript(latest.text, text) }]
+        : [...chat.transcript, { id: crypto.randomUUID(), role, text }];
+      return { ...chat, transcript, updatedAt: Date.now() };
+    }));
   }, []);
 
   const newChat = useCallback(() => {
@@ -86,5 +98,12 @@ export function useSherpaChat() {
     }
   }, [activeChat, streaming, updateMessages]);
 
-  return { activeChat, activeChatId, chats, deleteChat, error, newChat, selectChat, send, streaming };
+  return { activeChat, activeChatId, appendTranscript, chats, deleteChat, error, newChat, selectChat, send, streaming };
+}
+
+function mergeTranscript(current: string, incoming: string) {
+  if (current === incoming || current.endsWith(incoming)) return current;
+  if (incoming.startsWith(current)) return incoming;
+  const needsSpace = !current.endsWith(" ") && !incoming.startsWith(" ");
+  return `${current}${needsSpace ? " " : ""}${incoming}`;
 }

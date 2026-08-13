@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { VoiceTranscriptEntry } from "../chat/chatTypes";
 
 export type VoiceStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
+export type VoiceToolActivity = {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+  status: "running" | "done" | "error";
+};
 
 interface VoiceSessionOptions {
   microphoneMuted: boolean;
@@ -8,12 +15,14 @@ interface VoiceSessionOptions {
   speakerMuted: boolean;
   volume: number;
   voiceName: string;
+  onTranscript: (role: VoiceTranscriptEntry["role"], text: string) => void;
 }
 
-export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volume, voiceName }: VoiceSessionOptions) {
+export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, speakerMuted, volume, voiceName }: VoiceSessionOptions) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string>();
+  const [toolActivities, setToolActivities] = useState<VoiceToolActivity[]>([]);
   const socketRef = useRef<WebSocket | undefined>(undefined);
   const streamRef = useRef<MediaStream | undefined>(undefined);
   const contextRef = useRef<AudioContext | undefined>(undefined);
@@ -21,18 +30,47 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
   const gainRef = useRef<GainNode | undefined>(undefined);
   const sourcesRef = useRef(new Set<AudioBufferSourceNode>());
   const playheadRef = useRef(0);
+  const fadeTimerRef = useRef<number | undefined>(undefined);
+  const activityTimerRef = useRef<number | undefined>(undefined);
   const mutedRef = useRef(microphoneMuted);
 
   mutedRef.current = microphoneMuted;
 
   const clearPlayback = useCallback(() => {
+    if (fadeTimerRef.current !== undefined) window.clearTimeout(fadeTimerRef.current);
+    fadeTimerRef.current = undefined;
     for (const source of sourcesRef.current) source.stop();
     sourcesRef.current.clear();
     playheadRef.current = contextRef.current?.currentTime ?? 0;
     setAudioLevel(0);
   }, []);
 
+  const interruptPlayback = useCallback(() => {
+    const context = contextRef.current;
+    const gain = gainRef.current;
+    if (!context || !gain || !sourcesRef.current.size) {
+      clearPlayback();
+      return;
+    }
+    if (fadeTimerRef.current !== undefined) window.clearTimeout(fadeTimerRef.current);
+    const now = context.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.045);
+    fadeTimerRef.current = window.setTimeout(() => {
+      for (const source of sourcesRef.current) source.stop();
+      sourcesRef.current.clear();
+      playheadRef.current = context.currentTime;
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
+      fadeTimerRef.current = undefined;
+      setAudioLevel(0);
+    }, 45);
+  }, [clearPlayback, speakerMuted, volume]);
+
   const stop = useCallback(() => {
+    if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
+    activityTimerRef.current = undefined;
     socketRef.current?.close();
     socketRef.current = undefined;
     inputNodeRef.current?.disconnect();
@@ -45,12 +83,19 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
     gainRef.current = undefined;
     if (context && context.state !== "closed") void context.close();
     setStatus("idle");
+    setToolActivities([]);
   }, [clearPlayback]);
 
   const playAudio = useCallback((data: ArrayBuffer) => {
     const context = contextRef.current;
     const gain = gainRef.current;
     if (!context || !gain) return;
+    if (fadeTimerRef.current !== undefined) {
+      window.clearTimeout(fadeTimerRef.current);
+      fadeTimerRef.current = undefined;
+      gain.gain.cancelScheduledValues(context.currentTime);
+      gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
+    }
     const pcm = new Int16Array(data);
     const audioBuffer = context.createBuffer(1, pcm.length, 24000);
     const output = audioBuffer.getChannelData(0);
@@ -70,7 +115,7 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
     source.addEventListener("ended", () => sourcesRef.current.delete(source), { once: true });
     source.start(startsAt);
     setStatus("speaking");
-  }, []);
+  }, [speakerMuted, volume]);
 
   const start = useCallback(async () => {
     if (status !== "idle" && status !== "error") return;
@@ -125,16 +170,53 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
           playAudio(event.data);
           return;
         }
-        const message = JSON.parse(String(event.data)) as { type: string; error?: string };
+        const message = JSON.parse(String(event.data)) as {
+          type: string;
+          error?: string;
+          text?: string;
+          id?: string;
+          name?: string;
+          args?: Record<string, unknown>;
+          result?: { status?: string };
+        };
         if (message.type === "interrupted") {
-          clearPlayback();
+          interruptPlayback();
           setStatus("listening");
         } else if (message.type === "turn_complete") {
           setStatus("listening");
           setAudioLevel(0);
+          if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
+          activityTimerRef.current = window.setTimeout(() => {
+            setToolActivities([]);
+            activityTimerRef.current = undefined;
+          }, 1200);
         } else if (message.type === "error") {
           setError(message.error || "Sherpa voice failed.");
           setStatus("error");
+        } else if (message.type === "input_transcript") {
+          onTranscript("user", message.text || "");
+        } else if (message.type === "output_transcript") {
+          onTranscript("assistant", message.text || "");
+        } else if (message.type === "tool_call" && message.id && message.name) {
+          const toolId = message.id;
+          const toolName = message.name;
+          if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
+          activityTimerRef.current = undefined;
+          setToolActivities((current) => {
+            if (current.some((activity) => activity.id === toolId)) return current;
+            return [...current, {
+              id: toolId,
+              name: toolName,
+              args: message.args || {},
+              status: "running",
+            }];
+          });
+        } else if (message.type === "tool_response" && message.id) {
+          setToolActivities((current) => current.map((activity) =>
+            activity.id === message.id
+              ? { ...activity, status: message.result?.status === "failed" ? "error" : "done" }
+              : activity,
+          ));
         }
       });
       socket.addEventListener("close", () => {
@@ -146,7 +228,7 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
       setError(reason instanceof Error ? reason.message : "Sherpa voice failed.");
       setStatus("error");
     }
-  }, [clearPlayback, playAudio, sessionId, speakerMuted, status, stop, voiceName, volume]);
+  }, [clearPlayback, interruptPlayback, onTranscript, playAudio, sessionId, speakerMuted, status, stop, voiceName, volume]);
 
   useEffect(() => {
     if (gainRef.current) gainRef.current.gain.value = speakerMuted ? 0 : volume / 100;
@@ -154,5 +236,5 @@ export function useVoiceSession({ microphoneMuted, sessionId, speakerMuted, volu
 
   useEffect(() => stop, [stop]);
 
-  return { audioLevel, error, start, status, stop };
+  return { audioLevel, error, start, status, stop, toolActivities };
 }

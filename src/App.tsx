@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { AudioControls } from "./components/AudioControls";
 import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
@@ -11,6 +11,8 @@ import { Orb } from "./components/Orb";
 import { RefreshButton } from "./components/RefreshButton";
 import { VoiceSessionButton } from "./components/VoiceSessionButton";
 import { VoicePicker } from "./components/VoicePicker";
+import { VoiceTranscript } from "./components/VoiceTranscript";
+import { VoiceToolActivity } from "./components/VoiceToolActivity";
 import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
@@ -21,9 +23,14 @@ export function App() {
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [volume, setVolume] = useState(70);
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const chat = useSherpaChat();
+  const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
+    chat.appendTranscript(chat.activeChatId, role, text);
+  }, [chat.activeChatId, chat.appendTranscript]);
   const voice = useVoiceSession({
     microphoneMuted,
+    onTranscript: appendVoiceTranscript,
     sessionId: chat.activeChatId,
     speakerMuted,
     volume,
@@ -58,13 +65,15 @@ export function App() {
       />
       {view === "voice" ? (
         <>
-          <section className="orb-stage" aria-label="Sherpa is listening">
+          <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} onExpandedChange={setTranscriptExpanded} />
+          <section className="orb-stage" data-transcript-expanded={transcriptExpanded} aria-label="Sherpa is listening">
             <Orb
               mode={voice.status === "speaking" ? "speaking" : voice.status === "listening" ? "listening" : "idle"}
               audioLevel={voice.audioLevel}
               hue={selectedVoice.hue}
             />
             <VoiceSessionButton hue={selectedVoice.hue} onStart={() => void voice.start()} onStop={voice.stop} status={voice.status} />
+            <VoiceToolActivity activities={voice.toolActivities} />
           </section>
           {voice.error ? <p className="voice-error" role="alert">{voice.error}</p> : null}
           <AudioControls

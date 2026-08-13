@@ -1,0 +1,59 @@
+.voice-transcript {
+  position: absolute;
+  top: calc(50% - 178px);
+  left: 50%;
+  z-index: 3;
+  display: grid;
+  width: min(310px, calc(100% - 190px));
+  height: 58px;
+  padding: 9px 34px 9px 12px;
+  box-sizing: border-box;
+  color: #555552;
+  background: rgb(255 255 255 / 78%);
+  border: 1px solid #ececea;
+  border-radius: 12px;
+  transform: translateX(-50%);
+  transition: width 180ms ease, height 180ms ease, top 180ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.voice-transcript[data-expanded="true"] {
+  top: 58px;
+  width: min(470px, calc(100% - 170px));
+  height: 150px;
+}
+
+.voice-transcript__content {
+  min-height: 0;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.voice-transcript__content::-webkit-scrollbar { display: none; }
+.voice-transcript p { margin: 0 0 5px; }
+.voice-transcript p[data-role="user"] { color: #777773; }
+.voice-transcript p[data-role="assistant"] { color: #292927; }
+.voice-transcript > button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  place-items: center;
+  color: #858581;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.voice-transcript > button:hover { color: #292927; background: #f1f1ef; }
+.voice-transcript > button svg { width: 14px; height: 14px; stroke-width: 1.7; }
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-transcript { transition: none; }
+}
