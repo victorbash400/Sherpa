@@ -176,8 +176,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
             )
         ),
-        thinking_config=types.ThinkingConfig(thinking_budget=0),
-        enable_affective_dialog=True,
+        thinking_config=types.ThinkingConfig(thinking_level="minimal"),
         system_instruction=VOICE_INSTRUCTION,
         tools=VOICE_TOOLS,
     )
@@ -188,7 +187,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
 
     async with client.aio.live.connect(model=VOICE_MODEL, config=config) as live:
         await websocket.send_json({"type": "ready"})
-        logger.info("session.ready session=%s model=%s tools=3", session_id, VOICE_MODEL)
+        logger.info("session.ready session=%s model=%s tools=1", session_id, VOICE_MODEL)
         pending_calls: dict[str, dict[str, str]] = {}
 
         async def receive_audio() -> None:
@@ -224,13 +223,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             call_id: str,
             name: str,
             response: dict,
-            scheduling: types.FunctionResponseScheduling | None = None,
         ) -> None:
             await live.send_tool_response(function_responses=[types.FunctionResponse(
                 id=call_id,
                 name=name,
                 response=response,
-                scheduling=scheduling,
             )])
 
         async def handle_function_call(call: types.FunctionCall) -> None:
@@ -245,7 +242,6 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 if not instruction:
                     await send_function_response(
                         call_id, call.name, {"error": "instruction is required"},
-                        types.FunctionResponseScheduling.WHEN_IDLE,
                     )
                     return
                 task = sherpa_tasks.start(session_id, instruction)
@@ -254,26 +250,16 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     "name": call.name,
                     "instruction": instruction,
                 }
+                await websocket.send_json({
+                    "type": "task_started",
+                    "task_id": task.id,
+                    "instruction": instruction,
+                })
                 logger.info("task.delegated session=%s task=%s call=%s", session_id, task.id, call_id)
                 return
-            task_id = str(args.get("task_id", ""))
-            task = sherpa_tasks.get(task_id)
-            if call.name == "get_task_status":
-                result = (
-                    {"task_id": task.id, "status": task.status, "summary": task.summary}
-                    if task else {"task_id": task_id, "status": "not_found"}
-                )
-                await send_function_response(call_id, call.name, result)
-            elif call.name == "cancel_task":
-                cancelled = sherpa_tasks.cancel(task_id)
-                await send_function_response(call_id, call.name, {
-                    "task_id": task_id,
-                    "status": "cancelled" if cancelled else "not_running",
-                })
-            else:
-                await send_function_response(call_id, call.name or "unknown", {
-                    "error": "Unknown voice tool",
-                })
+            await send_function_response(call_id, call.name or "unknown", {
+                "error": "Unknown voice tool",
+            })
 
         async def send_events() -> None:
             try:
@@ -334,6 +320,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     await websocket.send_json(event)
                 if event["type"] not in terminal_events:
                     continue
+                await websocket.send_json(event)
                 pending = pending_calls.pop(task_id, None)
                 if not pending:
                     continue
@@ -346,10 +333,9 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                         "status": event["type"].removeprefix("task_"),
                         "result": event.get("message", ""),
                     },
-                    types.FunctionResponseScheduling.WHEN_IDLE,
                 )
                 logger.info(
-                    "task.result_sent session=%s task=%s call=%s scheduling=WHEN_IDLE",
+                    "task.result_sent session=%s task=%s call=%s mode=BLOCKING",
                     session_id, task_id, pending["call_id"],
                 )
 
