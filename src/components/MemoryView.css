@@ -1,0 +1,19 @@
+.memory-view {
+  position: absolute;
+  inset: 42px 48px 28px 74px;
+  color: #292927;
+  -webkit-app-region: no-drag;
+}
+
+.memory-view h1 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 620;
+  letter-spacing: -.025em;
+}
+
+.memory-view p {
+  margin: 38px 0 0;
+  color: #999995;
+  font-size: 12px;
+}

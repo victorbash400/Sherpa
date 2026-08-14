@@ -1,0 +1,25 @@
+.task-item {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #efefed;
+}
+
+.task-item > span {
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  background: #b8b8b4;
+  border-radius: 50%;
+}
+
+.task-item > span[data-status="running"] {
+  background: #767672;
+  box-shadow: 0 0 0 4px #eeeeeb;
+}
+
+.task-item > span[data-status="failed"] { background: #a24c43; }
+.task-item > span[data-status="cancelled"] { background: #c2c2be; }
+.task-item strong { display: block; color: #292927; font-size: 13px; font-weight: 540; line-height: 1.35; }
+.task-item p { margin: 5px 0 0; color: #898985; font-size: 11px; line-height: 1.4; }

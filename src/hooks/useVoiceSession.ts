@@ -8,6 +8,12 @@ export type VoiceToolActivity = {
   args: Record<string, unknown>;
   status: "running" | "done" | "error";
 };
+export type VoiceTask = {
+  id: string;
+  instruction: string;
+  status: "running" | "completed" | "failed" | "cancelled";
+  result?: string;
+};
 
 interface VoiceSessionOptions {
   microphoneMuted: boolean;
@@ -23,6 +29,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string>();
   const [toolActivities, setToolActivities] = useState<VoiceToolActivity[]>([]);
+  const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const socketRef = useRef<WebSocket | undefined>(undefined);
   const streamRef = useRef<MediaStream | undefined>(undefined);
   const contextRef = useRef<AudioContext | undefined>(undefined);
@@ -178,6 +185,9 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           name?: string;
           args?: Record<string, unknown>;
           result?: { status?: string };
+          task_id?: string;
+          instruction?: string;
+          message?: string;
         };
         if (message.type === "interrupted") {
           interruptPlayback();
@@ -217,6 +227,19 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
               ? { ...activity, status: message.result?.status === "failed" ? "error" : "done" }
               : activity,
           ));
+        } else if (message.type === "task_started" && message.task_id && message.instruction) {
+          setTasks((current) => [
+            { id: message.task_id!, instruction: message.instruction!, status: "running" },
+            ...current.filter((task) => task.id !== message.task_id),
+          ]);
+        } else if (
+          (message.type === "task_completed" || message.type === "task_failed" || message.type === "task_cancelled")
+          && message.task_id
+        ) {
+          const taskStatus = message.type.replace("task_", "") as VoiceTask["status"];
+          setTasks((current) => current.map((task) => task.id === message.task_id
+            ? { ...task, status: taskStatus, result: message.message }
+            : task));
         }
       });
       socket.addEventListener("close", () => {
@@ -236,5 +259,5 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
 
   useEffect(() => stop, [stop]);
 
-  return { audioLevel, error, start, status, stop, toolActivities };
+  return { audioLevel, error, start, status, stop, tasks, toolActivities };
 }

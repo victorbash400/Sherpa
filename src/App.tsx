@@ -4,11 +4,13 @@ import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
 import { ChatHistoryDrawer } from "./components/ChatHistoryDrawer";
 import { ControlRail } from "./components/ControlRail";
+import { MemoryView } from "./components/MemoryView";
 import { useSherpaChat } from "./hooks/useSherpaChat";
 import { useVoiceSession } from "./hooks/useVoiceSession";
 import { useVoicePreview } from "./hooks/useVoicePreview";
 import { Orb } from "./components/Orb";
 import { RefreshButton } from "./components/RefreshButton";
+import { TasksView } from "./components/TasksView";
 import { VoiceSessionButton } from "./components/VoiceSessionButton";
 import { VoicePicker } from "./components/VoicePicker";
 import { VoiceTranscript } from "./components/VoiceTranscript";
@@ -17,7 +19,7 @@ import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
 export function App() {
-  const [view, setView] = useState<"voice" | "chat" | "voices">("voice");
+  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
@@ -56,6 +58,8 @@ export function App() {
     <main className="shell">
       <ControlRail
         activeView={view}
+        onOpenMemory={() => setView("memory")}
+        onOpenTasks={() => setView("tasks")}
         onOpenVoices={() => {
           voice.stop();
           setView("voices");
@@ -92,7 +96,7 @@ export function App() {
           onSend={(content) => void chat.send(content)}
           streaming={chat.streaming}
         />
-      ) : (
+      ) : view === "voices" ? (
         <VoicePicker
           error={voicePreview.error}
           onBack={() => {
@@ -104,6 +108,10 @@ export function App() {
           previewing={voicePreview.playing}
           selected={selectedVoice}
         />
+      ) : view === "tasks" ? (
+        <TasksView tasks={voice.tasks} />
+      ) : (
+        <MemoryView />
       )}
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
       <RefreshButton />
