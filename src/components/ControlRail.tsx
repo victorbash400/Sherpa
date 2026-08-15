@@ -78,7 +78,7 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           <img alt="" aria-hidden="true" src="/accessibility-svgrepo-com.svg" />
           <span>Accessibility</span>
         </button>
-        <CursorDock active={computerActive} />
+        {computerActive ? <CursorDock /> : null}
       </div>
     </nav>
   );

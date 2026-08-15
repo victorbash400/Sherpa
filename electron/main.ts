@@ -13,7 +13,6 @@ let overlayWindow: BrowserWindow | undefined;
 let overlayReady = false;
 let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
-let dockTimer: NodeJS.Timeout | undefined;
 const previewProcesses = new Map<string, ChildProcessWithoutNullStreams>();
 
 type OverlayPayload = {
@@ -143,14 +142,6 @@ function overlayPoint(args: Record<string, unknown>) {
   return lastOverlayPoint;
 }
 
-function dockPoint() {
-  const windowBounds = mainWindow?.getBounds();
-  const bounds = desktopBounds();
-  return windowBounds
-    ? { x: windowBounds.x + 21, y: windowBounds.y + 274 }
-    : { x: bounds.x + 40, y: bounds.y + 120 };
-}
-
 function configureOverlayEvents() {
   const showOverlay = (payload: OverlayPayload) => {
     const target = overlayWindow;
@@ -158,10 +149,7 @@ function configureOverlayEvents() {
       pendingOverlay = payload;
       return;
     }
-    if (dockTimer) clearTimeout(dockTimer);
-    dockTimer = undefined;
     if (!target.isVisible()) {
-      lastOverlayPoint = dockPoint();
       target.showInactive();
     }
     const bounds = target.getBounds();
@@ -179,18 +167,12 @@ function configureOverlayEvents() {
       vertical: y > bounds.height - 110 ? "up" : "down",
     });
   };
-  const dockOverlay = () => {
-    const point = dockPoint();
-    showOverlay({
-      id: "sherpa-docked",
-      action: "docked",
-      message: "",
-      args: { overlay_x: point.x, overlay_y: point.y },
-    });
-    dockTimer = setTimeout(() => {
-      overlayWindow?.hide();
-      dockTimer = undefined;
-    }, 720);
+  const hideOverlay = (id: string) => {
+    pendingOverlay = undefined;
+    const target = overlayWindow;
+    if (!target || target.isDestroyed() || !overlayReady) return;
+    target.webContents.send("overlay:hide", id);
+    target.hide();
   };
 
   ipcMain.on("overlay:ready", (event) => {
@@ -204,11 +186,6 @@ function configureOverlayEvents() {
       overlayWindow.hide();
     }
   });
-  ipcMain.on("overlay:dock", (event) => {
-    if (event.sender !== mainWindow?.webContents) return;
-    pendingOverlay = undefined;
-    dockOverlay();
-  });
   ipcMain.on("overlay:show", (event, payload: OverlayPayload) => {
     if (event.sender !== mainWindow?.webContents) return;
     showOverlay(payload);
@@ -216,8 +193,7 @@ function configureOverlayEvents() {
   ipcMain.on("overlay:hide", (event, id: string) => {
     if (event.sender !== mainWindow?.webContents) return;
     if (pendingOverlay?.id === id) pendingOverlay = undefined;
-    if (!overlayReady) return;
-    dockOverlay();
+    hideOverlay(id);
   });
 }
 

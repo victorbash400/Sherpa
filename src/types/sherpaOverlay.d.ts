@@ -41,7 +41,6 @@ declare global {
   interface Window {
     sherpaOverlay?: {
       ready: () => void;
-      dock: () => void;
       show: (payload: OverlayAction) => void;
       hide: (id: string) => void;
       onUpdate: (callback: (payload: OverlayUpdate) => void) => () => void;

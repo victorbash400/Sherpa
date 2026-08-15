@@ -81,6 +81,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
   const speechActiveRef = useRef(false);
   const turnCompleteRef = useRef(true);
   const mutedRef = useRef(microphoneMuted);
+  const runningTaskIdsRef = useRef(new Set<string>());
 
   mutedRef.current = microphoneMuted;
 
@@ -130,8 +131,10 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
     turnCompleteRef.current = true;
     readySoundRef.current?.pause();
     readySoundRef.current = undefined;
-    window.sherpaOverlay?.dock();
-    setComputerActive(false);
+    if (!runningTaskIdsRef.current.size) {
+      window.sherpaOverlay?.hide("voice-session");
+      setComputerActive(false);
+    }
     socketRef.current?.close();
     socketRef.current = undefined;
     inputNodeRef.current?.disconnect();
@@ -363,6 +366,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
               : activity,
           ));
         } else if (message.type === "task_started" && message.task_id && message.instruction) {
+          runningTaskIdsRef.current.add(message.task_id);
           setTasks((current) => [
             taskFromMessage(message, sessionId),
             ...current.filter((task) => task.id !== message.task_id),
@@ -394,8 +398,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           (message.type === "task_completed" || message.type === "task_failed" || message.type === "task_cancelled")
           && message.task_id
         ) {
-          window.sherpaOverlay?.dock();
-          setComputerActive(false);
+          runningTaskIdsRef.current.delete(message.task_id);
+          if (!runningTaskIdsRef.current.size) {
+            window.sherpaOverlay?.hide(message.task_id);
+            setComputerActive(false);
+          }
           const taskStatus = message.type.replace("task_", "") as VoiceTask["status"];
           setTasks((current) => current.map((task) => task.id === message.task_id
             ? {

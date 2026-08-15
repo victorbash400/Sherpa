@@ -2,7 +2,6 @@ const { contextBridge, ipcRenderer } = require("electron") as typeof import("ele
 
 contextBridge.exposeInMainWorld("sherpaOverlay", {
   ready: () => ipcRenderer.send("overlay:ready"),
-  dock: () => ipcRenderer.send("overlay:dock"),
   show: (payload: unknown) => ipcRenderer.send("overlay:show", payload),
   hide: (id: string) => ipcRenderer.send("overlay:hide", id),
   onUpdate: (callback: (payload: unknown) => void) => {

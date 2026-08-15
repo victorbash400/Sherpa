@@ -22,5 +22,3 @@
   opacity: 0.72;
   transition: opacity 120ms ease;
 }
-
-.control-rail .cursor-dock[data-active="true"] img { opacity: 0; }
