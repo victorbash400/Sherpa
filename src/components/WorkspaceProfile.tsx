@@ -34,7 +34,7 @@ export function WorkspaceProfile({ account, showEmail, onEmailVisibilityChange, 
               onClick={() => onEmailVisibilityChange(!showEmail)}
               aria-label={showEmail ? "Hide email address" : "Show email address"}
             >
-              {showEmail ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+              {showEmail ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
             </button>
           </span>
         ) : (
