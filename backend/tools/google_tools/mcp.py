@@ -1,8 +1,8 @@
-import asyncio
 import os
 import logging
-from contextlib import suppress
-from collections.abc import AsyncIterator, Iterable
+from contextlib import contextmanager, suppress
+from contextvars import ContextVar
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from google.adk.agents.readonly_context import ReadonlyContext
@@ -12,10 +12,15 @@ from google.adk.tools.mcp_tool import McpToolset, StreamableHTTPConnectionParams
 
 from backend.google_auth import GoogleConnection, google_auth
 from backend.permission_store import permission_store
-from backend.tools.tool_scope import capability_enabled, run_with_tool_scope
 
 
 logger = logging.getLogger("sherpa.google_tools")
+_active_permissions: ContextVar[frozenset[str] | None] = ContextVar(
+    "sherpa_google_tool_permissions",
+    default=None,
+)
+
+
 class ConnectedGoogleMcpToolset(BaseToolset):
     """Expose a Google remote MCP server only after its user connection exists."""
 
@@ -36,14 +41,14 @@ class ConnectedGoogleMcpToolset(BaseToolset):
         self._delegate: McpToolset | None = None
         self._tools: list[BaseTool] | None = None
         self._failed_token: str | None = None
-        self._catalog_lock = asyncio.Lock()
 
     async def get_tools(
         self,
         readonly_context: ReadonlyContext | None = None,
     ) -> list[BaseTool]:
         del readonly_context
-        if not capability_enabled(self.permission_id):
+        active_permissions = _active_permissions.get()
+        if active_permissions is not None and self.permission_id not in active_permissions:
             return []
         if not permission_store.enabled(self.permission_id):
             return []
@@ -52,43 +57,42 @@ class ConnectedGoogleMcpToolset(BaseToolset):
             return []
         if token == self._failed_token:
             return []
-        async with self._catalog_lock:
-            if token != self._token or not self._delegate:
-                if self._delegate:
-                    await self._delegate.close()
-                self._delegate = McpToolset(
-                    connection_params=StreamableHTTPConnectionParams(
-                        url=self.endpoint,
-                        headers={
-                            "Authorization": f"Bearer {token}",
-                            "x-goog-user-project": os.getenv(
-                                "GOOGLE_CLOUD_PROJECT",
-                                "sherpa-20260813",
-                            ),
-                        },
-                        timeout=15,
-                    ),
-                    tool_name_prefix=self.prefix,
-                )
-                self._token = token
-                self._tools = None
-                self._failed_token = None
-            if self._tools is not None:
-                return self._tools
-            try:
-                self._tools = await self._delegate.get_tools_with_prefix()
-            except Exception as error:
-                self._failed_token = token
-                with suppress(Exception):
-                    await self._delegate.close()
-                self._delegate = None
-                logger.warning(
-                    "toolset.unavailable permission=%s error=%s",
-                    self.permission_id,
-                    error,
-                )
-                return []
+        if token != self._token or not self._delegate:
+            if self._delegate:
+                await self._delegate.close()
+            self._delegate = McpToolset(
+                connection_params=StreamableHTTPConnectionParams(
+                    url=self.endpoint,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "x-goog-user-project": os.getenv(
+                            "GOOGLE_CLOUD_PROJECT",
+                            "sherpa-20260813",
+                        ),
+                    },
+                    timeout=15,
+                ),
+                tool_name_prefix=self.prefix,
+            )
+            self._token = token
+            self._tools = None
+            self._failed_token = None
+        if self._tools is not None:
             return self._tools
+        try:
+            self._tools = await self._delegate.get_tools_with_prefix()
+        except Exception as error:
+            self._failed_token = token
+            with suppress(Exception):
+                await self._delegate.close()
+            self._delegate = None
+            logger.warning(
+                "toolset.unavailable permission=%s error=%s",
+                self.permission_id,
+                error,
+            )
+            return []
+        return self._tools
 
     async def close(self) -> None:
         if self._delegate:
@@ -99,19 +103,23 @@ class ConnectedGoogleMcpToolset(BaseToolset):
         self._failed_token = None
 
 
+@contextmanager
+def google_tool_scope(instruction: str) -> Iterator[None]:
+    token = _active_permissions.set(infer_google_permissions(instruction))
+    try:
+        yield
+    finally:
+        _active_permissions.reset(token)
+
+
 async def run_with_google_tool_scope(
     runner: Any,
     instruction: str,
-    capabilities: Iterable[str] | None = None,
     **run_arguments: Any,
 ) -> AsyncIterator[Any]:
-    active = set(capabilities) if capabilities is not None else {
-        "computer",
-        "browser",
-        *infer_google_permissions(instruction),
-    }
-    async for event in run_with_tool_scope(runner, active, **run_arguments):
-        yield event
+    with google_tool_scope(instruction):
+        async for event in runner.run_async(**run_arguments):
+            yield event
 
 
 def infer_google_permissions(instruction: str) -> frozenset[str]:

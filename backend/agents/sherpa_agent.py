@@ -10,11 +10,10 @@ from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import ask_task_question, complete_task, update_task_board
 from backend.tools.google_tools import create_google_toolsets
-from backend.tools.tool_scope import ScopedToolset
 
 SHERPA_MODEL = "gemini-3.7-flash"
-sherpa_computer_tools = ScopedToolset(create_peekaboo_toolset(), "computer")
-sherpa_browser_tools = ScopedToolset(create_playwright_toolset(), "browser")
+sherpa_computer_tools = create_peekaboo_toolset()
+sherpa_browser_tools = create_playwright_toolset()
 sherpa_google_tools = create_google_toolsets()
 
 sherpa_agent = Agent(
