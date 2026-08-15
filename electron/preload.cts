@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld("sherpaSystem", {
 contextBridge.exposeInMainWorld("sherpaPreview", {
   start: (taskId: string, target: unknown) => ipcRenderer.invoke("preview:start", taskId, target),
   stop: (taskId: string) => ipcRenderer.send("preview:stop", taskId),
+  stopAll: () => ipcRenderer.send("preview:stop-all"),
   onFrame: (callback: (taskId: string, frame: Uint8Array) => void) => {
     const listener = (_: Electron.IpcRendererEvent, taskId: string, frame: Uint8Array) => callback(taskId, frame);
     ipcRenderer.on("preview:frame", listener);

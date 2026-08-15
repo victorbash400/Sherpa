@@ -1,0 +1,4 @@
+interface:
+  display_name: "Google Workspace"
+  short_description: "Use Google services through authenticated APIs"
+  default_prompt: "Use $google-workspace to work with Gmail, Drive, Docs, Sheets, Slides, Calendar, or Contacts."

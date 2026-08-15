@@ -3,7 +3,7 @@ import { CursorDock } from "./CursorDock";
 import "./ControlRail.css";
 
 interface ControlRailProps {
-  activeView: "voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "workspace" | "accessibility";
+  activeView: "voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility";
   computerActive: boolean;
   expanded: boolean;
   onOpenVoice: () => void;
@@ -11,11 +11,12 @@ interface ControlRailProps {
   onOpenTasks: () => void;
   onOpenVoices: () => void;
   onOpenPlugins: () => void;
+  onOpenSkills: () => void;
   onOpenWorkspace: () => void;
   onOpenAccessibility: () => void;
 }
 
-export function ControlRail({ activeView, computerActive, expanded, onOpenAccessibility, onOpenMemory, onOpenPlugins, onOpenTasks, onOpenVoice, onOpenVoices, onOpenWorkspace }: ControlRailProps) {
+export function ControlRail({ activeView, computerActive, expanded, onOpenAccessibility, onOpenMemory, onOpenPlugins, onOpenSkills, onOpenTasks, onOpenVoice, onOpenVoices, onOpenWorkspace }: ControlRailProps) {
   return (
     <nav className="control-rail" data-expanded={expanded} aria-label="Sherpa controls">
       <span className="control-rail__title">Sherpa</span>
@@ -43,6 +44,10 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
         <button type="button" aria-label="Plugins" aria-pressed={activeView === "plugins"} title="Plugins" onClick={onOpenPlugins}>
           <img alt="" aria-hidden="true" src="/plugin-svgrepo-com (2).svg" />
           <span>Plugins</span>
+        </button>
+        <button type="button" aria-label="Skills" aria-pressed={activeView === "skills"} title="Skills" onClick={onOpenSkills}>
+          <img alt="" aria-hidden="true" src="/scroll-svgrepo-com (2).svg" />
+          <span>Skills</span>
         </button>
         <button type="button" aria-label="Google Workspace" aria-pressed={activeView === "workspace"} title="Google Workspace" onClick={onOpenWorkspace}>
           <img alt="" aria-hidden="true" src="/gnome-panel-workspace-switcher-svgrepo-com.svg" />

@@ -124,11 +124,13 @@ struct WindowCapture {
                 sampleHandlerQueue: DispatchQueue(label: "sherpa.window.capture")
             )
             try await stream.startCapture()
-            Task.detached {
+            await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .utility).async {
                 _ = FileHandle.standardInput.readDataToEndOfFile()
-                exit(EXIT_SUCCESS)
+                    continuation.resume()
+                }
             }
-            await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
+            try await stream.stopCapture()
         } catch {
             FileHandle.standardError.write(Data("\(error)\n".utf8))
             exit(EXIT_FAILURE)

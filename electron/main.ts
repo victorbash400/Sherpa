@@ -48,9 +48,12 @@ function createWindow() {
   });
   mainWindow = window;
   window.on("closed", () => {
+    stopAllPreviews();
     mainWindow = undefined;
     if (process.platform !== "darwin") app.quit();
   });
+  window.webContents.on("render-process-gone", stopAllPreviews);
+  window.webContents.on("will-navigate", stopAllPreviews);
 
   if (!app.isPackaged) {
     void window.loadURL("http://localhost:5173");
@@ -253,6 +256,9 @@ function configurePreviewEvents() {
   ipcMain.on("preview:stop", (event, taskId: string) => {
     if (event.sender === mainWindow?.webContents) stopPreview(taskId);
   });
+  ipcMain.on("preview:stop-all", (event) => {
+    if (event.sender === mainWindow?.webContents) stopAllPreviews();
+  });
 }
 
 function validPreviewTarget(target: PreviewTarget) {
@@ -273,7 +279,10 @@ function stopPreview(taskId: string) {
   if (!child) return;
   previewProcesses.delete(taskId);
   child.stdin.end();
-  child.kill("SIGTERM");
+}
+
+function stopAllPreviews() {
+  for (const taskId of [...previewProcesses.keys()]) stopPreview(taskId);
 }
 
 app.whenReady().then(() => {
@@ -301,8 +310,10 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  for (const taskId of previewProcesses.keys()) stopPreview(taskId);
+  stopAllPreviews();
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
+
+app.on("before-quit", stopAllPreviews);

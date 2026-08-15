@@ -20,12 +20,14 @@ import { VoiceTranscript } from "./components/VoiceTranscript";
 import { VoiceToolActivity } from "./components/VoiceToolActivity";
 import { WorkspaceView } from "./components/WorkspaceView";
 import { SidebarToggle } from "./components/SidebarToggle";
+import { SkillsView } from "./components/SkillsView";
 import { useConnectionSections } from "./hooks/useConnectionSections";
+import { useSkills } from "./hooks/useSkills";
 import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
 export function App() {
-  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "workspace" | "accessibility">("voice");
+  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
@@ -37,6 +39,7 @@ export function App() {
   const hadActiveTasksRef = useRef(false);
   const chat = useSherpaChat();
   const connections = useConnectionSections();
+  const skills = useSkills(view === "skills");
   const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
     chat.appendTranscript(chat.activeChatId, role, text);
   }, [chat.activeChatId, chat.appendTranscript]);
@@ -96,6 +99,7 @@ export function App() {
         onOpenAccessibility={() => setView("accessibility")}
         onOpenMemory={() => setView("memory")}
         onOpenPlugins={() => setView("plugins")}
+        onOpenSkills={() => setView("skills")}
         onOpenWorkspace={() => setView("workspace")}
         onOpenVoice={() => {
           voicePreview.stop();
@@ -180,6 +184,9 @@ export function App() {
           onError={(message) => connections.setError(message || undefined)}
           onPermissionChange={(id, enabled) => void connections.setPermission(id, enabled)}
         />
+      </div>
+      <div hidden={view !== "skills"}>
+        <SkillsView error={skills.error} skills={skills.skills} />
       </div>
       <div hidden={view !== "accessibility"}>
         <AccessibilityView />

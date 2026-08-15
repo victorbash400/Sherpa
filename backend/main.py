@@ -47,6 +47,7 @@ from backend.connections import connection_snapshot
 from backend.google_auth import GoogleConnection, google_auth
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
+from backend.skill_store import skill_store
 
 voice_api_key = load_gemini_api_key()
 if voice_api_key:
@@ -258,6 +259,11 @@ def update_permission(permission_id: str, body: PermissionRequest) -> dict[str, 
 @app.get("/memory")
 def memory() -> dict[str, object]:
     return memory_store.snapshot()
+
+
+@app.get("/skills")
+def skills() -> dict[str, object]:
+    return {"skills": [skill.snapshot() for skill in skill_store.all()]}
 
 
 @app.put("/memory/settings")

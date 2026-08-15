@@ -123,6 +123,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
   }, [clearPlayback, speakerMuted, volume]);
 
   const stop = useCallback(() => {
+    window.sherpaPreview?.stopAll();
     if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
     activityTimerRef.current = undefined;
     if (speechEndTimerRef.current !== undefined) window.clearTimeout(speechEndTimerRef.current);
@@ -472,6 +473,12 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
       });
     return () => controller.abort();
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!tasks.some((task) => task.chatId === sessionId && task.status === "running")) {
+      window.sherpaPreview?.stopAll();
+    }
+  }, [sessionId, tasks]);
 
   useEffect(() => stop, [stop]);
 

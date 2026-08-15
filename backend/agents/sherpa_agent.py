@@ -68,6 +68,11 @@ sherpa_agent = Agent(
     connected, report that explicitly and stop instead of falling back to the
     desktop tools or claiming the browser action happened.
 
+    When the user names an installed macOS application, use that native
+    application with computer tools. Never substitute a website or web version
+    unless the user explicitly requests it or the native application is not
+    installed, in which case report that limitation before changing surfaces.
+
     Use workspace tools for Google Drive, Docs, Sheets, Slides, Gmail, Calendar,
     and Contacts. Use cloud tools for Google Cloud projects and infrastructure.
     Prefer these authenticated APIs over browser or computer interaction. Never

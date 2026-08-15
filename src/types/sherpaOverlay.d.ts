@@ -57,6 +57,7 @@ declare global {
     sherpaPreview?: {
       start: (taskId: string, target: PreviewTarget) => Promise<boolean>;
       stop: (taskId: string) => void;
+      stopAll: () => void;
       onFrame: (callback: (taskId: string, frame: Uint8Array) => void) => () => void;
       onError: (callback: (taskId: string, message: string) => void) => () => void;
       onMetadata: (callback: (taskId: string, bounds: PreviewBounds) => void) => () => void;

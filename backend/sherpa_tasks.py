@@ -19,6 +19,7 @@ from backend.agents.task_planner import TaskPlan, task_planner_app
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
+from backend.skill_store import skill_store
 from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
 from backend.tools.google_tools import run_with_google_tool_scope
 
@@ -497,10 +498,12 @@ class SherpaTaskManager:
                     session_id=worker_session_id,
                 )
             memory_context = memory_store.context_for("sherpa") if not resume else ""
-            worker_prompt = (
-                f"{memory_context}\n\nAssigned task:\n{instruction}"
-                if memory_context else instruction
-            )
+            skill_context = skill_store.context_for(f"{task.request}\n{instruction}")
+            worker_prompt = "\n\n".join(part for part in (
+                memory_context,
+                skill_context,
+                f"Assigned task:\n{instruction}",
+            ) if part)
             message = types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=worker_prompt)],

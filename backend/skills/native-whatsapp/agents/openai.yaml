@@ -1,0 +1,4 @@
+interface:
+  display_name: "Native WhatsApp"
+  short_description: "Operate the installed WhatsApp Mac app"
+  default_prompt: "Use $native-whatsapp to send a WhatsApp message in the installed Mac app."
