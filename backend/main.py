@@ -215,6 +215,40 @@ async def google_workspace_avatar() -> Response:
     )
 
 
+@app.get("/workspace/previews/{file_id}")
+async def google_workspace_preview(file_id: str) -> Response:
+    from backend.tools.google_tools.workspace import google_resource_id
+
+    try:
+        resource_id = google_resource_id(file_id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    token = await google_auth.access_token("workspace")
+    if not token:
+        raise HTTPException(status_code=401, detail="Google Workspace is not connected.")
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        metadata = await client.get(
+            f"https://www.googleapis.com/drive/v3/files/{resource_id}",
+            headers=headers,
+            params={"fields": "thumbnailLink"},
+        )
+        if metadata.is_error:
+            raise HTTPException(status_code=metadata.status_code, detail="Google Drive preview metadata is unavailable.")
+        thumbnail_link = metadata.json().get("thumbnailLink")
+        if not thumbnail_link:
+            raise HTTPException(status_code=404, detail="This Drive file does not provide a rendered preview.")
+        thumbnail = await client.get(thumbnail_link, headers=headers)
+    content_type = thumbnail.headers.get("content-type", "")
+    if thumbnail.is_error or not content_type.startswith("image/"):
+        raise HTTPException(status_code=502, detail="Google Drive returned an invalid preview image.")
+    return Response(
+        content=thumbnail.content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, no-store"},
+    )
+
+
 @app.put("/permissions/{permission_id:path}")
 def update_permission(permission_id: str, body: PermissionRequest) -> dict[str, object]:
     permission_store.set(permission_id, body.enabled)

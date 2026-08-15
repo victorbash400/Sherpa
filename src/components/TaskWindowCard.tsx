@@ -11,7 +11,7 @@ type TaskWindowCardProps = {
 };
 
 export function TaskWindowCard({ active, expanded, onExpand, task }: TaskWindowCardProps) {
-  const label = task.previewTarget?.window_title || task.previewTarget?.app || "Task window";
+  const label = task.previewTarget?.title || task.previewTarget?.window_title || task.previewTarget?.app || "Task window";
 
   return (
     <article className="task-window-card" data-active={active} data-expanded={expanded} aria-label={label}>

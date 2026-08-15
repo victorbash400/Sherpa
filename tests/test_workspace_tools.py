@@ -23,10 +23,12 @@ class WorkspaceToolTests(unittest.IsolatedAsyncioTestCase):
                 tools = [tool for toolset in toolsets for tool in await toolset.get_tools()]
 
         names = [tool.name for tool in tools]
-        self.assertEqual(len(names), 15)
+        self.assertEqual(len(names), 28)
         self.assertEqual(len(names), len(set(names)))
         self.assertIn("workspace_gmail_search_threads", names)
         self.assertIn("workspace_docs_create_doc", names)
+        self.assertIn("workspace_docs_batch_update", names)
+        self.assertIn("workspace_slides_batch_update", names)
         self.assertEqual(len(create_google_cloud_toolsets()), 2)
 
     def test_google_resource_id_accepts_ids_and_urls(self) -> None:

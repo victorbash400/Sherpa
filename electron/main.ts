@@ -272,6 +272,7 @@ function stopPreview(taskId: string) {
   const child = previewProcesses.get(taskId);
   if (!child) return;
   previewProcesses.delete(taskId);
+  child.stdin.end();
   child.kill("SIGTERM");
 }
 

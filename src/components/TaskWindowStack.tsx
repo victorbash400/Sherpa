@@ -32,7 +32,7 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
   const selectedIndex = Math.max(0, tasks.findIndex((task) => task.id === selectedTaskId));
   const selectedTask = tasks[selectedIndex];
   const ordered = [...tasks.slice(0, selectedIndex), ...tasks.slice(selectedIndex + 1), tasks[selectedIndex]];
-  const label = selectedTask.previewTarget?.window_title || selectedTask.previewTarget?.app || selectedTask.instruction;
+  const label = selectedTask.previewTarget?.title || selectedTask.previewTarget?.window_title || selectedTask.previewTarget?.app || selectedTask.instruction;
 
   const selectOffset = (offset: number) => {
     const nextIndex = (selectedIndex + offset + tasks.length) % tasks.length;

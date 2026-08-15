@@ -16,8 +16,13 @@ export type OverlayUpdate = OverlayAction & {
 };
 
 export type PreviewTarget = {
+  kind?: "window" | "workspace";
   app?: string;
+  mime_type?: string;
   pid?: number;
+  resource_id?: string;
+  revision?: string;
+  title?: string;
   window_id?: number;
   window_title?: string;
 };

@@ -636,6 +636,18 @@ class SherpaTaskManager:
                         next_browser_targets = extract_browser_targets(response.response)
                         if next_browser_targets:
                             browser_targets = next_browser_targets
+                    response_payload = response.response or {}
+                    workspace_preview = response_payload.get("preview") if isinstance(response_payload, dict) else None
+                    if isinstance(workspace_preview, dict) and workspace_preview.get("kind") == "workspace":
+                        task.preview_target = {
+                            **workspace_preview,
+                            "revision": response_id,
+                        }
+                        task.interaction_mode = "background"
+                        await self._emit(task, {
+                            "type": "task_updated",
+                            **self.snapshot(task),
+                        })
                     failed = tool_failed(response.response)
                     failure_message = tool_error_message(response.response) if failed else None
                     is_control_tool = response.name in {

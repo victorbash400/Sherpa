@@ -387,7 +387,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
             return current.some((item) => item.id === task.id)
               ? current.map((item) => item.id === task.id ? {
                 ...task,
-                previewTarget: item.previewTarget,
+                previewTarget: task.previewTarget || item.previewTarget,
                 interactionMode: item.interactionMode,
                 previewCursor: item.previewCursor,
                 previewRevision: item.previewRevision,
@@ -398,6 +398,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           (message.type === "task_completed" || message.type === "task_failed" || message.type === "task_cancelled")
           && message.task_id
         ) {
+          window.sherpaPreview?.stop(message.task_id);
           runningTaskIdsRef.current.delete(message.task_id);
           if (!runningTaskIdsRef.current.size) {
             window.sherpaOverlay?.hide(message.task_id);

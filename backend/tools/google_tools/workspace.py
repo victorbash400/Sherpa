@@ -146,6 +146,33 @@ async def workspace_gmail_create_draft(
     return {"draft_id": result.get("id"), "message_id": result.get("message", {}).get("id")}
 
 
+async def workspace_gmail_send_draft(draft_id: str) -> dict[str, Any]:
+    """Send an existing Gmail draft."""
+    result = await workspace_request("POST", f"{GMAIL_API}/drafts/send", json={"id": draft_id})
+    return {"message_id": result.get("id"), "thread_id": result.get("threadId"), "status": "sent"}
+
+
+async def workspace_gmail_send_message(
+    to: list[str],
+    subject: str,
+    body: str,
+    cc: list[str] | None = None,
+    bcc: list[str] | None = None,
+) -> dict[str, Any]:
+    """Send a plain-text email through Gmail."""
+    message = EmailMessage()
+    message["To"] = ", ".join(to)
+    if cc:
+        message["Cc"] = ", ".join(cc)
+    if bcc:
+        message["Bcc"] = ", ".join(bcc)
+    message["Subject"] = subject
+    message.set_content(body)
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode().rstrip("=")
+    result = await workspace_request("POST", f"{GMAIL_API}/messages/send", json={"raw": raw})
+    return {"message_id": result.get("id"), "thread_id": result.get("threadId"), "status": "sent"}
+
+
 async def workspace_gmail_list_labels() -> dict[str, Any]:
     """List Gmail system and user labels."""
     result = await workspace_request("GET", f"{GMAIL_API}/labels")
@@ -175,6 +202,45 @@ async def workspace_drive_search_files(query: str, max_results: int = 20) -> dic
     return {"files": result.get("files", [])}
 
 
+async def workspace_drive_get_file(file: str) -> dict[str, Any]:
+    """Read metadata for one Google Drive file by ID or URL."""
+    file_id = google_resource_id(file)
+    result = await workspace_request(
+        "GET",
+        f"{GOOGLE_API}/drive/v3/files/{file_id}",
+        params={"fields": "id,name,mimeType,modifiedTime,webViewLink,parents,size"},
+    )
+    result["preview"] = workspace_preview(file_id, result.get("name"), result.get("mimeType"))
+    return result
+
+
+async def workspace_drive_create_folder(name: str, parent_id: str | None = None) -> dict[str, Any]:
+    """Create a Google Drive folder, optionally inside another folder."""
+    payload: dict[str, Any] = {"name": name, "mimeType": "application/vnd.google-apps.folder"}
+    if parent_id:
+        payload["parents"] = [google_resource_id(parent_id)]
+    return await workspace_request(
+        "POST",
+        f"{GOOGLE_API}/drive/v3/files",
+        params={"fields": "id,name,mimeType,webViewLink,parents"},
+        json=payload,
+    )
+
+
+async def workspace_drive_update_file(file: str, name: str | None = None, trashed: bool | None = None) -> dict[str, Any]:
+    """Rename or move an app-accessible Drive file to or from trash."""
+    file_id = google_resource_id(file)
+    payload = {key: value for key, value in {"name": name, "trashed": trashed}.items() if value is not None}
+    if not payload:
+        raise WorkspaceApiError("Provide a new name or trashed state.")
+    return await workspace_request(
+        "PATCH",
+        f"{GOOGLE_API}/drive/v3/files/{file_id}",
+        params={"fields": "id,name,mimeType,trashed,modifiedTime,webViewLink"},
+        json=payload,
+    )
+
+
 async def workspace_docs_read_doc(document: str) -> dict[str, Any]:
     """Read a Google Doc by document ID or Docs URL."""
     document_id = google_resource_id(document)
@@ -183,6 +249,7 @@ async def workspace_docs_read_doc(document: str) -> dict[str, Any]:
         "document_id": document_id,
         "title": result.get("title"),
         "text": document_text(result),
+        "preview": workspace_preview(document_id, result.get("title"), "application/vnd.google-apps.document"),
     }
 
 
@@ -200,6 +267,7 @@ async def workspace_docs_create_doc(title: str, content: str = "") -> dict[str, 
         "document_id": document_id,
         "title": title,
         "url": f"https://docs.google.com/document/d/{document_id}/edit",
+        "preview": workspace_preview(document_id, title, "application/vnd.google-apps.document"),
     }
 
 
@@ -219,14 +287,37 @@ async def workspace_docs_append_text(document: str, text: str) -> dict[str, Any]
         f"{DOCS_API}/{document_id}:batchUpdate",
         json={"requests": [{"insertText": {"location": {"index": end_index}, "text": text}}]},
     )
-    return {"document_id": document_id, "status": "updated"}
+    return {
+        "document_id": document_id,
+        "status": "updated",
+        "preview": workspace_preview(document_id, current.get("title"), "application/vnd.google-apps.document"),
+    }
+
+
+async def workspace_docs_batch_update(document: str, requests: list[dict[str, Any]]) -> dict[str, Any]:
+    """Apply Google Docs API batchUpdate requests for formatting, tables, text, and structure."""
+    document_id = google_resource_id(document)
+    result = await workspace_request(
+        "POST",
+        f"{DOCS_API}/{document_id}:batchUpdate",
+        json={"requests": requests},
+    )
+    return {
+        "document_id": document_id,
+        "replies": result.get("replies", []),
+        "preview": workspace_preview(document_id, mime_type="application/vnd.google-apps.document"),
+    }
 
 
 async def workspace_sheets_read_range(spreadsheet: str, range_name: str) -> dict[str, Any]:
     """Read values from a Google Sheets range."""
     spreadsheet_id = google_resource_id(spreadsheet)
     result = await workspace_request("GET", f"{SHEETS_API}/{spreadsheet_id}/values/{range_name}")
-    return {"range": result.get("range"), "values": result.get("values", [])}
+    return {
+        "range": result.get("range"),
+        "values": result.get("values", []),
+        "preview": workspace_preview(spreadsheet_id, mime_type="application/vnd.google-apps.spreadsheet"),
+    }
 
 
 async def workspace_sheets_update_range(
@@ -236,12 +327,53 @@ async def workspace_sheets_update_range(
 ) -> dict[str, Any]:
     """Write rows of values to a Google Sheets range."""
     spreadsheet_id = google_resource_id(spreadsheet)
-    return await workspace_request(
+    result = await workspace_request(
         "PUT",
         f"{SHEETS_API}/{spreadsheet_id}/values/{range_name}",
         params={"valueInputOption": "USER_ENTERED"},
         json={"values": values},
     )
+    result["preview"] = workspace_preview(spreadsheet_id, mime_type="application/vnd.google-apps.spreadsheet")
+    return result
+
+
+async def workspace_sheets_create_spreadsheet(title: str, sheet_titles: list[str] | None = None) -> dict[str, Any]:
+    """Create a Google spreadsheet with optional named sheets."""
+    payload: dict[str, Any] = {"properties": {"title": title}}
+    if sheet_titles:
+        payload["sheets"] = [{"properties": {"title": sheet_title}} for sheet_title in sheet_titles]
+    result = await workspace_request("POST", SHEETS_API, json=payload)
+    spreadsheet_id = result["spreadsheetId"]
+    return {
+        "spreadsheet_id": spreadsheet_id,
+        "url": result.get("spreadsheetUrl"),
+        "preview": workspace_preview(spreadsheet_id, title, "application/vnd.google-apps.spreadsheet"),
+    }
+
+
+async def workspace_sheets_append_rows(spreadsheet: str, range_name: str, values: list[list[str]]) -> dict[str, Any]:
+    """Append rows after the current table in a Google Sheets range."""
+    spreadsheet_id = google_resource_id(spreadsheet)
+    result = await workspace_request(
+        "POST",
+        f"{SHEETS_API}/{spreadsheet_id}/values/{range_name}:append",
+        params={"valueInputOption": "USER_ENTERED", "insertDataOption": "INSERT_ROWS"},
+        json={"values": values},
+    )
+    result["preview"] = workspace_preview(spreadsheet_id, mime_type="application/vnd.google-apps.spreadsheet")
+    return result
+
+
+async def workspace_sheets_batch_update(spreadsheet: str, requests: list[dict[str, Any]]) -> dict[str, Any]:
+    """Apply Google Sheets API batchUpdate requests for formatting, sheets, charts, and structure."""
+    spreadsheet_id = google_resource_id(spreadsheet)
+    result = await workspace_request(
+        "POST",
+        f"{SHEETS_API}/{spreadsheet_id}:batchUpdate",
+        json={"requests": requests},
+    )
+    result["preview"] = workspace_preview(spreadsheet_id, mime_type="application/vnd.google-apps.spreadsheet")
+    return result
 
 
 async def workspace_slides_get_presentation(presentation: str) -> dict[str, Any]:
@@ -252,7 +384,31 @@ async def workspace_slides_get_presentation(presentation: str) -> dict[str, Any]
         "presentation_id": presentation_id,
         "title": result.get("title"),
         "slides": [slide_text(slide) for slide in result.get("slides", [])],
+        "preview": workspace_preview(presentation_id, result.get("title"), "application/vnd.google-apps.presentation"),
     }
+
+
+async def workspace_slides_create_presentation(title: str) -> dict[str, Any]:
+    """Create a Google Slides presentation."""
+    result = await workspace_request("POST", SLIDES_API, json={"title": title})
+    presentation_id = result["presentationId"]
+    return {
+        "presentation_id": presentation_id,
+        "url": f"https://docs.google.com/presentation/d/{presentation_id}/edit",
+        "preview": workspace_preview(presentation_id, title, "application/vnd.google-apps.presentation"),
+    }
+
+
+async def workspace_slides_batch_update(presentation: str, requests: list[dict[str, Any]]) -> dict[str, Any]:
+    """Apply Google Slides API batchUpdate requests for slides, text, shapes, images, and styling."""
+    presentation_id = google_resource_id(presentation)
+    result = await workspace_request(
+        "POST",
+        f"{SLIDES_API}/{presentation_id}:batchUpdate",
+        json={"requests": requests},
+    )
+    result["preview"] = workspace_preview(presentation_id, mime_type="application/vnd.google-apps.presentation")
+    return result
 
 
 async def workspace_calendar_list_events(
@@ -297,6 +453,40 @@ async def workspace_calendar_create_event(
     return {"event_id": result.get("id"), "html_link": result.get("htmlLink")}
 
 
+async def workspace_calendar_update_event(
+    event_id: str,
+    calendar_id: str = "primary",
+    summary: str | None = None,
+    description: str | None = None,
+    start: str | None = None,
+    end: str | None = None,
+) -> dict[str, Any]:
+    """Update selected fields on a Google Calendar event."""
+    payload: dict[str, Any] = {}
+    if summary is not None:
+        payload["summary"] = summary
+    if description is not None:
+        payload["description"] = description
+    if start is not None:
+        payload["start"] = {"dateTime": start}
+    if end is not None:
+        payload["end"] = {"dateTime": end}
+    if not payload:
+        raise WorkspaceApiError("Provide at least one event field to update.")
+    result = await workspace_request(
+        "PATCH",
+        f"{CALENDAR_API}/calendars/{calendar_id}/events/{event_id}",
+        json=payload,
+    )
+    return {"event_id": result.get("id"), "html_link": result.get("htmlLink"), "status": "updated"}
+
+
+async def workspace_calendar_delete_event(event_id: str, calendar_id: str = "primary") -> dict[str, Any]:
+    """Delete a Google Calendar event."""
+    await workspace_request("DELETE", f"{CALENDAR_API}/calendars/{calendar_id}/events/{event_id}")
+    return {"event_id": event_id, "status": "deleted"}
+
+
 async def workspace_people_search_contacts(query: str, max_results: int = 10) -> dict[str, Any]:
     """Search the connected Google account's contacts."""
     result = await workspace_request(
@@ -318,22 +508,39 @@ def create_workspace_toolsets() -> list[WorkspaceApiToolset]:
             workspace_gmail_get_thread,
             workspace_gmail_get_message,
             workspace_gmail_create_draft,
+            workspace_gmail_send_draft,
+            workspace_gmail_send_message,
             workspace_gmail_list_labels,
         ]),
-        WorkspaceApiToolset("workspace.drive", [workspace_drive_search_files]),
+        WorkspaceApiToolset("workspace.drive", [
+            workspace_drive_search_files,
+            workspace_drive_get_file,
+            workspace_drive_create_folder,
+            workspace_drive_update_file,
+        ]),
         WorkspaceApiToolset("workspace.docs", [
             workspace_docs_read_doc,
             workspace_docs_create_doc,
             workspace_docs_append_text,
+            workspace_docs_batch_update,
         ]),
         WorkspaceApiToolset("workspace.sheets", [
             workspace_sheets_read_range,
             workspace_sheets_update_range,
+            workspace_sheets_create_spreadsheet,
+            workspace_sheets_append_rows,
+            workspace_sheets_batch_update,
         ]),
-        WorkspaceApiToolset("workspace.slides", [workspace_slides_get_presentation]),
+        WorkspaceApiToolset("workspace.slides", [
+            workspace_slides_get_presentation,
+            workspace_slides_create_presentation,
+            workspace_slides_batch_update,
+        ]),
         WorkspaceApiToolset("workspace.calendar", [
             workspace_calendar_list_events,
             workspace_calendar_create_event,
+            workspace_calendar_update_event,
+            workspace_calendar_delete_event,
         ]),
         WorkspaceApiToolset("workspace.people", [workspace_people_search_contacts]),
     ]
@@ -346,6 +553,15 @@ def google_resource_id(value: str) -> str:
     if not match:
         raise WorkspaceApiError("A valid Google resource ID or URL is required.")
     return match.group(0)
+
+
+def workspace_preview(resource_id: str, title: str | None = None, mime_type: str | None = None) -> dict[str, Any]:
+    return {
+        "kind": "workspace",
+        "resource_id": resource_id,
+        "title": title,
+        "mime_type": mime_type,
+    }
 
 
 def gmail_thread_summary(thread: dict[str, Any], include_body: bool = False) -> dict[str, Any]:
