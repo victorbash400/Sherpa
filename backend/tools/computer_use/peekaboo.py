@@ -49,7 +49,7 @@ def create_peekaboo_toolset(
         connection_params=StdioConnectionParams(
             server_params=StdioServerParameters(
                 command=str(PEEKABOO_BINARY),
-                args=["mcp"],
+                args=["mcp", "--log-level", "warning"],
             ),
             timeout=30,
         ),

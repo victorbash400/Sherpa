@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Any
 
@@ -15,12 +14,12 @@ def before_computer_tool(
     tool_context: ToolContext,
 ) -> None:
     logger.info(
-        "tool.start session=%s call=%s name=%s args=%s",
+        "tool.started session=%s call=%s name=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
-        json.dumps(args, default=str),
     )
+    del args
 
 
 def after_computer_tool(
@@ -31,15 +30,20 @@ def after_computer_tool(
 ) -> dict:
     del args
     safe_response = sanitize_tool_response(tool_response)
-    logger.info(
-        "tool.finish session=%s call=%s name=%s raw_bytes=%d safe_bytes=%d error=%s",
-        tool_context.session.id,
-        tool_context.function_call_id,
-        tool.name,
-        len(json.dumps(tool_response, default=str)),
-        len(json.dumps(safe_response, default=str)),
-        bool(safe_response.get("isError") or safe_response.get("error")),
-    )
+    if safe_response.get("isError") or safe_response.get("error"):
+        logger.warning(
+            "tool.failed session=%s call=%s name=%s",
+            tool_context.session.id,
+            tool_context.function_call_id,
+            tool.name,
+        )
+    else:
+        logger.debug(
+            "tool.completed session=%s call=%s name=%s",
+            tool_context.session.id,
+            tool_context.function_call_id,
+            tool.name,
+        )
     return safe_response
 
 
@@ -49,13 +53,13 @@ def on_computer_tool_error(
     tool_context: ToolContext,
     error: Exception,
 ) -> dict[str, str]:
-    logger.exception(
-        "tool.failed session=%s call=%s name=%s args=%s",
+    del args
+    logger.error(
+        "tool.failed session=%s call=%s name=%s error=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
-        json.dumps(args, default=str),
-        exc_info=error,
+        error,
     )
     return {
         "status": "failed",
