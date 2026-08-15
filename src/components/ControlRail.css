@@ -1,7 +1,7 @@
 .control-rail {
   position: absolute;
   top: 45px;
-  left: 12px;
+  left: 8px;
   z-index: 2;
   width: 34px;
   overflow: hidden;
@@ -16,7 +16,7 @@
 .control-rail__title {
   display: block;
   height: 18px;
-  margin-left: 0;
+  margin-left: 4px;
   color: #1d1d1f;
   font-size: 15px;
   font-weight: 600;
@@ -41,7 +41,7 @@
 .control-rail button,
 .audio-controls button {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-columns: 26px minmax(0, 1fr);
   width: 34px;
   height: 34px;
   padding: 0;
@@ -54,6 +54,11 @@
   overflow: hidden;
   text-align: left;
   transition: width 220ms cubic-bezier(.2, .8, .2, 1), background 140ms ease;
+}
+
+.control-rail button {
+  box-sizing: border-box;
+  padding: 0 4px;
 }
 
 .control-rail[data-expanded="true"] button {
