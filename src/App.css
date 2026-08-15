@@ -17,11 +17,11 @@
   top: 12px;
   left: 12px;
   z-index: 0;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   background: #ababab;
   border-radius: 50%;
-  box-shadow: 23px 0 #ababab, 46px 0 #ababab;
+  box-shadow: 22px 0 #ababab, 44px 0 #ababab;
   content: "";
   pointer-events: none;
 }

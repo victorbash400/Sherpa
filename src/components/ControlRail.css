@@ -16,7 +16,7 @@
 .control-rail__title {
   display: block;
   height: 18px;
-  margin-left: 2px;
+  margin-left: 0;
   color: #1d1d1f;
   font-size: 15px;
   font-weight: 600;
@@ -41,7 +41,7 @@
 .control-rail button,
 .audio-controls button {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   width: 34px;
   height: 34px;
   padding: 0;
@@ -62,7 +62,7 @@
 
 .control-rail button > svg,
 .control-rail button > img {
-  justify-self: center;
+  justify-self: start;
 }
 
 .control-rail button > span,
