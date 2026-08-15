@@ -15,7 +15,7 @@ from google.adk.tools import ToolContext
 from google.genai import types
 
 from backend.agents.sherpa_agent import sherpa_app
-from backend.agents.task_coordinator import AdmissionDecision, WorkerAssignment, task_coordinator_app
+from backend.agents.task_planner import TaskPlan, task_planner_app
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
@@ -53,7 +53,7 @@ class SherpaTask:
     chat_id: str
     instruction: str
     request: str = ""
-    kind: str = "coordinator"
+    kind: str = "worker"
     parent_id: str | None = None
     child_ids: list[str] = field(default_factory=list)
     status: str = "running"
@@ -82,6 +82,7 @@ class SherpaSubmission:
     decision: str = "pending"
     message: str = "Sherpa received the request."
     task_id: str | None = None
+    task_ids: list[str] = field(default_factory=list)
     worker: asyncio.Task[None] | None = field(default=None, repr=False)
 
 
@@ -89,10 +90,11 @@ class SherpaTaskManager:
     def __init__(self) -> None:
         self._sessions = InMemorySessionService()
         self._runner = Runner(app=sherpa_app, session_service=self._sessions)
-        self._coordinator_runner = Runner(app=task_coordinator_app, session_service=self._sessions)
+        self._planner_runner = Runner(app=task_planner_app, session_service=self._sessions)
         self._tasks: dict[str, SherpaTask] = {}
         self._submissions: dict[str, SherpaSubmission] = {}
         self._event_queues: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
+        self._execution_lease = asyncio.Lock()
         self._admission_lease = asyncio.Lock()
 
     def subscribe(self, chat_id: str) -> asyncio.Queue[dict[str, Any]]:
@@ -118,21 +120,20 @@ class SherpaTaskManager:
                 "message": "Gemini models are turned off in Sherpa Plugins.",
                 "task_id": None,
             }
-        normalized = " ".join(instruction.lower().split())
-        existing = next((
-            submission
-            for submission in reversed(self._submissions.values())
+        clean_instruction = " ".join(instruction.split()).strip()
+        existing_submission = next((
+            submission for submission in reversed(self._submissions.values())
             if submission.chat_id == chat_id
             and submission.status == "received"
-            and " ".join(submission.instruction.lower().split()) == normalized
+            and submission.instruction.casefold() == clean_instruction.casefold()
         ), None)
-        if existing:
-            return self.submission_snapshot(existing)
+        if existing_submission:
+            return self.submission_snapshot(existing_submission)
 
         submission = SherpaSubmission(
             id=f"submission_{crypto_id()}",
             chat_id=chat_id,
-            instruction=instruction,
+            instruction=clean_instruction,
         )
         self._submissions[submission.id] = submission
         submission.worker = asyncio.create_task(
@@ -145,66 +146,107 @@ class SherpaTaskManager:
     async def _process_submission(self, submission: SherpaSubmission) -> None:
         try:
             async with self._admission_lease:
-                admission = await self._admit(submission.chat_id, submission.instruction)
-                await self._resolve_submission(submission, admission)
+                plan = await self._plan(submission.chat_id, submission.instruction)
+                await self._apply_plan(submission, plan)
         except asyncio.CancelledError:
             raise
         except Exception as error:
             submission.status = "resolved"
             submission.decision = "failed"
-            submission.message = f"Sherpa could not evaluate the request: {error}"
+            submission.message = f"Sherpa could not organize the request: {error}"
             logger.exception("submission.failed submission=%s", submission.id)
             await self._emit_chat(submission.chat_id, {
                 "type": "submission_updated",
                 **self.submission_snapshot(submission),
             })
 
-    async def _resolve_submission(
-        self,
-        submission: SherpaSubmission,
-        admission: AdmissionDecision,
-    ) -> None:
+    async def _apply_plan(self, submission: SherpaSubmission, plan: TaskPlan) -> None:
+        self._validate_plan(submission.chat_id, plan)
+        affected: list[str] = []
+        created = 0
+        changed = False
+        for operation in plan.operations:
+            task = self._valid_task(submission.chat_id, operation.task_id)
+            if operation.action == "create":
+                if not operation.title or not operation.instruction:
+                    raise RuntimeError("The task planner returned an incomplete task.")
+                task = self._create_task(submission.chat_id, operation.title, operation.instruction)
+                created += 1
+            elif operation.action == "reuse":
+                if not task:
+                    raise RuntimeError("The task planner reused an invalid task.")
+            elif operation.action == "steer":
+                if not task or not operation.instruction:
+                    raise RuntimeError("The task planner returned an invalid task update.")
+                await self.steer(task.id, operation.instruction)
+                changed = True
+            elif operation.action == "cancel":
+                if not task or not self.cancel(task.id):
+                    raise RuntimeError("The task planner cancelled an invalid task.")
+                changed = True
+            if task and operation.action != "cancel" and task.id not in affected:
+                affected.append(task.id)
+
         submission.status = "resolved"
-        submission.decision = admission.decision
-        submission.message = admission.message
-        if admission.decision == "already_active":
-            existing = self._tasks.get(admission.existing_task_id or "")
-            if (
-                not existing
-                or existing.chat_id != submission.chat_id
-                or existing.status != "running"
-            ):
-                raise RuntimeError("Sherpa returned an invalid active task reference.")
-            submission.task_id = existing.id
-        elif admission.decision == "accepted":
-            if not admission.assignments:
-                raise RuntimeError("Sherpa accepted the request without creating an assignment.")
-            task = SherpaTask(
-                id=f"task_{crypto_id()}",
-                chat_id=submission.chat_id,
-                instruction=submission.instruction,
-                request=submission.instruction,
-            )
-            self._tasks[task.id] = task
-            submission.task_id = task.id
-            task.phase = "planning"
-            task.current_step = "Organizing the work"
-            task.worker = asyncio.create_task(
-                self._dispatch(task, admission.assignments),
-                name=task.id,
-            )
-            self._emit_nowait(task, {"type": "task_started", **self.snapshot(task)})
-            logger.info("task.started task=%s chat=%s", task.id, submission.chat_id)
+        submission.decision = "accepted" if created or changed else "already_active"
+        submission.message = plan.message
+        submission.task_ids = affected
+        submission.task_id = affected[0] if affected else None
         await self._emit_chat(submission.chat_id, {
             "type": "submission_updated",
             **self.submission_snapshot(submission),
         })
         logger.info(
-            "submission.resolved submission=%s decision=%s task=%s",
+            "submission.resolved submission=%s decision=%s tasks=%s",
             submission.id,
             submission.decision,
-            submission.task_id or "none",
+            ",".join(affected) or "none",
         )
+
+    def _create_task(self, chat_id: str, title: str, instruction: str) -> SherpaTask:
+        queued = any(task.status == "running" for task in self._tasks.values())
+        task = SherpaTask(
+            id=f"task_{crypto_id()}",
+            chat_id=chat_id,
+            instruction=" ".join(title.split()).strip(),
+            request=" ".join(instruction.split()).strip(),
+            phase="queued" if queued else "starting",
+            current_step="Waiting for the active task to finish" if queued else "Starting work",
+        )
+        self._tasks[task.id] = task
+        task.worker = asyncio.create_task(self._run_sequential(task), name=task.id)
+        self._emit_nowait(task, {"type": "task_started", **self.snapshot(task)})
+        logger.info(
+            "task.%s task=%s chat=%s",
+            "queued" if queued else "started",
+            task.id,
+            chat_id,
+        )
+        return task
+
+    def _valid_task(self, chat_id: str, task_id: str | None) -> SherpaTask | None:
+        task = self._tasks.get(task_id or "")
+        return task if task and task.chat_id == chat_id and task.status == "running" else None
+
+    def _validate_plan(self, chat_id: str, plan: TaskPlan) -> None:
+        created = 0
+        referenced: set[str] = set()
+        for operation in plan.operations:
+            if operation.action == "create":
+                created += 1
+                if not operation.title or not operation.instruction:
+                    raise RuntimeError("The task planner returned an incomplete task.")
+                continue
+            task = self._valid_task(chat_id, operation.task_id)
+            if not task:
+                raise RuntimeError("The task planner referenced an invalid task.")
+            if task.id in referenced:
+                raise RuntimeError("The task planner changed the same task more than once.")
+            referenced.add(task.id)
+            if operation.action == "steer" and not operation.instruction:
+                raise RuntimeError("The task planner returned an incomplete task update.")
+        if created > 3:
+            raise RuntimeError("The task planner created too many tasks.")
 
     def get(self, task_id: str) -> SherpaTask | None:
         return self._tasks.get(task_id)
@@ -220,7 +262,6 @@ class SherpaTaskManager:
             task
             for task in self.list_for_chat(chat_id)
             if task.status == "running"
-            and (task.kind == "worker" or not task.child_ids)
         ]
 
     def list_pending_submissions(self, chat_id: str) -> list[SherpaSubmission]:
@@ -238,6 +279,7 @@ class SherpaTaskManager:
             "decision": submission.decision,
             "message": submission.message,
             "task_id": submission.task_id,
+            "task_ids": list(submission.task_ids),
         }
 
     def snapshot(self, task: SherpaTask) -> dict[str, Any]:
@@ -289,6 +331,18 @@ class SherpaTaskManager:
             return {"status": "not_running", "task_id": task_id}
         if not clean_instruction:
             return {"status": "invalid", "task_id": task_id}
+        if task.phase == "queued":
+            task.instruction = clean_instruction
+            task.request = clean_instruction
+            self._record_update(
+                task,
+                "queued",
+                task.progress,
+                f"Queued task changed: {clean_instruction}",
+                "Waiting for the active task to finish.",
+            )
+            await self._emit(task, {"type": "task_steering_applied", **self.snapshot(task)})
+            return {"status": "applied", "task_id": task_id}
         directive = {
             "type": "steer",
             "id": f"directive_{crypto_id()}",
@@ -352,32 +406,29 @@ class SherpaTaskManager:
         if workers:
             await asyncio.gather(*workers, return_exceptions=True)
 
-    async def _admit(self, chat_id: str, instruction: str) -> AdmissionDecision:
-        admission_id = f"{chat_id}:admission:{crypto_id()}"
-        active_tasks = [
+    async def _plan(self, chat_id: str, instruction: str) -> TaskPlan:
+        planner_session_id = f"{chat_id}:planner:{crypto_id()}"
+        ledger = [
             {
                 "task_id": task.id,
-                "request": task.request or task.instruction,
+                "title": task.instruction,
+                "instruction": task.request,
                 "phase": task.phase,
                 "current_step": task.current_step,
             }
-            for task in self.list_for_chat(chat_id)
-            if task.status == "running" and task.parent_id is None
+            for task in self._tasks.values()
+            if task.chat_id == chat_id and task.status == "running"
         ]
         await self._sessions.create_session(
-            app_name="task_coordinator",
+            app_name="task_planner",
             user_id="local-user",
-            session_id=admission_id,
+            session_id=planner_session_id,
         )
         response_text = ""
-        prompt = json.dumps({
-            "requested_work": instruction,
-            "active_tasks": active_tasks,
-            "relevant_memory": memory_store.context_for("coordinator", limit=5),
-        })
-        async for event in self._coordinator_runner.run_async(
+        prompt = json.dumps({"request": instruction, "task_ledger": ledger})
+        async for event in self._planner_runner.run_async(
             user_id="local-user",
-            session_id=admission_id,
+            session_id=planner_session_id,
             new_message=types.Content(
                 role="user",
                 parts=[types.Part.from_text(text=prompt)],
@@ -389,94 +440,27 @@ class SherpaTaskManager:
                 for part in event.content.parts or []:
                     if part.text and not part.thought:
                         response_text = merge_stream_text(response_text, part.text)
-        return AdmissionDecision.model_validate_json(response_text)
+        return TaskPlan.model_validate_json(response_text)
 
-    async def _dispatch(
-        self,
-        task: SherpaTask,
-        assignments: list[WorkerAssignment],
-    ) -> None:
+    async def _run_sequential(self, task: SherpaTask) -> None:
         try:
-            if len(assignments) == 1:
-                assignment = assignments[0]
-                task.kind = "worker"
-                task.instruction = assignment.title
-                await self._run_worker(task, assignment.instruction)
-                return
-
-            child_tasks = [
-                self._start_worker(task, assignment.title, assignment.instruction)
-                for assignment in assignments
-            ]
-            task.child_ids = [child.id for child in child_tasks]
-            titles = ", ".join(assignment.title for assignment in assignments)
-            self._record_update(
-                task,
-                "working",
-                5,
-                f"Sherpa separated the request into {len(child_tasks)} tasks: {titles}.",
-                "The workers are handling their assignments now.",
-            )
-            await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-            await asyncio.gather(*(child.worker for child in child_tasks if child.worker))
-
-            failed = [child for child in child_tasks if child.status == "failed"]
-            cancelled = [child for child in child_tasks if child.status == "cancelled"]
-            task.progress = 100
-            if failed:
-                task.status = "failed"
-                task.phase = "failed"
-            elif cancelled:
-                task.status = "cancelled"
-                task.phase = "cancelled"
-            else:
-                task.status = "completed"
-                task.phase = "completed"
-            task.summary = "\n".join(
-                f"- **{child.instruction}:** {child.summary}" for child in child_tasks
-            )
-            task.current_step = task.summary
-            await self._emit(task, {
-                "type": f"task_{task.status}",
-                "message": task.summary,
-                **self.snapshot(task),
-            })
+            async with self._execution_lease:
+                if task.status != "running":
+                    return
+                task.phase = "starting"
+                task.current_step = "Starting work"
+                await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
+                await self._run_worker(task, task.request)
         except asyncio.CancelledError:
             if task.status != "cancelled":
-                self.cancel(task.id)
-        except Exception as error:
-            task.status = "failed"
-            task.phase = "failed"
-            task.summary = str(error)
-            task.current_step = task.summary
-            logger.exception("task.planning_failed task=%s", task.id)
-            await self._emit(task, {
-                "type": "task_failed",
-                "message": f"Sherpa could not organize the work: {error}",
-                **self.snapshot(task),
-            })
-
-    def _start_worker(
-        self,
-        parent: SherpaTask,
-        title: str,
-        instruction: str,
-    ) -> SherpaTask:
-        child = SherpaTask(
-            id=f"task_{crypto_id()}",
-            chat_id=parent.chat_id,
-            instruction=title,
-            request=instruction,
-            kind="worker",
-            parent_id=parent.id,
-        )
-        self._tasks[child.id] = child
-        child.worker = asyncio.create_task(
-            self._run_worker(child, instruction),
-            name=child.id,
-        )
-        self._emit_nowait(child, {"type": "task_started", **self.snapshot(child)})
-        return child
+                task.status = "cancelled"
+                task.phase = "cancelled"
+                task.summary = "Sherpa stopped the task."
+                await self._emit(task, {
+                    "type": "task_cancelled",
+                    "message": task.summary,
+                    **self.snapshot(task),
+                })
 
     async def _run_worker(self, task: SherpaTask, instruction: str) -> None:
         next_instruction = instruction
@@ -835,7 +819,7 @@ sherpa_tasks = SherpaTaskManager()
 
 
 async def submit_task(instruction: str, tool_context: ToolContext) -> dict[str, Any]:
-    """Ask Sherpa to admit a request, deduplicate it, and dispatch accepted work."""
+    """Queue one request for sequential execution, deduplicating active work."""
     return await sherpa_tasks.submit(tool_context.session.id, instruction)
 
 

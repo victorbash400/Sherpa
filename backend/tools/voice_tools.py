@@ -14,7 +14,7 @@ VOICE_TOOLS = [
     types.Tool(function_declarations=[
         types.FunctionDeclaration(
             name="submit_task",
-            description="Hand a complete macOS request to Sherpa immediately. Returns a receipt without waiting for planning or execution.",
+            description="Hand one complete request to Sherpa. New work runs sequentially behind any active task.",
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,

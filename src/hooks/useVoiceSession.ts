@@ -14,7 +14,7 @@ export type VoiceTask = {
   id: string;
   chatId: string;
   instruction: string;
-  kind: "coordinator" | "worker";
+  kind: "worker";
   parentId?: string;
   status: "running" | "completed" | "failed" | "cancelled";
   phase: string;
