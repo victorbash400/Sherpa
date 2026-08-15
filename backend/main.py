@@ -12,7 +12,7 @@ warnings.filterwarnings(
     category=UserWarning,
 )
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from google import genai
@@ -22,6 +22,7 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel, Field
+from backend.permission_store import permission_store
 
 os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "sherpa-20260813")
@@ -35,6 +36,9 @@ logger = logging.getLogger("sherpa.voice")
 
 from backend.credential_store import load_gemini_api_key
 from backend.credential_store import load_playwright_extension_token
+from backend.connections import connection_snapshot
+from backend.memory_manager import memory_manager
+from backend.memory_store import memory_store
 
 voice_api_key = load_gemini_api_key()
 if voice_api_key:
@@ -65,6 +69,7 @@ async def lifespan(_: FastAPI):
         sherpa_computer_tools.get_tools(),
     )
     yield
+    await memory_manager.close()
     await sherpa_tasks.close()
     await sherpa_browser_tools.close()
     await sherpa_computer_tools.close()
@@ -73,9 +78,9 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Sherpa API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "null"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 LIVE_VOICES = {
@@ -88,9 +93,70 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
 
 
+class PermissionRequest(BaseModel):
+    enabled: bool
+
+
+class MemorySettingsRequest(BaseModel):
+    enabled: bool | None = None
+    learn_from_tools: bool | None = None
+    custom_instructions: str | None = None
+    chat_style: str | None = None
+    response_style: str | None = None
+
+
+class MemoryItemRequest(BaseModel):
+    content: str | None = None
+    active: bool | None = None
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/connections")
+async def connections() -> dict[str, object]:
+    return await connection_snapshot()
+
+
+@app.put("/permissions/{permission_id:path}")
+def update_permission(permission_id: str, body: PermissionRequest) -> dict[str, object]:
+    permission_store.set(permission_id, body.enabled)
+    return {"id": permission_id, "enabled": body.enabled}
+
+
+@app.get("/memory")
+def memory() -> dict[str, object]:
+    return memory_store.snapshot()
+
+
+@app.put("/memory/settings")
+def update_memory_settings(body: MemorySettingsRequest) -> dict[str, object]:
+    values = body.model_dump(exclude_none=True)
+    try:
+        return memory_store.update_settings(values)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.patch("/memory/items/{memory_id}")
+def update_memory_item(memory_id: str, body: MemoryItemRequest) -> dict[str, object]:
+    values = body.model_dump(exclude_none=True)
+    try:
+        return memory_store.update_memory(memory_id, values)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="Memory not found") from error
+    except PermissionError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.delete("/memory")
+def delete_memory() -> dict[str, object]:
+    memory_store.delete_all()
+    return memory_store.snapshot()
 
 
 @app.get("/tasks/{chat_id}")
@@ -125,11 +191,18 @@ async def chat(body: ChatRequest) -> StreamingResponse:
 
 async def stream_chat(body: ChatRequest):
     try:
+        if not permission_store.enabled("google.models"):
+            yield sse({"type": "error", "error": "Gemini models are turned off in Sherpa Plugins."})
+            return
+        memory_context = memory_store.context_for("sherpa")
+        prompt = f"{memory_context}\n\nUser request:\n{body.message}" if memory_context else body.message
         message = types.Content(
             role="user",
-            parts=[types.Part.from_text(text=body.message)],
+            parts=[types.Part.from_text(text=prompt)],
         )
         config = RunConfig(streaming_mode=StreamingMode.SSE)
+        assistant_text = ""
+        tool_assisted = False
         async for event in runner.run_async(
             user_id="local-user",
             session_id=body.session_id,
@@ -142,6 +215,8 @@ async def stream_chat(body: ChatRequest):
             if event.partial and event.content:
                 for part in event.content.parts or []:
                     if part.text:
+                        if not part.thought:
+                            assistant_text += part.text
                         yield sse(
                             {
                                 "type": "reasoning" if part.thought else "content",
@@ -150,6 +225,7 @@ async def stream_chat(body: ChatRequest):
                         )
                 continue
             for call in event.get_function_calls():
+                tool_assisted = True
                 yield sse(
                     {
                         "type": "tool_call",
@@ -168,6 +244,13 @@ async def stream_chat(body: ChatRequest):
                     }
                 )
         yield sse({"type": "done"})
+        memory_manager.schedule(
+            source_type="chat",
+            source_id=body.session_id,
+            user_text=body.message,
+            assistant_text=assistant_text,
+            tool_assisted=tool_assisted,
+        )
     except Exception as error:
         yield sse({"type": "error", "error": str(error)})
 
@@ -176,6 +259,12 @@ async def stream_chat(body: ChatRequest):
 async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> None:
     await websocket.accept()
     logger.info("session.accepted session=%s voice=%s", session_id, voice)
+    if not permission_store.enabled("google.models"):
+        await websocket.send_json(
+            {"type": "error", "error": "Gemini models are turned off in Sherpa Plugins."}
+        )
+        await websocket.close(code=1008)
+        return
     if voice not in LIVE_VOICES:
         await websocket.send_json({"type": "error", "error": "Unsupported Sherpa voice."})
         await websocket.close(code=1008)
@@ -206,7 +295,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             )
         ),
         thinking_config=types.ThinkingConfig(thinking_level="minimal"),
-        system_instruction=VOICE_INSTRUCTION,
+        system_instruction=(
+            f"{VOICE_INSTRUCTION}\n\n{memory_store.context_for('voice')}"
+            if memory_store.context_for("voice")
+            else VOICE_INSTRUCTION
+        ),
         tools=VOICE_TOOLS,
     )
     client = genai.Client(
@@ -222,6 +315,8 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         pending_notifications: list[dict] = []
         in_flight_notifications: list[dict] = []
         notification_lock = asyncio.Lock()
+        voice_user_text: list[str] = []
+        voice_assistant_text: list[str] = []
 
         await websocket.send_json({"type": "ready"})
         logger.info("session.ready session=%s model=%s tools=5", session_id, VOICE_MODEL)
@@ -452,11 +547,13 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                 notification_in_flight = False
                             await websocket.send_json({"type": "interrupted"})
                         if content.input_transcription and content.input_transcription.text:
+                            voice_user_text.append(content.input_transcription.text)
                             await websocket.send_json({
                                 "type": "input_transcript",
                                 "text": content.input_transcription.text,
                             })
                         if content.output_transcription and content.output_transcription.text:
+                            voice_assistant_text.append(content.output_transcription.text)
                             await websocket.send_json({
                                 "type": "output_transcript",
                                 "text": content.output_transcription.text,
@@ -528,6 +625,13 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         for task in done | pending:
             with suppress(asyncio.CancelledError, WebSocketDisconnect):
                 await task
+        memory_manager.schedule(
+            source_type="voice",
+            source_id=session_id,
+            user_text=" ".join(voice_user_text),
+            assistant_text=" ".join(voice_assistant_text),
+            tool_assisted=False,
+        )
 
 
 def sse(event: dict[str, object]) -> str:

@@ -1,21 +1,31 @@
-import { Mic, Settings } from "lucide-react";
+import { Circle, Mic } from "lucide-react";
 import { CursorDock } from "./CursorDock";
 import "./ControlRail.css";
 
 interface ControlRailProps {
-  activeView: "voice" | "chat" | "voices" | "tasks" | "memory";
+  activeView: "voice" | "chat" | "voices" | "tasks" | "memory" | "plugins";
   computerActive: boolean;
+  onOpenVoice: () => void;
   onOpenMemory: () => void;
   onOpenTasks: () => void;
   onOpenVoices: () => void;
-  onOpenSettings: () => void;
+  onOpenPlugins: () => void;
 }
 
-export function ControlRail({ activeView, computerActive, onOpenMemory, onOpenTasks, onOpenVoices, onOpenSettings }: ControlRailProps) {
+export function ControlRail({ activeView, computerActive, onOpenMemory, onOpenPlugins, onOpenTasks, onOpenVoice, onOpenVoices }: ControlRailProps) {
   return (
     <nav className="control-rail" aria-label="Sherpa controls">
       <span className="control-rail__title">Sherpa</span>
       <div className="control-rail__actions">
+        <button
+          type="button"
+          aria-label="Voice chat"
+          aria-pressed={activeView === "voice"}
+          title="Voice chat"
+          onClick={onOpenVoice}
+        >
+          <Circle aria-hidden="true" />
+        </button>
         <button
           type="button"
           aria-label="Choose voice"
@@ -25,8 +35,8 @@ export function ControlRail({ activeView, computerActive, onOpenMemory, onOpenTa
         >
           <Mic aria-hidden="true" />
         </button>
-        <button type="button" aria-label="Settings" title="Settings" onClick={onOpenSettings}>
-          <Settings aria-hidden="true" />
+        <button type="button" aria-label="Plugins" aria-pressed={activeView === "plugins"} title="Plugins" onClick={onOpenPlugins}>
+          <img alt="" aria-hidden="true" src="/plugin-svgrepo-com (1).svg" />
         </button>
         <button
           type="button"

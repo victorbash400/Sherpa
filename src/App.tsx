@@ -6,6 +6,7 @@ import { ChatHistoryDrawer } from "./components/ChatHistoryDrawer";
 import { ControlRail } from "./components/ControlRail";
 import { FloatingVoiceOrb } from "./components/FloatingVoiceOrb";
 import { MemoryView } from "./components/MemoryView";
+import { PluginsView } from "./components/PluginsView";
 import { useSherpaChat } from "./hooks/useSherpaChat";
 import { useVoiceSession } from "./hooks/useVoiceSession";
 import { useVoicePreview } from "./hooks/useVoicePreview";
@@ -20,7 +21,7 @@ import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
 export function App() {
-  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory">("voice");
+  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
@@ -85,6 +86,12 @@ export function App() {
         activeView={view}
         computerActive={voice.computerActive}
         onOpenMemory={() => setView("memory")}
+        onOpenPlugins={() => setView("plugins")}
+        onOpenVoice={() => {
+          voicePreview.stop();
+          automaticTaskViewRef.current = false;
+          setView("voice");
+        }}
         onOpenTasks={() => {
           automaticTaskViewRef.current = false;
           setView("tasks");
@@ -93,7 +100,6 @@ export function App() {
           voice.stop();
           setView("voices");
         }}
-        onOpenSettings={() => undefined}
       />
       {view === "voice" ? (
         <>
@@ -149,9 +155,13 @@ export function App() {
             />
           ) : null}
         </>
-      ) : (
+      ) : null}
+      <div hidden={view !== "memory"}>
         <MemoryView />
-      )}
+      </div>
+      <div hidden={view !== "plugins"}>
+        <PluginsView />
+      </div>
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
       <RefreshButton />
       <ChatHistoryDrawer

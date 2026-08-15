@@ -16,6 +16,9 @@ from google.genai import types
 
 from backend.agents.sherpa_agent import sherpa_app
 from backend.agents.boss_agent import AdmissionDecision, WorkerAssignment, sherpa_boss_app
+from backend.memory_manager import memory_manager
+from backend.memory_store import memory_store
+from backend.permission_store import permission_store
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -87,6 +90,15 @@ class SherpaTaskManager:
             self._event_queues.pop(chat_id, None)
 
     async def submit(self, chat_id: str, instruction: str) -> dict[str, Any]:
+        if not permission_store.enabled("google.models"):
+            return {
+                "status": "resolved",
+                "submission_id": None,
+                "instruction": instruction,
+                "decision": "failed",
+                "message": "Gemini models are turned off in Sherpa Plugins.",
+                "task_id": None,
+            }
         normalized = " ".join(instruction.lower().split())
         existing = next((
             submission
@@ -283,6 +295,7 @@ class SherpaTaskManager:
         prompt = json.dumps({
             "requested_work": instruction,
             "active_tasks": active_tasks,
+            "relevant_memory": memory_store.context_for("coordinator", limit=5),
         })
         async for event in self._boss_runner.run_async(
             user_id="local-user",
@@ -405,9 +418,14 @@ class SherpaTaskManager:
                 user_id="local-user",
                 session_id=worker_session_id,
             )
+            memory_context = memory_store.context_for("sherpa")
+            worker_prompt = (
+                f"{memory_context}\n\nAssigned task:\n{instruction}"
+                if memory_context else instruction
+            )
             message = types.Content(
                 role="user",
-                parts=[types.Part.from_text(text=instruction)],
+                parts=[types.Part.from_text(text=worker_prompt)],
             )
             response_text = ""
             seen_calls: set[str] = set()
@@ -529,6 +547,13 @@ class SherpaTaskManager:
                 "message": task.summary,
                 **self.snapshot(task),
             })
+            memory_manager.schedule(
+                source_type="task",
+                source_id=task.id,
+                user_text=instruction,
+                assistant_text=task.summary,
+                tool_assisted=True,
+            )
         except asyncio.CancelledError:
             if task.status != "cancelled":
                 task.status = "cancelled"

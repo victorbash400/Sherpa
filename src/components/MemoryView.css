@@ -1,13 +1,30 @@
 .memory-view {
   position: absolute;
-  inset: 76px 48px 28px 74px;
+  inset: 76px 0 24px 74px;
+  box-sizing: border-box;
+  padding-right: 28px;
   color: #292927;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d5d5d2 transparent;
   -webkit-app-region: no-drag;
 }
 
-.memory-view h1 {
+.memory-view::-webkit-scrollbar { width: 3px; }
+.memory-view::-webkit-scrollbar-thumb { background: #d5d5d2; border-radius: 3px; }
+
+.memory-view__title {
+  position: absolute;
+  top: 45px;
+  right: 14px;
+  z-index: 2;
   margin: 0;
   font-size: 13px;
   font-weight: 590;
   letter-spacing: -.01em;
+}
+
+.memory-view__error {
+  color: #9a3c32;
+  font-size: 11px;
 }

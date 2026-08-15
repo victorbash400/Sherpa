@@ -3,6 +3,8 @@ from typing import Any
 
 from google.adk.tools import BaseTool, ToolContext
 
+from backend.permission_store import permission_store
+
 
 logger = logging.getLogger("sherpa.computer_use")
 MAX_TOOL_TEXT = 40_000
@@ -12,14 +14,30 @@ def before_computer_tool(
     tool: BaseTool,
     args: dict[str, Any],
     tool_context: ToolContext,
-) -> None:
+) -> dict[str, str] | None:
     logger.info(
         "tool.started session=%s call=%s name=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
     )
-    del args
+    required_permission = tool_permission(tool.name)
+    if required_permission and not permission_store.enabled(required_permission):
+        return {
+            "status": "failed",
+            "error": f"{required_permission} is turned off in Sherpa Plugins.",
+        }
+    app_target = next((
+        args.get(key)
+        for key in ("app", "app_target", "bundle_id")
+        if isinstance(args.get(key), str)
+    ), None)
+    if app_target and not permission_store.app_enabled(app_target):
+        return {
+            "status": "failed",
+            "error": f"Access to {app_target} is turned off in Sherpa Plugins.",
+        }
+    return None
 
 
 def after_computer_tool(
@@ -88,3 +106,17 @@ def sanitize_tool_response(response: dict) -> dict:
     safe.pop("_meta", None)
     safe.pop("meta", None)
     return safe
+
+
+def tool_permission(tool_name: str) -> str | None:
+    if tool_name in {"browser_snapshot", "browser_find"}:
+        return "browser.read"
+    if tool_name == "browser_tabs":
+        return "browser.tabs"
+    if tool_name.startswith("browser_"):
+        return "browser.interact"
+    if tool_name in {"computer_see", "computer_inspect_ui"}:
+        return "mac.screen"
+    if tool_name.startswith("computer_"):
+        return "mac.control"
+    return None
