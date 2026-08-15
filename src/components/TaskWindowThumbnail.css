@@ -1,0 +1,33 @@
+.task-window-thumbnail {
+  --rail-count: 4;
+  position: absolute;
+  top: calc(var(--thumbnail-index) * 28px);
+  right: 0;
+  width: 66px;
+  aspect-ratio: 16 / 10;
+  padding: 0;
+  overflow: hidden;
+  background: #e8e8e4;
+  border: 1px solid #d8d8d3;
+  border-radius: 8px;
+  box-shadow: 0 7px 18px rgb(38 38 34 / 18%);
+  cursor: pointer;
+  transform: rotateY(-20deg) translateX(calc(var(--thumbnail-index) * -2px));
+  transform-origin: right center;
+  transition: transform 180ms cubic-bezier(.2, .8, .2, 1), box-shadow 180ms ease;
+}
+
+.task-window-thumbnail:hover,
+.task-window-thumbnail:focus-visible {
+  z-index: 2;
+  box-shadow: 0 9px 22px rgb(38 38 34 / 24%);
+  outline: none;
+  transform: rotateY(-8deg) translateX(-8px) scale(1.06);
+}
+
+.task-window-thumbnail .task-preview { border: 0; border-radius: 0; }
+.task-window-thumbnail .task-preview__screen p { padding: 4px; font-size: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .task-window-thumbnail { transition: none; }
+}

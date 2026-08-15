@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { VoiceTask } from "../hooks/useVoiceSession";
 import { TaskWindowCard } from "./TaskWindowCard";
-import { TaskWindowSwitcher } from "./TaskWindowSwitcher";
+import { TaskWindowThumbnail } from "./TaskWindowThumbnail";
 import "./TaskWindowStack.css";
 
 type Position = { x: number; y: number };
@@ -29,15 +29,8 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
 
   if (!tasks.length) return null;
 
-  const selectedIndex = Math.max(0, tasks.findIndex((task) => task.id === selectedTaskId));
-  const selectedTask = tasks[selectedIndex];
-  const ordered = [...tasks.slice(0, selectedIndex), ...tasks.slice(selectedIndex + 1), tasks[selectedIndex]];
-  const label = selectedTask.previewTarget?.title || selectedTask.previewTarget?.window_title || selectedTask.previewTarget?.app || selectedTask.instruction;
-
-  const selectOffset = (offset: number) => {
-    const nextIndex = (selectedIndex + offset + tasks.length) % tasks.length;
-    onSelect(tasks[nextIndex].id);
-  };
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) || tasks[0];
+  const thumbnails = tasks.filter((task) => task.id !== selectedTask.id);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (expanded || (event.target as HTMLElement).closest("button")) return;
@@ -67,37 +60,33 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
       ref={stackRef}
       className="task-window-stack"
       data-expanded={expanded}
+      data-has-rail={thumbnails.length > 0}
+      onPointerCancel={stopDragging}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={stopDragging}
       style={expanded ? undefined : { transform: `translate(${position.x}px, ${position.y}px)` }}
     >
-      <TaskWindowSwitcher
-        current={selectedIndex}
-        label={label}
-        onNext={() => selectOffset(1)}
-        onPointerCancel={stopDragging}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={stopDragging}
-        onPrevious={() => selectOffset(-1)}
-        total={tasks.length}
-      />
-      {ordered.map((task, index) => {
-        const active = index === ordered.length - 1;
-        const depth = ordered.length - index - 1;
-        return (
-          <div
-            className="task-window-stack__layer"
-            key={task.id}
-            style={{ transform: expanded || active ? undefined : `translate(${-depth * 11}px, ${depth * 9}px) scale(${1 - depth * .025})` }}
-          >
-            <TaskWindowCard
-              active={active}
-              expanded={expanded && active}
-              onExpand={() => setExpanded((current) => !current)}
+      <div className="task-window-stack__active">
+        <TaskWindowCard
+          active
+          expanded={expanded}
+          onExpand={() => setExpanded((current) => !current)}
+          task={selectedTask}
+        />
+      </div>
+      {thumbnails.length ? (
+        <div className="task-window-stack__rail" aria-label="Other task windows">
+          {thumbnails.map((task, index) => (
+            <TaskWindowThumbnail
+              index={index}
+              key={task.id}
+              onSelect={() => onSelect(task.id)}
               task={task}
             />
-          </div>
-        );
-      })}
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
