@@ -9,6 +9,14 @@ from backend.permission_store import permission_store
 from backend.google_auth import google_auth
 
 
+APPLICATION_ROOTS = (
+    Path("/Applications"),
+    Path("/System/Applications"),
+    Path("/System/Library/CoreServices"),
+    Path.home() / "Applications",
+)
+
+
 async def connection_snapshot() -> dict[str, Any]:
     apps = installed_applications()
     permission_store.register_apps(apps)
@@ -79,12 +87,7 @@ async def connection_snapshot() -> dict[str, Any]:
 def installed_applications() -> list[dict[str, str]]:
     """Return installed macOS application bundles, not merely running apps."""
     applications: dict[str, dict[str, str]] = {}
-    roots = (
-        Path("/Applications"),
-        Path("/System/Applications"),
-        Path.home() / "Applications",
-    )
-    for root in roots:
+    for root in APPLICATION_ROOTS:
         if not root.is_dir():
             continue
         for directory, child_directories, _ in os.walk(root):

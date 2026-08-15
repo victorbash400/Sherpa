@@ -1,9 +1,13 @@
 import json
+import re
+import subprocess
+import unicodedata
 from pathlib import Path
 from typing import Any
 
 
 PERMISSION_FILE = Path.home() / "Library" / "Application Support" / "Sherpa" / "permissions.json"
+PID_TARGET = re.compile(r"pid\s*:\s*(\d+)", re.IGNORECASE)
 DEFAULT_PERMISSIONS = {
     "google.models": True,
     "browser.read": True,
@@ -43,13 +47,19 @@ class PermissionStore:
                 self._values.setdefault(f"app.{bundle_id}", True)
                 name = app.get("name")
                 if isinstance(name, str):
-                    self._app_aliases[name.casefold().strip()] = bundle_id
+                    self._app_aliases[normalize_app_name(name)] = bundle_id
 
     def app_enabled(self, target: str) -> bool:
-        normalized = target.casefold().strip()
-        normalized = self._app_aliases.get(normalized, normalized).casefold()
+        normalized = normalize_app_name(target)
+        pid_match = PID_TARGET.fullmatch(normalized)
+        if pid_match:
+            bundle_id = bundle_id_for_pid(int(pid_match.group(1)))
+            if not bundle_id:
+                return False
+            normalized = normalize_app_name(bundle_id)
+        normalized = normalize_app_name(self._app_aliases.get(normalized, normalized))
         for permission_id, enabled in self._values.items():
-            if permission_id.startswith("app.") and permission_id.removeprefix("app.").casefold() == normalized:
+            if permission_id.startswith("app.") and normalize_app_name(permission_id.removeprefix("app.")) == normalized:
                 return enabled
         return False
 
@@ -65,3 +75,28 @@ class PermissionStore:
 
 
 permission_store = PermissionStore()
+
+
+def normalize_app_name(value: str) -> str:
+    return "".join(
+        character
+        for character in unicodedata.normalize("NFKC", value)
+        if unicodedata.category(character) != "Cf"
+    ).casefold().strip()
+
+
+def bundle_id_for_pid(pid: int) -> str | None:
+    try:
+        result = subprocess.run(
+            ["/usr/bin/lsappinfo", "info", "-only", "bundleid", "-app", str(pid)],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode:
+        return None
+    match = re.search(r'"CFBundleIdentifier"="([^"]+)"', result.stdout)
+    return match.group(1) if match else None
