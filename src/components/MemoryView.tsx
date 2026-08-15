@@ -7,18 +7,19 @@ import "./MemoryView.css";
 
 const memoryUrl = "http://127.0.0.1:8000/memory";
 
-export function MemoryView() {
+export function MemoryView({ active }: { active: boolean }) {
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     void requestMemory({ signal: controller.signal }).then(setSnapshot).catch((reason: unknown) => {
       if (!(reason instanceof DOMException && reason.name === "AbortError")) setError(messageFrom(reason));
     });
     return () => controller.abort();
-  }, []);
+  }, [active]);
 
   const updateSettings = async (values: Partial<MemorySettingsValues>) => {
     setSaving(true);

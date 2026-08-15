@@ -1,4 +1,4 @@
-import { PanelRight, Search, SquarePen, Trash2 } from "lucide-react";
+import { Search, SquarePen, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { SherpaChat } from "../chat/chatTypes";
 import "./ChatHistoryDrawer.css";
@@ -24,9 +24,6 @@ export function ChatHistoryDrawer({ activeChatId, chats, disabled, onClose, onDe
     <>
       <button className="chat-history-backdrop" data-open={open} disabled={!open} aria-label="Close chat history" onClick={onClose} type="button" />
       <aside className="chat-history-drawer" data-open={open} aria-hidden={!open} aria-label="Chat history" inert={!open}>
-        <header>
-          <button aria-label="Close chat history" onClick={onClose} type="button"><PanelRight aria-hidden="true" /></button>
-        </header>
         <nav>
           <button onClick={onNewChat} type="button"><SquarePen aria-hidden="true" />New chat</button>
           <button aria-expanded={searching} onClick={() => setSearching((current) => !current)} type="button"><Search aria-hidden="true" />Search chats</button>

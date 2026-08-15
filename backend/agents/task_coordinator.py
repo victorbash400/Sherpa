@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-BOSS_MODEL = "gemini-3.7-flash"
+COORDINATOR_MODEL = "gemini-3.7-flash"
 
 
 class WorkerAssignment(BaseModel):
@@ -22,11 +22,11 @@ class AdmissionDecision(BaseModel):
     assignments: list[WorkerAssignment] = Field(default_factory=list, max_length=3)
 
 
-sherpa_boss = Agent(
-    name="sherpa_boss",
+task_coordinator = Agent(
+    name="task_coordinator",
     description="Admits requests and decomposes accepted work into independent assignments.",
     model=Gemini(
-        model=BOSS_MODEL,
+        model=COORDINATOR_MODEL,
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     mode="chat",
@@ -62,4 +62,4 @@ sherpa_boss = Agent(
     """,
 )
 
-sherpa_boss_app = App(name="sherpa_boss", root_agent=sherpa_boss)
+task_coordinator_app = App(name="task_coordinator", root_agent=task_coordinator)

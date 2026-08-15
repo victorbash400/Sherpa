@@ -15,7 +15,7 @@ from google.adk.tools import ToolContext
 from google.genai import types
 
 from backend.agents.sherpa_agent import sherpa_app
-from backend.agents.boss_agent import AdmissionDecision, WorkerAssignment, sherpa_boss_app
+from backend.agents.task_coordinator import AdmissionDecision, WorkerAssignment, task_coordinator_app
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
@@ -85,7 +85,7 @@ class SherpaTaskManager:
     def __init__(self) -> None:
         self._sessions = InMemorySessionService()
         self._runner = Runner(app=sherpa_app, session_service=self._sessions)
-        self._boss_runner = Runner(app=sherpa_boss_app, session_service=self._sessions)
+        self._coordinator_runner = Runner(app=task_coordinator_app, session_service=self._sessions)
         self._tasks: dict[str, SherpaTask] = {}
         self._submissions: dict[str, SherpaSubmission] = {}
         self._event_queues: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
@@ -360,7 +360,7 @@ class SherpaTaskManager:
             if task.status == "running" and task.parent_id is None
         ]
         await self._sessions.create_session(
-            app_name="sherpa_boss",
+            app_name="task_coordinator",
             user_id="local-user",
             session_id=admission_id,
         )
@@ -370,7 +370,7 @@ class SherpaTaskManager:
             "active_tasks": active_tasks,
             "relevant_memory": memory_store.context_for("coordinator", limit=5),
         })
-        async for event in self._boss_runner.run_async(
+        async for event in self._coordinator_runner.run_async(
             user_id="local-user",
             session_id=admission_id,
             new_message=types.Content(

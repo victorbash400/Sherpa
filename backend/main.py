@@ -65,8 +65,9 @@ from backend.agents.sherpa_agent import (
     sherpa_computer_tools,
     sherpa_google_tools,
 )
-from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL, VOICE_TOOLS
+from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL
 from backend.sherpa_tasks import sherpa_tasks
+from backend.tools.voice_tools import VOICE_TOOLS, handle_voice_tool_call
 
 sessions = InMemorySessionService()
 runner = Runner(app=sherpa_app, session_service=sessions)
@@ -494,163 +495,6 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 response=response,
             )])
 
-        async def handle_function_call(call: types.FunctionCall) -> None:
-            call_id = call.id or call.name or "unknown"
-            args = call.args or {}
-            logger.info(
-                "tool.requested session=%s call=%s name=%s",
-                session_id, call_id, call.name,
-            )
-            if call.name == "submit_task":
-                instruction = str(args.get("instruction", "")).strip()
-                if not instruction:
-                    await send_function_response(
-                        call_id, call.name, {"error": "instruction is required"},
-                    )
-                    return
-                decision = await sherpa_tasks.submit(session_id, instruction)
-                logger.info(
-                    "task.receipt session=%s status=%s submission=%s call=%s",
-                    session_id,
-                    decision["status"],
-                    decision.get("submission_id", "none"),
-                    call_id,
-                )
-                await send_function_response(call_id, call.name, decision)
-                return
-            if call.name == "inspect_task":
-                task_id = str(args.get("task_id", "")).strip()
-                task = sherpa_tasks.get(task_id)
-                if not task or task.chat_id != session_id:
-                    response = {"status": "not_found", "task_id": task_id}
-                else:
-                    response = sherpa_tasks.snapshot(task)
-                await send_function_response(call_id, call.name, response)
-                return
-            if call.name == "list_active_tasks":
-                tasks = [
-                    sherpa_tasks.snapshot(task)
-                    for task in sherpa_tasks.list_active_for_chat(session_id)
-                ]
-                submissions = [
-                    sherpa_tasks.submission_snapshot(submission)
-                    for submission in sherpa_tasks.list_pending_submissions(session_id)
-                ]
-                await send_function_response(
-                    call_id,
-                    call.name,
-                    {
-                        "status": "active_tasks_found" if tasks else "no_active_tasks",
-                        "active_count": len(tasks),
-                        "received_count": len(submissions),
-                        "message": (
-                            f"{len(tasks)} task(s) are currently running."
-                            if tasks
-                            else (
-                                f"{len(submissions)} request(s) are still being organized."
-                                if submissions
-                                else "No tasks are currently running. This does not indicate that any task completed."
-                            )
-                        ),
-                        "spoken_summary": (
-                            "Currently running: " + "; ".join(
-                                f"{task['instruction']} — {task['current_step']}"
-                                for task in tasks
-                            )
-                            if tasks
-                            else (
-                                "Sherpa is still organizing: " + "; ".join(
-                                    submission["instruction"] for submission in submissions
-                                )
-                                if submissions
-                                else "No tasks are currently running. I cannot infer whether any earlier task completed from this check."
-                            )
-                        ),
-                        "received": submissions,
-                        "tasks": tasks,
-                    },
-                )
-                return
-            if call.name == "list_tasks":
-                tasks = [
-                    sherpa_tasks.snapshot(task)
-                    for task in sherpa_tasks.list_for_chat(session_id)
-                    if task.kind == "worker" or not task.child_ids
-                ]
-                counts = {
-                    status: sum(task["status"] == status for task in tasks)
-                    for status in ("running", "completed", "failed", "cancelled")
-                }
-                submissions = [
-                    sherpa_tasks.submission_snapshot(submission)
-                    for submission in sherpa_tasks.list_pending_submissions(session_id)
-                ]
-                await send_function_response(
-                    call_id,
-                    call.name,
-                    {
-                        "status": "tasks_found" if tasks else "no_tasks",
-                        "counts": counts,
-                        "received": submissions,
-                        "spoken_summary": (
-                            "; ".join([
-                                *(f"{submission['instruction']} — received" for submission in submissions),
-                                *(
-                                f"{task['instruction']} — {task['status']}"
-                                for task in tasks
-                                ),
-                            ])
-                            if tasks or submissions
-                            else "There are no tasks recorded in this conversation."
-                        ),
-                        "tasks": tasks,
-                    },
-                )
-                return
-            if call.name == "cancel_task":
-                task_id = str(args.get("task_id", "")).strip()
-                task = sherpa_tasks.get(task_id)
-                cancelled = bool(
-                    task
-                    and task.chat_id == session_id
-                    and sherpa_tasks.cancel(task_id)
-                )
-                await send_function_response(
-                    call_id,
-                    call.name,
-                    {
-                        "status": "cancelled" if cancelled else "not_running",
-                        "task_id": task_id,
-                    },
-                )
-                return
-            if call.name == "steer_task":
-                task_id = str(args.get("task_id", "")).strip()
-                instruction = str(args.get("instruction", "")).strip()
-                task = sherpa_tasks.get(task_id)
-                response = (
-                    await sherpa_tasks.steer(task_id, instruction)
-                    if task and task.chat_id == session_id
-                    else {"status": "not_found", "task_id": task_id}
-                )
-                await send_function_response(call_id, call.name, response)
-                return
-            if call.name == "answer_task_question":
-                task_id = str(args.get("task_id", "")).strip()
-                question_id = str(args.get("question_id", "")).strip()
-                answer = str(args.get("answer", "")).strip()
-                task = sherpa_tasks.get(task_id)
-                response = (
-                    await sherpa_tasks.answer_question(task_id, question_id, answer)
-                    if task and task.chat_id == session_id
-                    else {"status": "not_found", "task_id": task_id}
-                )
-                await send_function_response(call_id, call.name, response)
-                return
-            await send_function_response(call_id, call.name or "unknown", {
-                "error": "Unknown voice tool",
-            })
-
         async def send_events() -> None:
             nonlocal model_idle, playback_drained, notification_in_flight, in_flight_notifications
             try:
@@ -658,7 +502,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     async for response in live.receive():
                         if response.tool_call:
                             for call in response.tool_call.function_calls or []:
-                                await handle_function_call(call)
+                                await handle_voice_tool_call(
+                                    call,
+                                    session_id,
+                                    send_function_response,
+                                )
                         content = response.server_content
                         if not content:
                             continue

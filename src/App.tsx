@@ -163,7 +163,7 @@ export function App() {
         </>
       ) : null}
       <div hidden={view !== "memory"}>
-        <MemoryView />
+        <MemoryView active={view === "memory"} />
       </div>
       <div hidden={view !== "plugins"}>
         <PluginsView

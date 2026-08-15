@@ -26,7 +26,7 @@
   display: grid;
   width: min(76%, 220px);
   padding: 10px;
-  grid-template-rows: 30px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   color: #4f4f4b;
   background: #fff;
   border: 1px solid #e4e4e1;
@@ -47,11 +47,6 @@
   transform: translateX(0);
   visibility: visible;
   transition: opacity 180ms ease, transform 300ms cubic-bezier(.22, 1, .36, 1), visibility 0s;
-}
-
-.chat-history-drawer header {
-  display: flex;
-  justify-content: flex-start;
 }
 
 .chat-history-drawer button {
@@ -126,7 +121,6 @@
   align-content: start;
   gap: 2px;
   overflow-y: auto;
-  border-top: 1px solid #eeeeeb;
   scrollbar-color: #c6c7c4 transparent;
   scrollbar-width: thin;
 }
