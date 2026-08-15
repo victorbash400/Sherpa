@@ -26,6 +26,7 @@ export function TaskDetails({ active, task }: { active: boolean; task: VoiceTask
       <TaskPreview
         active={active}
         cursor={task.previewCursor}
+        revision={task.previewRevision}
         target={task.previewTarget}
         taskId={task.id}
       />

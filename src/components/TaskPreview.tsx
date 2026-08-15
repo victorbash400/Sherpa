@@ -6,16 +6,18 @@ import "./TaskPreview.css";
 type TaskPreviewProps = {
   active: boolean;
   cursor?: PreviewCursor;
+  revision?: string;
   target?: PreviewTarget;
   taskId: string;
 };
 
-export function TaskPreview({ active, cursor, target, taskId }: TaskPreviewProps) {
+export function TaskPreview({ active, cursor, revision, target, taskId }: TaskPreviewProps) {
   const [expanded, setExpanded] = useState(false);
   const [frame, setFrame] = useState<string>();
   const [error, setError] = useState<string>();
   const [bounds, setBounds] = useState<PreviewBounds>();
   const frameUrl = useRef<string | undefined>(undefined);
+  const retryPending = useRef(false);
 
   useEffect(() => {
     const bridge = window.sherpaPreview;
@@ -27,15 +29,22 @@ export function TaskPreview({ active, cursor, target, taskId }: TaskPreviewProps
       const bytes = new Uint8Array(nextFrame);
       frameUrl.current = URL.createObjectURL(new Blob([bytes.buffer], { type: "image/jpeg" }));
       setFrame(frameUrl.current);
+      retryPending.current = false;
     });
     const removeError = bridge.onError((errorTaskId, message) => {
-      if (errorTaskId === taskId) setError(message);
+      if (errorTaskId === taskId) {
+        retryPending.current = true;
+        setError(message);
+      }
     });
     const removeMetadata = bridge.onMetadata((metadataTaskId, nextBounds) => {
       if (metadataTaskId === taskId) setBounds(nextBounds);
     });
     void bridge.start(taskId, target).then((started) => {
-      if (!started) setError("This window cannot be previewed.");
+      if (!started) {
+        retryPending.current = true;
+        setError("This window cannot be previewed.");
+      }
     });
     return () => {
       bridge.stop(taskId);
@@ -46,6 +55,12 @@ export function TaskPreview({ active, cursor, target, taskId }: TaskPreviewProps
       frameUrl.current = undefined;
     };
   }, [active, target?.app, target?.pid, target?.window_id, target?.window_title, taskId]);
+
+  useEffect(() => {
+    if (!active || !revision || !target || !retryPending.current) return;
+    retryPending.current = false;
+    void window.sherpaPreview?.start(taskId, target);
+  }, [active, revision, target?.app, target?.pid, target?.window_id, target?.window_title, taskId]);
 
   useEffect(() => {
     if (!expanded) return;

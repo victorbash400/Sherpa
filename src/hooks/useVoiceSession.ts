@@ -25,6 +25,7 @@ export type VoiceTask = {
   previewTarget?: PreviewTarget;
   interactionMode?: "background" | "foreground";
   previewCursor?: PreviewCursor;
+  previewRevision?: string;
 };
 export type VoiceTaskUpdate = {
   phase: string;
@@ -332,6 +333,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
                   ...task,
                   previewTarget: message.preview_target,
                   interactionMode: message.interaction_mode || "background",
+                  previewRevision: toolId,
                   previewCursor: typeof overlayX === "number" && typeof overlayY === "number" ? {
                     id: toolId,
                     action: toolName,
@@ -384,6 +386,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
                 previewTarget: item.previewTarget,
                 interactionMode: item.interactionMode,
                 previewCursor: item.previewCursor,
+                previewRevision: item.previewRevision,
               } : item)
               : [task, ...current];
           });
@@ -400,6 +403,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
               previewTarget: task.previewTarget,
               interactionMode: task.interactionMode,
               previewCursor: task.previewCursor,
+              previewRevision: task.previewRevision,
               status: taskStatus,
               result: message.message || message.summary,
             }

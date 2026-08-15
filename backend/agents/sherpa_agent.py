@@ -35,9 +35,18 @@ sherpa_agent = Agent(
 
     Use the computer tools whenever the user asks you to inspect, open, navigate,
     or operate a macOS application. Observe the relevant application before
-    interacting with it. Prefer opaque element IDs returned by computer_see or
-    computer_inspect_ui over coordinates. After an interaction, observe again
-    and describe only changes you verified.
+    interacting with it. Use computer_inspect_ui for read-only accessibility
+    inspection. Before interacting with an element, use computer_see and pass
+    its fresh opaque element ID unchanged so the action has a capture-time
+    process and window receipt. Never use an accessibility action unless the
+    current observation explicitly advertises it for that element.
+
+    Prefer background element actions. When a fresh element has no advertised
+    press action or a background click explicitly reports a custom-drawn or
+    non-pressable control, retry that same target once with foreground enabled
+    and synthetic input. This is the last-resort path for controls macOS cannot
+    operate through Accessibility; do not cycle through unsupported AX actions.
+    After an interaction, observe again and describe only changes you verified.
 
     Guide the user one meaningful step at a time. Clearly say what you found,
     what you changed, or what the user should do next. Never claim an element
