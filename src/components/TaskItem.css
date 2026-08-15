@@ -44,6 +44,7 @@
 .task-item strong { display: block; color: #292927; font-size: 13px; font-weight: 520; line-height: 1.4; transition: color 160ms ease; }
 .task-item[data-phase="queued"] strong,
 .task-item[data-status="cancelled"] strong { color: #9a9a95; }
+.task-item[data-selected="true"] strong { color: #11110f; }
 .task-item__chevron { width: 15px; height: 15px; margin-top: 2px; color: #a2a29d; stroke-width: 1.7; transition: transform 240ms cubic-bezier(.2,.8,.2,1); }
 .task-item[data-expanded="true"] .task-item__chevron { transform: rotate(180deg); }
 

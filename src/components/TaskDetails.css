@@ -1,13 +1,4 @@
 .task-details {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 38%);
-  gap: 18px;
   padding: 1px 24px 14px 30px;
-  align-items: start;
-}
-
-.task-details__updates { min-width: 0; }
-
-@media (max-width: 680px) {
-  .task-details { grid-template-columns: 1fr; }
+  min-width: 0;
 }

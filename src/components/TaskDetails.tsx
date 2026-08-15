@@ -1,9 +1,8 @@
 import type { VoiceTask, VoiceTaskUpdate } from "../hooks/useVoiceSession";
 import { TaskUpdateList } from "./TaskUpdateList";
-import { TaskPreview } from "./TaskPreview";
 import "./TaskDetails.css";
 
-export function TaskDetails({ active, task }: { active: boolean; task: VoiceTask }) {
+export function TaskDetails({ task }: { task: VoiceTask }) {
   const updates: VoiceTaskUpdate[] = task.result
     ? task.updates.filter((update) => update.message.trim() !== task.result?.trim())
     : task.updates;
@@ -20,16 +19,7 @@ export function TaskDetails({ active, task }: { active: boolean; task: VoiceTask
 
   return (
     <div className="task-details">
-      <div className="task-details__updates">
-        {entries.length ? <TaskUpdateList updates={entries} /> : null}
-      </div>
-      <TaskPreview
-        active={active}
-        cursor={task.previewCursor}
-        revision={task.previewRevision}
-        target={task.previewTarget}
-        taskId={task.id}
-      />
+      {entries.length ? <TaskUpdateList updates={entries} /> : null}
     </div>
   );
 }

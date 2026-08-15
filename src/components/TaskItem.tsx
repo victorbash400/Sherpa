@@ -4,16 +4,19 @@ import type { VoiceTask } from "../hooks/useVoiceSession";
 import { TaskDetails } from "./TaskDetails";
 import "./TaskItem.css";
 
-export function TaskItem({ task }: { task: VoiceTask }) {
+export function TaskItem({ onSelect, selected, task }: { onSelect: () => void; selected: boolean; task: VoiceTask }) {
   const [expanded, setExpanded] = useState(task.status === "running");
 
   return (
-    <article className="task-item" data-expanded={expanded} data-phase={task.phase} data-status={task.status}>
+    <article className="task-item" data-expanded={expanded} data-phase={task.phase} data-selected={selected} data-status={task.status}>
       <button
         type="button"
         aria-expanded={expanded}
         aria-label={`${task.instruction}, ${statusLabel(task.status)}`}
-        onClick={() => setExpanded((current) => !current)}
+        onClick={() => {
+          onSelect();
+          setExpanded((current) => !current);
+        }}
       >
         <span className="task-item__marker" data-status={task.status} aria-hidden="true">
           {task.status === "completed" ? <Check /> : null}
@@ -26,7 +29,7 @@ export function TaskItem({ task }: { task: VoiceTask }) {
       </button>
       <div className="task-item__reveal" aria-hidden={!expanded} inert={!expanded}>
         <div>
-          <TaskDetails active={expanded} task={task} />
+          <TaskDetails task={task} />
         </div>
       </div>
     </article>

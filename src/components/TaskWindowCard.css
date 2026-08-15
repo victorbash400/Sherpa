@@ -1,0 +1,50 @@
+.task-window-card {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #e8e8e4;
+  border: 1px solid #d8d8d3;
+  border-radius: 13px;
+  box-shadow: 0 12px 30px rgb(38 38 34 / 14%);
+  transition: transform 220ms cubic-bezier(.2, .8, .2, 1), opacity 160ms ease;
+}
+
+.task-window-card__select {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.task-window-card__expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  color: #f7f7f5;
+  opacity: 0;
+  background: rgb(28 28 27 / 62%);
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: opacity 140ms ease, background 140ms ease;
+}
+
+.task-window-card[data-active="true"]:hover .task-window-card__expand,
+.task-window-card__expand:focus-visible,
+.task-window-card[data-expanded="true"] .task-window-card__expand { opacity: 1; }
+.task-window-card__expand:hover { background: rgb(28 28 27 / 76%); }
+.task-window-card__expand svg { width: 14px; height: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .task-window-card,
+  .task-window-card__expand { transition: none; }
+}
