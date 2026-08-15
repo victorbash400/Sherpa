@@ -275,7 +275,7 @@ class SherpaTaskManager:
 
     def list_for_chat(self, chat_id: str) -> list[SherpaTask]:
         return [
-            task for task in reversed(self._tasks.values())
+            task for task in self._tasks.values()
             if task.chat_id == chat_id
         ]
 
@@ -961,6 +961,17 @@ def is_observation_tool(name: str) -> bool:
         "computer_inspect_ui",
         "browser_snapshot",
         "browser_find",
+        "workspace_calendar_list_events",
+        "workspace_docs_read_doc",
+        "workspace_drive_get_file",
+        "workspace_drive_search_files",
+        "workspace_gmail_get_message",
+        "workspace_gmail_get_thread",
+        "workspace_gmail_list_labels",
+        "workspace_gmail_search_threads",
+        "workspace_people_search_contacts",
+        "workspace_sheets_read_range",
+        "workspace_slides_get_presentation",
     }
 
 

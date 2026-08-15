@@ -347,6 +347,14 @@ async def workspace_sheets_create_spreadsheet(title: str, sheet_titles: list[str
     return {
         "spreadsheet_id": spreadsheet_id,
         "url": result.get("spreadsheetUrl"),
+        "sheets": [
+            {
+                "sheet_id": sheet.get("properties", {}).get("sheetId"),
+                "title": sheet.get("properties", {}).get("title"),
+                "index": sheet.get("properties", {}).get("index"),
+            }
+            for sheet in result.get("sheets", [])
+        ],
         "preview": workspace_preview(spreadsheet_id, title, "application/vnd.google-apps.spreadsheet"),
     }
 

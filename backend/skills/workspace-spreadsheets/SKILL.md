@@ -7,7 +7,7 @@ description: Read, create, append, update, and format Google Sheets with precise
 
 1. Resolve the spreadsheet and exact sheet/range. Read the relevant range with `workspace_sheets_read_range` before editing existing data.
 2. Use `workspace_sheets_create_spreadsheet` for a new workbook, `workspace_sheets_append_rows` for new records, and `workspace_sheets_update_range` for replacing known cells.
-3. Use `workspace_sheets_batch_update` for structure or formatting. Keep requests scoped to the intended sheet and cells.
+3. Use `workspace_sheets_batch_update` for structure or formatting. Use the real `sheet_id` returned by spreadsheet creation; never assume it is `0`. For row or column sizing, send `updateDimensionProperties` with `range: {sheetId, dimension, startIndex, endIndex}`, `properties: {pixelSize}`, and `fields: "pixelSize"`.
 4. Preserve the table's headers, formulas, and column order unless the request changes them. Never overwrite a broader range merely because it is easier.
 5. Read the affected range after writing and compare the returned values with the requested result.
 

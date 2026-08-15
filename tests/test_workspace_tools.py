@@ -9,6 +9,7 @@ from backend.tools.google_tools.workspace import (
     document_text,
     gmail_body,
     google_resource_id,
+    workspace_sheets_create_spreadsheet,
 )
 
 
@@ -63,6 +64,21 @@ class WorkspaceToolTests(unittest.IsolatedAsyncioTestCase):
             }
         }
         self.assertEqual(document_text(document), "Hello world")
+
+    async def test_created_spreadsheet_returns_real_sheet_ids(self) -> None:
+        response = {
+            "spreadsheetId": "1abcdefghijklmnopqrstuvwxyzABCDE",
+            "spreadsheetUrl": "https://docs.google.com/spreadsheets/example",
+            "sheets": [{"properties": {"sheetId": 417, "title": "Ranked Videos", "index": 0}}],
+        }
+        with patch("backend.tools.google_tools.workspace.workspace_request", return_value=response):
+            result = await workspace_sheets_create_spreadsheet("Videos", ["Ranked Videos"])
+
+        self.assertEqual(result["sheets"], [{
+            "sheet_id": 417,
+            "title": "Ranked Videos",
+            "index": 0,
+        }])
 
 
 if __name__ == "__main__":

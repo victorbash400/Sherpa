@@ -9,8 +9,7 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
   const [selectedTaskId, setSelectedTaskId] = useState<string>();
   const visibleTasks = tasks.filter((task) => task.kind === "worker");
   const running = visibleTasks.filter((task) => task.status === "running");
-  const finished = visibleTasks.filter((task) => task.status !== "running");
-  const orderedTasks = [...running, ...finished];
+  const orderedTasks = visibleTasks;
   const previewTasks = running.filter((task) => task.previewTarget);
   const effectiveSelectedTaskId = previewTasks.some((task) => task.id === selectedTaskId)
     ? selectedTaskId

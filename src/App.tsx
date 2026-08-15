@@ -29,7 +29,7 @@ import "./App.css";
 export function App() {
   const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);

@@ -1,9 +1,9 @@
 .task-window-stack {
   position: absolute;
   top: 118px;
-  right: 48px;
+  right: 76px;
   z-index: 4;
-  width: clamp(240px, 31%, 380px);
+  width: clamp(250px, 42%, 390px);
   aspect-ratio: 16 / 10;
   touch-action: none;
 }
@@ -14,15 +14,13 @@
   transition: right 220ms cubic-bezier(.2, .8, .2, 1);
 }
 
-.task-window-stack[data-has-rail="true"] .task-window-stack__active { right: 72px; }
-
 .task-window-stack__rail {
   position: absolute;
-  top: 5%;
-  right: -8px;
-  bottom: 5%;
-  width: 72px;
-  perspective: 420px;
+  top: 7%;
+  right: -54px;
+  bottom: 7%;
+  width: 100px;
+  perspective: 520px;
 }
 
 .task-window-stack[data-expanded="true"] {
@@ -38,7 +36,7 @@
 .task-window-stack[data-expanded="true"] .task-window-stack__rail { display: none; }
 
 @media (max-width: 760px) {
-  .task-window-stack { top: 112px; right: 34px; width: min(250px, 44%); }
+  .task-window-stack { top: 112px; right: 62px; width: min(270px, 46%); }
   .task-window-stack[data-expanded="true"] { right: 14px; }
 }
 

@@ -35,6 +35,9 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
     });
     const removeError = bridge.onError((errorTaskId, message) => {
       if (errorTaskId === taskId) {
+        if (frameUrl.current) URL.revokeObjectURL(frameUrl.current);
+        frameUrl.current = undefined;
+        setFrame(undefined);
         retryPending.current = true;
         setError(message);
       }

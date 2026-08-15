@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import patch
 
 from backend.agents.task_planner import TaskOperation, TaskPlan
-from backend.sherpa_tasks import SherpaSubmission, SherpaTaskManager
+from backend.sherpa_tasks import SherpaSubmission, SherpaTaskManager, is_observation_tool
 
 
 class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
@@ -110,7 +110,7 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.manager, "_run_worker", side_effect=run):
             await self.manager._apply_plan(submission, plan)
             await asyncio.sleep(0)
-            tasks = list(reversed(self.manager.list_for_chat("chat")))
+            tasks = self.manager.list_for_chat("chat")
             self.assertEqual([task.instruction for task in tasks], ["One", "Two", "Three"])
             self.assertEqual([task.phase for task in tasks[1:]], ["queued", "queued"])
             self.assertEqual(starts, ["one"])
@@ -154,6 +154,11 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "unknown skills"):
             self.manager._validate_plan("chat", plan)
+
+    async def test_workspace_reads_count_as_verification(self) -> None:
+        self.assertTrue(is_observation_tool("workspace_sheets_read_range"))
+        self.assertTrue(is_observation_tool("workspace_docs_read_doc"))
+        self.assertFalse(is_observation_tool("workspace_sheets_update_range"))
 
 
 if __name__ == "__main__":

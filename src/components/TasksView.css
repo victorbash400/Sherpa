@@ -22,8 +22,8 @@
   letter-spacing: -.01em;
 }
 
-.tasks-view[data-has-previews="true"] .tasks-panel__list { padding-right: min(39%, 410px); }
+.tasks-view[data-has-previews="true"] .tasks-panel__list { padding-right: min(56%, 440px); }
 
 @media (max-width: 760px) {
-  .tasks-view[data-has-previews="true"] .tasks-panel__list { padding-right: 46%; }
+  .tasks-view[data-has-previews="true"] .tasks-panel__list { padding-right: 58%; }
 }

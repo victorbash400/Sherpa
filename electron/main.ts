@@ -14,6 +14,7 @@ let overlayReady = false;
 let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
 const previewProcesses = new Map<string, ChildProcessWithoutNullStreams>();
+const previewRestarts = new Map<string, ReturnType<typeof setTimeout>>();
 
 type OverlayPayload = {
   id: string;
@@ -215,42 +216,7 @@ function configurePreviewEvents() {
   ipcMain.handle("preview:start", (event, taskId: string, target: PreviewTarget) => {
     if (event.sender !== mainWindow?.webContents || !taskId || !validPreviewTarget(target)) return false;
     stopPreview(taskId);
-    const binary = app.isPackaged
-      ? path.join(process.resourcesPath, "window-capture")
-      : path.join(app.getAppPath(), "dist-native/window-capture");
-    const child = spawn(binary, previewArguments(target));
-    previewProcesses.set(taskId, child);
-    let buffer = Buffer.alloc(0);
-    child.stdout.on("data", (chunk: Buffer) => {
-      buffer = Buffer.concat([buffer, chunk]);
-      while (buffer.length >= 4) {
-        const length = buffer.readUInt32BE(0);
-        if (buffer.length < length + 4) break;
-        const frame = buffer.subarray(4, length + 4);
-        buffer = buffer.subarray(length + 4);
-        if (frame[0] === 0x7b) {
-          try {
-            mainWindow?.webContents.send("preview:metadata", taskId, JSON.parse(frame.toString()));
-          } catch {
-            mainWindow?.webContents.send("preview:error", taskId, "Window preview metadata was invalid.");
-          }
-        } else {
-          mainWindow?.webContents.send("preview:frame", taskId, Uint8Array.from(frame));
-        }
-      }
-    });
-    let errorText = "";
-    child.stderr.on("data", (chunk: Buffer) => { errorText += chunk.toString(); });
-    child.on("error", (error) => {
-      mainWindow?.webContents.send("preview:error", taskId, error.message);
-    });
-    child.on("exit", (code) => {
-      if (previewProcesses.get(taskId) !== child) return;
-      previewProcesses.delete(taskId);
-      if (code && code !== 0) {
-        mainWindow?.webContents.send("preview:error", taskId, errorText.trim() || "Window preview stopped.");
-      }
-    });
+    startPreview(taskId, target, 0);
     return true;
   });
   ipcMain.on("preview:stop", (event, taskId: string) => {
@@ -258,6 +224,59 @@ function configurePreviewEvents() {
   });
   ipcMain.on("preview:stop-all", (event) => {
     if (event.sender === mainWindow?.webContents) stopAllPreviews();
+  });
+}
+
+function startPreview(taskId: string, target: PreviewTarget, attempt: number) {
+  const binary = app.isPackaged
+    ? path.join(process.resourcesPath, "window-capture")
+    : path.join(app.getAppPath(), "dist-native/window-capture");
+  const child = spawn(binary, previewArguments(target));
+  previewProcesses.set(taskId, child);
+  let buffer = Buffer.alloc(0);
+  child.stdout.on("data", (chunk: Buffer) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    while (buffer.length >= 4) {
+      const length = buffer.readUInt32BE(0);
+      if (buffer.length < length + 4) break;
+      const frame = buffer.subarray(4, length + 4);
+      buffer = buffer.subarray(length + 4);
+      if (frame[0] === 0x7b) {
+        try {
+          mainWindow?.webContents.send("preview:metadata", taskId, JSON.parse(frame.toString()));
+        } catch {
+          mainWindow?.webContents.send("preview:error", taskId, "Window preview metadata was invalid.");
+        }
+      } else {
+        mainWindow?.webContents.send("preview:frame", taskId, Uint8Array.from(frame));
+      }
+    }
+  });
+  let errorText = "";
+  child.stderr.on("data", (chunk: Buffer) => { errorText += chunk.toString(); });
+  child.on("error", (error) => {
+    mainWindow?.webContents.send("preview:error", taskId, error.message);
+  });
+  child.on("exit", (code) => {
+    if (previewProcesses.get(taskId) !== child) return;
+    previewProcesses.delete(taskId);
+    const interrupted = errorText.includes("SCStreamErrorDomain Code=-3805");
+    if (code && interrupted && attempt === 0) {
+      const restart = setTimeout(() => {
+        previewRestarts.delete(taskId);
+        if (mainWindow && !mainWindow.isDestroyed() && !previewProcesses.has(taskId)) {
+          startPreview(taskId, target, 1);
+        }
+      }, 200);
+      previewRestarts.set(taskId, restart);
+      return;
+    }
+    if (code && code !== 0) {
+      const message = interrupted
+        ? "The window preview connection was interrupted."
+        : errorText.trim() || "Window preview stopped.";
+      mainWindow?.webContents.send("preview:error", taskId, message);
+    }
   });
 }
 
@@ -275,6 +294,11 @@ function previewArguments(target: PreviewTarget) {
 }
 
 function stopPreview(taskId: string) {
+  const restart = previewRestarts.get(taskId);
+  if (restart) {
+    clearTimeout(restart);
+    previewRestarts.delete(taskId);
+  }
   const child = previewProcesses.get(taskId);
   if (!child) return;
   previewProcesses.delete(taskId);
@@ -282,7 +306,8 @@ function stopPreview(taskId: string) {
 }
 
 function stopAllPreviews() {
-  for (const taskId of [...previewProcesses.keys()]) stopPreview(taskId);
+  const taskIds = new Set([...previewProcesses.keys(), ...previewRestarts.keys()]);
+  for (const taskId of taskIds) stopPreview(taskId);
 }
 
 app.whenReady().then(() => {
