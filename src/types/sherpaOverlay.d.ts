@@ -25,5 +25,8 @@ declare global {
       onUpdate: (callback: (payload: OverlayUpdate) => void) => () => void;
       onHide: (callback: (id: string) => void) => () => void;
     };
+    sherpaSystem?: {
+      openExternal: (url: string) => Promise<boolean>;
+    };
   }
 }

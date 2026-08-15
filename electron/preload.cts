@@ -16,3 +16,7 @@ contextBridge.exposeInMainWorld("sherpaOverlay", {
     return () => ipcRenderer.removeListener("overlay:hide", listener);
   },
 });
+
+contextBridge.exposeInMainWorld("sherpaSystem", {
+  openExternal: (url: string) => ipcRenderer.invoke("system:open-external", url),
+});

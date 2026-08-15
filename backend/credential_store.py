@@ -40,3 +40,44 @@ def load_keychain_secret(service: str) -> str | None:
     )
     key = result.stdout.strip()
     return key or None
+
+
+def save_keychain_secret(service: str, secret: str) -> None:
+    if sys.platform != "darwin":
+        raise RuntimeError("Sherpa account storage currently requires macOS Keychain.")
+    result = subprocess.run(
+        [
+            "security",
+            "add-generic-password",
+            "-U",
+            "-a",
+            getpass.getuser(),
+            "-s",
+            service,
+            "-w",
+            secret,
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Could not save the Google account.")
+
+
+def delete_keychain_secret(service: str) -> None:
+    if sys.platform != "darwin":
+        return
+    subprocess.run(
+        [
+            "security",
+            "delete-generic-password",
+            "-a",
+            getpass.getuser(),
+            "-s",
+            service,
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+    )

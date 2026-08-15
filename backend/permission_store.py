@@ -11,6 +11,15 @@ DEFAULT_PERMISSIONS = {
     "browser.tabs": True,
     "mac.screen": True,
     "mac.control": True,
+    "workspace.drive": True,
+    "workspace.docs": True,
+    "workspace.sheets": True,
+    "workspace.slides": True,
+    "workspace.gmail": True,
+    "workspace.calendar": True,
+    "workspace.people": True,
+    "cloud.resources": True,
+    "cloud.cli": True,
 }
 
 
@@ -42,7 +51,7 @@ class PermissionStore:
         for permission_id, enabled in self._values.items():
             if permission_id.startswith("app.") and permission_id.removeprefix("app.").casefold() == normalized:
                 return enabled
-        return True
+        return False
 
     def _load(self) -> dict[str, bool]:
         values = dict(DEFAULT_PERMISSIONS)

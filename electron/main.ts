@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from "electron";
+import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -159,7 +159,7 @@ function configureOverlayEvents() {
     const point = overlayPoint(payload.args);
     const x = point.x - bounds.x;
     const y = point.y - bounds.y;
-    if (payload.action === "computer_click") {
+    if (payload.action.endsWith("_click")) {
       console.info("Sherpa overlay click", { x: point.x, y: point.y });
     }
     target.webContents.send("overlay:update", {
@@ -212,6 +212,17 @@ function configureOverlayEvents() {
   });
 }
 
+function configureSystemEvents() {
+  ipcMain.removeHandler("system:open-external");
+  ipcMain.handle("system:open-external", async (event, url: string) => {
+    if (event.sender !== mainWindow?.webContents) return false;
+    const target = new URL(url);
+    if (target.protocol !== "https:") return false;
+    await shell.openExternal(target.toString());
+    return true;
+  });
+}
+
 app.whenReady().then(() => {
   app.setName("Sherpa");
   const dock = app.dock;
@@ -219,6 +230,7 @@ app.whenReady().then(() => {
     dock.show();
     dock.setIcon(dockIconPath);
   }
+  configureSystemEvents();
   createWindow();
   createOverlayWindow();
   configureOverlayEvents();

@@ -1,10 +1,13 @@
 import json
 import os
 import asyncio
+import html
 import logging
 import traceback
 import warnings
 from contextlib import asynccontextmanager, suppress
+from pathlib import Path
+from urllib.parse import urlparse
 
 warnings.filterwarnings(
     "ignore",
@@ -14,7 +17,8 @@ warnings.filterwarnings(
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
+import httpx
 from google import genai
 from google.adk.agents import RunConfig
 from google.adk.agents.run_config import StreamingMode
@@ -22,7 +26,10 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 from backend.permission_store import permission_store
+
+load_dotenv(Path(__file__).with_name(".env"))
 
 os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "sherpa-20260813")
@@ -37,6 +44,7 @@ logger = logging.getLogger("sherpa.voice")
 from backend.credential_store import load_gemini_api_key
 from backend.credential_store import load_playwright_extension_token
 from backend.connections import connection_snapshot
+from backend.google_auth import GoogleConnection, google_auth
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 
@@ -55,6 +63,7 @@ from backend.agents.sherpa_agent import (
     sherpa_app,
     sherpa_browser_tools,
     sherpa_computer_tools,
+    sherpa_google_tools,
 )
 from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL, VOICE_TOOLS
 from backend.sherpa_tasks import sherpa_tasks
@@ -73,6 +82,7 @@ async def lifespan(_: FastAPI):
     await sherpa_tasks.close()
     await sherpa_browser_tools.close()
     await sherpa_computer_tools.close()
+    await asyncio.gather(*(toolset.close() for toolset in sherpa_google_tools))
 
 
 app = FastAPI(title="Sherpa API", lifespan=lifespan)
@@ -118,6 +128,89 @@ def health() -> dict[str, str]:
 @app.get("/connections")
 async def connections() -> dict[str, object]:
     return await connection_snapshot()
+
+
+connection_event_queues: set[asyncio.Queue[dict[str, object]]] = set()
+
+
+async def emit_connection_event(event: dict[str, object]) -> None:
+    for queue in tuple(connection_event_queues):
+        await queue.put(dict(event))
+
+
+@app.get("/connections/events")
+async def connection_events() -> StreamingResponse:
+    queue: asyncio.Queue[dict[str, object]] = asyncio.Queue()
+    connection_event_queues.add(queue)
+
+    async def stream():
+        try:
+            while True:
+                event = await queue.get()
+                yield f"data: {json.dumps(event)}\n\n"
+        finally:
+            connection_event_queues.discard(queue)
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.post("/oauth/google/{connection}/start")
+def start_google_connection(connection: GoogleConnection) -> dict[str, str]:
+    try:
+        return {"authorization_url": google_auth.begin(connection)}
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.get("/oauth/google/callback", response_class=HTMLResponse)
+async def finish_google_connection(
+    state: str,
+    code: str | None = None,
+    error: str | None = None,
+) -> HTMLResponse:
+    if error or not code:
+        return HTMLResponse(
+            "<h2>Sherpa was not connected.</h2><p>You can close this window.</p>",
+            status_code=400,
+        )
+    try:
+        connection = await google_auth.finish(state, code)
+    except (ValueError, RuntimeError, httpx.HTTPError) as connection_error:
+        return HTMLResponse(
+            f"<h2>Sherpa was not connected.</h2><p>{html.escape(str(connection_error))}</p>",
+            status_code=400,
+        )
+    await emit_connection_event({"type": "connection_changed", "connection": connection})
+    return HTMLResponse(
+        "<h2>Sherpa is connected.</h2><p>You can close this window.</p>"
+        "<script>window.close()</script>"
+    )
+
+
+@app.delete("/oauth/google/{connection}")
+async def disconnect_google(connection: GoogleConnection) -> dict[str, object]:
+    google_auth.disconnect(connection)
+    await emit_connection_event({"type": "connection_changed", "connection": connection})
+    return {"connection": connection, "connected": False}
+
+
+@app.get("/oauth/google/workspace/avatar")
+async def google_workspace_avatar() -> Response:
+    picture = google_auth.snapshot("workspace").get("picture")
+    hostname = urlparse(picture).hostname if isinstance(picture, str) else None
+    if not hostname or not hostname.endswith(".googleusercontent.com"):
+        raise HTTPException(status_code=404, detail="Google profile photo is unavailable.")
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        response = await client.get(picture)
+        response.raise_for_status()
+    content_type = response.headers.get("content-type", "")
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=502, detail="Google returned an invalid profile photo.")
+    return Response(
+        content=response.content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @app.put("/permissions/{permission_id:path}")
@@ -319,7 +412,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         voice_assistant_text: list[str] = []
 
         await websocket.send_json({"type": "ready"})
-        logger.info("session.ready session=%s model=%s tools=5", session_id, VOICE_MODEL)
+        logger.info("session.ready session=%s model=%s tools=7", session_id, VOICE_MODEL)
         for existing_task in sherpa_tasks.list_for_chat(session_id):
             await websocket.send_json({
                 "type": "task_updated",
@@ -340,10 +433,16 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 events = pending_notifications[:]
                 pending_notifications.clear()
                 in_flight_notifications = events
-                lines = [
-                    f"- {event['instruction']} [{event.get('status', 'updated')}]: {event['message']}"
-                    for event in events
-                ]
+                lines = []
+                for event in events:
+                    identifiers = f"task_id={event.get('task_id', 'unknown')}"
+                    question = event.get("question")
+                    if isinstance(question, dict) and question.get("id"):
+                        identifiers += f" question_id={question['id']}"
+                    lines.append(
+                        f"- {identifiers} {event['instruction']} "
+                        f"[{event.get('status', 'updated')}]: {event['message']}"
+                    )
                 notification_in_flight = True
                 model_idle = False
                 await live.send_realtime_input(text=(
@@ -525,6 +624,29 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     },
                 )
                 return
+            if call.name == "steer_task":
+                task_id = str(args.get("task_id", "")).strip()
+                instruction = str(args.get("instruction", "")).strip()
+                task = sherpa_tasks.get(task_id)
+                response = (
+                    await sherpa_tasks.steer(task_id, instruction)
+                    if task and task.chat_id == session_id
+                    else {"status": "not_found", "task_id": task_id}
+                )
+                await send_function_response(call_id, call.name, response)
+                return
+            if call.name == "answer_task_question":
+                task_id = str(args.get("task_id", "")).strip()
+                question_id = str(args.get("question_id", "")).strip()
+                answer = str(args.get("answer", "")).strip()
+                task = sherpa_tasks.get(task_id)
+                response = (
+                    await sherpa_tasks.answer_question(task_id, question_id, answer)
+                    if task and task.chat_id == session_id
+                    else {"status": "not_found", "task_id": task_id}
+                )
+                await send_function_response(call_id, call.name, response)
+                return
             await send_function_response(call_id, call.name or "unknown", {
                 "error": "Unknown voice tool",
             })
@@ -590,9 +712,20 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     event = await event_queue.get()
                     if event["type"] in {
                         "submission_updated", "tool_call", "tool_response",
-                        "task_started", "task_updated",
+                        "task_started", "task_updated", "task_question",
+                        "task_question_answered", "task_steering_queued",
+                        "task_steering_applied",
                     }:
                         await websocket.send_json(event)
+                    if event["type"] == "task_question":
+                        question = event["question"]
+                        pending_notifications.append({
+                            **event,
+                            "status": "needs_clarification",
+                            "message": question["question"],
+                        })
+                        await maybe_deliver_notification()
+                        continue
                     if (
                         event["type"] == "submission_updated"
                         and event.get("decision") in {
