@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,7 @@ let overlayReady = false;
 let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
 let dockTimer: NodeJS.Timeout | undefined;
+const previewProcesses = new Map<string, ChildProcessWithoutNullStreams>();
 
 type OverlayPayload = {
   id: string;
@@ -20,6 +22,13 @@ type OverlayPayload = {
   message: string;
   intent?: string;
   args: Record<string, unknown>;
+};
+
+type PreviewTarget = {
+  app?: string;
+  pid?: number;
+  window_id?: number;
+  window_title?: string;
 };
 
 function createWindow() {
@@ -223,6 +232,65 @@ function configureSystemEvents() {
   });
 }
 
+function configurePreviewEvents() {
+  ipcMain.handle("preview:start", (event, taskId: string, target: PreviewTarget) => {
+    if (event.sender !== mainWindow?.webContents || !taskId || !validPreviewTarget(target)) return false;
+    stopPreview(taskId);
+    const binary = app.isPackaged
+      ? path.join(process.resourcesPath, "window-capture")
+      : path.join(app.getAppPath(), "dist-native/window-capture");
+    const child = spawn(binary, previewArguments(target));
+    previewProcesses.set(taskId, child);
+    let buffer = Buffer.alloc(0);
+    child.stdout.on("data", (chunk: Buffer) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      while (buffer.length >= 4) {
+        const length = buffer.readUInt32BE(0);
+        if (buffer.length < length + 4) break;
+        const frame = buffer.subarray(4, length + 4);
+        buffer = buffer.subarray(length + 4);
+        mainWindow?.webContents.send("preview:frame", taskId, `data:image/jpeg;base64,${frame.toString("base64")}`);
+      }
+    });
+    let errorText = "";
+    child.stderr.on("data", (chunk: Buffer) => { errorText += chunk.toString(); });
+    child.on("error", (error) => {
+      mainWindow?.webContents.send("preview:error", taskId, error.message);
+    });
+    child.on("exit", (code) => {
+      if (previewProcesses.get(taskId) !== child) return;
+      previewProcesses.delete(taskId);
+      if (code && code !== 0) {
+        mainWindow?.webContents.send("preview:error", taskId, errorText.trim() || "Window preview stopped.");
+      }
+    });
+    return true;
+  });
+  ipcMain.on("preview:stop", (event, taskId: string) => {
+    if (event.sender === mainWindow?.webContents) stopPreview(taskId);
+  });
+}
+
+function validPreviewTarget(target: PreviewTarget) {
+  return Boolean(target && (target.app || target.pid || target.window_id));
+}
+
+function previewArguments(target: PreviewTarget) {
+  const args: string[] = [];
+  if (target.app) args.push("--app", target.app);
+  if (target.pid) args.push("--pid", String(target.pid));
+  if (target.window_id) args.push("--window-id", String(target.window_id));
+  if (target.window_title) args.push("--window-title", target.window_title);
+  return args;
+}
+
+function stopPreview(taskId: string) {
+  const child = previewProcesses.get(taskId);
+  if (!child) return;
+  previewProcesses.delete(taskId);
+  child.kill("SIGTERM");
+}
+
 app.whenReady().then(() => {
   app.setName("Sherpa");
   const dock = app.dock;
@@ -231,6 +299,7 @@ app.whenReady().then(() => {
     dock.setIcon(dockIconPath);
   }
   configureSystemEvents();
+  configurePreviewEvents();
   createWindow();
   createOverlayWindow();
   configureOverlayEvents();
@@ -247,6 +316,7 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  for (const taskId of previewProcesses.keys()) stopPreview(taskId);
   if (process.platform !== "darwin") {
     app.quit();
   }

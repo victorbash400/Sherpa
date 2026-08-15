@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceTranscriptEntry } from "../chat/chatTypes";
+import type { PreviewTarget } from "../types/sherpaOverlay";
 
 export type VoiceStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
 export type VoiceToolActivity = {
@@ -20,6 +21,8 @@ export type VoiceTask = {
   currentStep: string;
   updates: VoiceTaskUpdate[];
   result?: string;
+  previewTarget?: PreviewTarget;
+  interactionMode?: "background" | "foreground";
 };
 export type VoiceTaskUpdate = {
   phase: string;
@@ -40,6 +43,8 @@ type TaskPayload = {
   progress?: number;
   current_step?: string;
   summary?: string;
+  preview_target?: PreviewTarget;
+  interaction_mode?: VoiceTask["interactionMode"];
   updates?: Array<{ phase: string; progress: number; message: string; next_step?: string; created_at: string }>;
 };
 
@@ -279,6 +284,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
             next_step?: string;
             created_at: string;
           }>;
+          preview_target?: PreviewTarget;
+          interaction_mode?: VoiceTask["interactionMode"];
         };
         if (message.type === "interrupted") {
           interruptPlayback();
@@ -315,6 +322,15 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
             }];
           });
           if (message.name.startsWith("computer_") || message.name.startsWith("browser_")) {
+            if (message.task_id && message.preview_target) {
+              setTasks((current) => current.map((task) => task.id === message.task_id
+                ? {
+                  ...task,
+                  previewTarget: message.preview_target,
+                  interactionMode: message.interaction_mode || "background",
+                }
+                : task));
+            }
             setComputerActive(true);
             window.sherpaOverlay?.show({
               id: toolId,
@@ -349,7 +365,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           setTasks((current) => {
             const task = taskFromMessage(message, sessionId);
             return current.some((item) => item.id === task.id)
-              ? current.map((item) => item.id === task.id ? task : item)
+              ? current.map((item) => item.id === task.id ? {
+                ...task,
+                previewTarget: item.previewTarget,
+                interactionMode: item.interactionMode,
+              } : item)
               : [task, ...current];
           });
         } else if (
@@ -362,6 +382,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           setTasks((current) => current.map((task) => task.id === message.task_id
             ? {
               ...taskFromMessage(message, sessionId),
+              previewTarget: task.previewTarget,
+              interactionMode: task.interactionMode,
               status: taskStatus,
               result: message.message || message.summary,
             }
@@ -449,6 +471,8 @@ function taskFromMessage(message: TaskPayload, fallbackChatId: string): VoiceTas
     progress: message.progress ?? 0,
     currentStep: message.current_step || "Starting",
     result: message.summary || undefined,
+    previewTarget: message.preview_target,
+    interactionMode: message.interaction_mode,
     updates: (message.updates || []).map((update) => ({
       phase: update.phase,
       progress: update.progress,

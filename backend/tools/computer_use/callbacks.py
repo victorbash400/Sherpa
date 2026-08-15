@@ -4,13 +4,14 @@ from typing import Any
 from google.adk.tools import BaseTool, ToolContext
 
 from backend.permission_store import permission_store
+from backend.tools.computer_use.runtime import computer_runtime
 
 
 logger = logging.getLogger("sherpa.computer_use")
 MAX_TOOL_TEXT = 40_000
 
 
-def before_computer_tool(
+async def before_computer_tool(
     tool: BaseTool,
     args: dict[str, Any],
     tool_context: ToolContext,
@@ -37,16 +38,23 @@ def before_computer_tool(
             "status": "failed",
             "error": f"Access to {app_target} is turned off in Sherpa Plugins.",
         }
+    mode = await computer_runtime.acquire(
+        tool_call_key(tool, tool_context),
+        tool.name,
+        args,
+    )
+    del mode
     return None
 
 
-def after_computer_tool(
+async def after_computer_tool(
     tool: BaseTool,
     args: dict[str, Any],
     tool_context: ToolContext,
     tool_response: dict,
 ) -> dict:
     del args
+    computer_runtime.release(tool_call_key(tool, tool_context))
     safe_response = sanitize_tool_response(tool_response)
     if safe_response.get("isError") or safe_response.get("error"):
         logger.warning(
@@ -65,13 +73,14 @@ def after_computer_tool(
     return safe_response
 
 
-def on_computer_tool_error(
+async def on_computer_tool_error(
     tool: BaseTool,
     args: dict[str, Any],
     tool_context: ToolContext,
     error: Exception,
 ) -> dict[str, str]:
     del args
+    computer_runtime.release(tool_call_key(tool, tool_context))
     logger.error(
         "tool.failed session=%s call=%s name=%s error=%s",
         tool_context.session.id,
@@ -106,6 +115,10 @@ def sanitize_tool_response(response: dict) -> dict:
     safe.pop("_meta", None)
     safe.pop("meta", None)
     return safe
+
+
+def tool_call_key(tool: BaseTool, tool_context: ToolContext) -> str:
+    return tool_context.function_call_id or f"{tool_context.session.id}:{tool.name}"
 
 
 def tool_permission(tool_name: str) -> str | None:

@@ -50,9 +50,9 @@ task_coordinator = Agent(
     contain all relevant targets, constraints, and completion criteria from the
     request. Titles must be short, specific, and written for a task list.
 
-    Sherpa currently has one shared macOS computer-control surface. Workers may
-    be dispatched together, but computer interactions will be serialized by the
-    runtime so they cannot fight over the cursor or foreground application.
+    Sherpa can run background-safe work against distinct applications and
+    windows concurrently. Foreground input and shared targets are serialized by
+    the runtime, so assignments must remain independently targetable.
 
     For accepted, assignments must contain at least one item and
     existing_task_id must be null. For already_active, assignments must be empty

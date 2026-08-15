@@ -15,6 +15,13 @@ export type OverlayUpdate = OverlayAction & {
   vertical: "up" | "down";
 };
 
+export type PreviewTarget = {
+  app?: string;
+  pid?: number;
+  window_id?: number;
+  window_title?: string;
+};
+
 declare global {
   interface Window {
     sherpaOverlay?: {
@@ -27,6 +34,12 @@ declare global {
     };
     sherpaSystem?: {
       openExternal: (url: string) => Promise<boolean>;
+    };
+    sherpaPreview?: {
+      start: (taskId: string, target: PreviewTarget) => Promise<boolean>;
+      stop: (taskId: string) => void;
+      onFrame: (callback: (taskId: string, frame: string) => void) => () => void;
+      onError: (callback: (taskId: string, message: string) => void) => () => void;
     };
   }
 }

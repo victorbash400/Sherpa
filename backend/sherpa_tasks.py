@@ -19,6 +19,7 @@ from backend.agents.task_coordinator import AdmissionDecision, WorkerAssignment,
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
+from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -60,6 +61,8 @@ class SherpaTask:
     current_step: str = "Waiting to start"
     summary: str = ""
     evidence: str = ""
+    preview_target: dict[str, str | int | None] | None = None
+    interaction_mode: str = "background"
     updates: list[dict[str, Any]] = field(default_factory=list)
     questions: list[dict[str, Any]] = field(default_factory=list)
     directives: asyncio.Queue[dict[str, Any]] = field(
@@ -89,7 +92,6 @@ class SherpaTaskManager:
         self._tasks: dict[str, SherpaTask] = {}
         self._submissions: dict[str, SherpaSubmission] = {}
         self._event_queues: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
-        self._computer_lease = asyncio.Lock()
         self._admission_lease = asyncio.Lock()
 
     def subscribe(self, chat_id: str) -> asyncio.Queue[dict[str, Any]]:
@@ -252,6 +254,8 @@ class SherpaTaskManager:
             "current_step": task.current_step,
             "summary": task.summary,
             "evidence": task.evidence,
+            "preview_target": task.preview_target,
+            "interaction_mode": task.interaction_mode,
             "updates": list(task.updates),
             "questions": list(task.questions),
         }
@@ -477,16 +481,12 @@ class SherpaTaskManager:
         next_instruction = instruction
         resume = False
         while task.status == "running":
-            if self._computer_lease.locked():
-                self._record_update(task, "queued", 0, "Waiting for computer access")
-                await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
             try:
-                async with self._computer_lease:
-                    await self._run_with_computer(
-                        task,
-                        next_instruction,
-                        resume=resume,
-                    )
+                await self._run_with_computer(
+                    task,
+                    next_instruction,
+                    resume=resume,
+                )
                 return
             except TaskQuestionBoundary as boundary:
                 directives = await self._wait_for_answer(task, boundary.question["id"])
@@ -589,6 +589,10 @@ class SherpaTaskManager:
                             len(element_targets) + len(browser_targets),
                         )
                     task.current_step = describe_tool(call.name, event_args)
+                    preview_target = preview_target_for(call.name, event_args)
+                    if preview_target:
+                        task.preview_target = preview_target
+                        task.interaction_mode = interaction_mode(call.name, event_args)
                     await self._emit(task, {
                         "type": "tool_call",
                         "id": call_id,
@@ -596,6 +600,8 @@ class SherpaTaskManager:
                         "args": event_args,
                         "message": describe_tool(call.name, event_args),
                         "intent": intent,
+                        "interaction_mode": task.interaction_mode,
+                        "preview_target": preview_target,
                     })
                 for response in event.get_function_responses():
                     response_id = response.id or response.name
@@ -1116,6 +1122,25 @@ def numeric_bounds(value: Any) -> dict[str, float] | None:
 
 def normalize_label(value: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
+
+
+def preview_target_for(
+    tool_name: str,
+    args: dict[str, Any],
+) -> dict[str, str | int | None] | None:
+    if tool_name.startswith("browser_"):
+        return ComputerTarget(app="Google Chrome").snapshot()
+    if not tool_name.startswith("computer_"):
+        return None
+    target = ComputerTarget.from_args(args)
+    if not target.key and tool_name == "computer_app":
+        app = next((
+            args.get(key)
+            for key in ("name", "to")
+            if isinstance(args.get(key), str) and args.get(key)
+        ), None)
+        target = ComputerTarget(app=app)
+    return target.snapshot() if target.key else None
 
 
 def describe_tool(name: str, args: dict[str, Any]) -> str:

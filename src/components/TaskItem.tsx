@@ -26,7 +26,7 @@ export function TaskItem({ task }: { task: VoiceTask }) {
       </button>
       <div className="task-item__reveal" aria-hidden={!expanded} inert={!expanded}>
         <div>
-          <TaskDetails task={task} />
+          <TaskDetails active={expanded} task={task} />
         </div>
       </div>
     </article>

@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsc -p electron/tsconfig.json && concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "build": "tsc && vite build && tsc -p electron/tsconfig.json",
+    "build:native": "mkdir -p dist-native && xcrun swiftc -parse-as-library native/WindowCapture.swift -O -o dist-native/window-capture -framework ScreenCaptureKit -framework CoreImage -framework ImageIO -framework AppKit",
+    "dev": "pnpm build:native && tsc -p electron/tsconfig.json && concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "build": "pnpm build:native && tsc && vite build && tsc -p electron/tsconfig.json",
     "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "main": "dist-electron/main.js",

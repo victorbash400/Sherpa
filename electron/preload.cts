@@ -20,3 +20,18 @@ contextBridge.exposeInMainWorld("sherpaOverlay", {
 contextBridge.exposeInMainWorld("sherpaSystem", {
   openExternal: (url: string) => ipcRenderer.invoke("system:open-external", url),
 });
+
+contextBridge.exposeInMainWorld("sherpaPreview", {
+  start: (taskId: string, target: unknown) => ipcRenderer.invoke("preview:start", taskId, target),
+  stop: (taskId: string) => ipcRenderer.send("preview:stop", taskId),
+  onFrame: (callback: (taskId: string, frame: string) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, taskId: string, frame: string) => callback(taskId, frame);
+    ipcRenderer.on("preview:frame", listener);
+    return () => ipcRenderer.removeListener("preview:frame", listener);
+  },
+  onError: (callback: (taskId: string, message: string) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, taskId: string, message: string) => callback(taskId, message);
+    ipcRenderer.on("preview:error", listener);
+    return () => ipcRenderer.removeListener("preview:error", listener);
+  },
+});
