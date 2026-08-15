@@ -29,7 +29,7 @@ export function ChatInput({ disabled, input, onInputChange, onSend }: ChatInputP
         if (canSend) onSend();
       }}
     >
-      <ChatContext label="Gemini 3.6 Flash" />
+      <ChatContext label="Gemini 3.7 Flash" />
       <section className="chat-input">
         <textarea
           aria-label="Message Sherpa"

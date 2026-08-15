@@ -10,7 +10,7 @@ from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import update_task_board
 
-SHERPA_MODEL = "gemini-3.6-flash"
+SHERPA_MODEL = "gemini-3.7-flash"
 sherpa_computer_tools = create_peekaboo_toolset()
 sherpa_browser_tools = create_playwright_toolset()
 

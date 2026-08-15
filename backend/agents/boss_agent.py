@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-BOSS_MODEL = "gemini-3.6-flash"
+BOSS_MODEL = "gemini-3.7-flash"
 
 
 class WorkerAssignment(BaseModel):

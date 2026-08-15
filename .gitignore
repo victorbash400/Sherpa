@@ -24,3 +24,4 @@ __pycache__/
 *.tar.gz
 *.pdf
 tmp/
+.playwright-mcp/

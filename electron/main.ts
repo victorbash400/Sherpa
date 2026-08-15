@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const preloadPath = path.join(currentDirectory, "preload.cjs");
+const dockIconPath = app.isPackaged
+  ? path.join(currentDirectory, "../dist/sherpa-dock-icon.png")
+  : path.join(app.getAppPath(), "public/sherpa-dock-icon.png");
 let mainWindow: BrowserWindow | undefined;
 let overlayWindow: BrowserWindow | undefined;
 let overlayReady = false;
@@ -210,6 +213,12 @@ function configureOverlayEvents() {
 }
 
 app.whenReady().then(() => {
+  app.setName("Sherpa");
+  const dock = app.dock;
+  if (process.platform === "darwin" && dock) {
+    dock.show();
+    dock.setIcon(dockIconPath);
+  }
   createWindow();
   createOverlayWindow();
   configureOverlayEvents();
