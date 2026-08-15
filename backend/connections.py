@@ -38,13 +38,6 @@ async def connection_snapshot() -> dict[str, Any]:
                     permission("workspace.gmail", "Gmail", "Read mail and create drafts"),
                     permission("workspace.calendar", "Google Calendar", "Read and manage calendar events"),
                     permission("workspace.people", "Google Contacts", "Find people and contact details"),
-                ],
-            },
-            {
-                "id": "cloud",
-                "title": "Google Cloud",
-                "permissions": [
-                    google_connection("cloud", "Google Cloud account"),
                     permission("cloud.resources", "Cloud resources", "Inspect and manage projects and resources through Google MCP"),
                     permission("cloud.cli", "Cloud operations", "Run supported Google Cloud operations through Google MCP"),
                 ],

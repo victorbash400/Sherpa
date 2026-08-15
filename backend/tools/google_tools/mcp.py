@@ -1,3 +1,5 @@
+import os
+
 from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.base_toolset import BaseToolset
@@ -42,7 +44,13 @@ class ConnectedGoogleMcpToolset(BaseToolset):
             self._delegate = McpToolset(
                 connection_params=StreamableHTTPConnectionParams(
                     url=self.endpoint,
-                    headers={"Authorization": f"Bearer {token}"},
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "x-goog-user-project": os.getenv(
+                            "GOOGLE_CLOUD_PROJECT",
+                            "sherpa-20260813",
+                        ),
+                    },
                     timeout=15,
                 ),
                 tool_name_prefix=self.prefix,
@@ -78,13 +86,13 @@ def create_google_toolsets() -> list[ConnectedGoogleMcpToolset]:
     ]
     toolsets.extend((
         ConnectedGoogleMcpToolset(
-            connection="cloud",
+            connection="workspace",
             endpoint="https://cloudresourcemanager.googleapis.com/mcp",
             permission_id="cloud.resources",
             prefix="cloud_resources",
         ),
         ConnectedGoogleMcpToolset(
-            connection="cloud",
+            connection="workspace",
             endpoint="https://cloudcli.googleapis.com/mcp",
             permission_id="cloud.cli",
             prefix="cloud_cli",

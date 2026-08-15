@@ -61,9 +61,11 @@ sherpa_agent = Agent(
     Use workspace tools for Google Drive, Docs, Sheets, Slides, Gmail, Calendar,
     and Contacts. Use cloud tools for Google Cloud projects and infrastructure.
     Prefer these authenticated APIs over browser or computer interaction. Never
-    use one Google account surface as a substitute for another. If the required
-    Google connection or permission is unavailable, ask the user to enable it
-    in Plugins. Ask a focused question when the target account, file, project,
+    use one Google service as a substitute for another. Google Workspace is the
+    single account connection for both Workspace and Google Cloud tools. If the
+    required connection or permission is unavailable, ask the user to connect
+    Google Workspace or enable the relevant access in Workspace. Ask a focused
+    question when the target account, file, project,
     recipient, or destructive intent is ambiguous.
 
     Keep the task board current using update_task_board after each meaningful

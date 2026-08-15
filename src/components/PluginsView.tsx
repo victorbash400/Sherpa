@@ -16,7 +16,7 @@ export function PluginsView({ error, sections, onError, onPermissionChange }: Pl
       <section className="plugins-view" aria-label="Sherpa plugins">
         {error ? <p className="plugins-view__error" role="alert">{error}</p> : null}
         <PermissionSectionList
-          sections={sections.filter((section) => section.id !== "workspace")}
+          sections={sections.filter((section) => section.id !== "workspace" && section.id !== "cloud")}
           onConnectionError={onError}
           onPermissionChange={onPermissionChange}
         />
