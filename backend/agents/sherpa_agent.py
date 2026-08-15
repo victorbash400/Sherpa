@@ -9,12 +9,13 @@ from backend.tools.computer_use.callbacks import after_computer_tool
 from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import ask_task_question, complete_task, update_task_board
-from backend.tools.google_tools import create_google_toolsets
+from backend.tools.google_tools import create_google_cloud_toolsets, create_workspace_toolsets
 
 SHERPA_MODEL = "gemini-3.7-flash"
 sherpa_computer_tools = create_peekaboo_toolset()
 sherpa_browser_tools = create_playwright_toolset()
-sherpa_google_tools = create_google_toolsets()
+sherpa_google_tools = create_google_cloud_toolsets()
+sherpa_workspace_tools = create_workspace_toolsets()
 
 sherpa_agent = Agent(
     name="sherpa_agent",
@@ -98,6 +99,7 @@ sherpa_agent = Agent(
         update_task_board,
         ask_task_question,
         complete_task,
+        *sherpa_workspace_tools,
         *sherpa_google_tools,
     ],
     before_tool_callback=before_computer_tool,

@@ -22,6 +22,11 @@ _active_permissions: ContextVar[frozenset[str] | None] = ContextVar(
 )
 
 
+def permission_in_scope(permission_id: str) -> bool:
+    active_permissions = _active_permissions.get()
+    return active_permissions is None or permission_id in active_permissions
+
+
 class ConnectedGoogleMcpToolset(BaseToolset):
     """Expose a Google remote MCP server only after its user connection exists."""
 
@@ -49,8 +54,7 @@ class ConnectedGoogleMcpToolset(BaseToolset):
         readonly_context: ReadonlyContext | None = None,
     ) -> list[BaseTool]:
         del readonly_context
-        active_permissions = _active_permissions.get()
-        if active_permissions is not None and self.permission_id not in active_permissions:
+        if not permission_in_scope(self.permission_id):
             return []
         if not permission_store.enabled(self.permission_id):
             return []
@@ -146,26 +150,8 @@ def infer_google_permissions(instruction: str) -> frozenset[str]:
     return frozenset(permissions)
 
 
-def create_google_toolsets() -> list[ConnectedGoogleMcpToolset]:
-    workspace = (
-        ("drive", "https://drivemcp.googleapis.com/mcp/v1"),
-        ("docs", "https://docsmcp.googleapis.com/mcp/v1"),
-        ("sheets", "https://sheetsmcp.googleapis.com/mcp/v1"),
-        ("slides", "https://slidesmcp.googleapis.com/mcp/v1"),
-        ("gmail", "https://gmailmcp.googleapis.com/mcp/v1"),
-        ("calendar", "https://calendarmcp.googleapis.com/mcp/v1"),
-        ("people", "https://people.googleapis.com/mcp/v1"),
-    )
-    toolsets = [
-        ConnectedGoogleMcpToolset(
-            connection="workspace",
-            endpoint=endpoint,
-            permission_id=f"workspace.{product}",
-            prefix=f"workspace_{product}",
-        )
-        for product, endpoint in workspace
-    ]
-    toolsets.extend((
+def create_google_cloud_toolsets() -> list[ConnectedGoogleMcpToolset]:
+    return [
         ConnectedGoogleMcpToolset(
             connection="workspace",
             endpoint="https://cloudresourcemanager.googleapis.com/mcp",
@@ -178,5 +164,4 @@ def create_google_toolsets() -> list[ConnectedGoogleMcpToolset]:
             permission_id="cloud.cli",
             prefix="cloud_cli",
         ),
-    ))
-    return toolsets
+    ]

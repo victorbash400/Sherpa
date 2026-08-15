@@ -143,6 +143,8 @@ class GoogleAuthManager:
             )
             user_response.raise_for_status()
             user = user_response.json()
+            if connection == "workspace":
+                await validate_workspace_token(client, access_token)
         record = {
             "email": user.get("email", ""),
             "name": user.get("name", ""),
@@ -198,3 +200,26 @@ class GoogleAuthManager:
 
 
 google_auth = GoogleAuthManager()
+
+
+async def validate_workspace_token(client: httpx.AsyncClient, access_token: str) -> None:
+    headers = {"Authorization": f"Bearer {access_token}"}
+    checks = (
+        ("Gmail", "https://gmail.googleapis.com/gmail/v1/users/me/profile"),
+        (
+            "Google Drive",
+            "https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)",
+        ),
+    )
+    for product, url in checks:
+        response = await client.get(url, headers=headers)
+        if response.is_success:
+            continue
+        try:
+            detail = response.json().get("error", {}).get("message")
+        except ValueError:
+            detail = response.text[:300]
+        raise RuntimeError(
+            f"{product} authorization failed: {detail or response.reason_phrase}. "
+            "Reconnect Google Workspace and approve the requested access."
+        )
