@@ -1,6 +1,8 @@
 .tasks-view {
   position: absolute;
-  inset: 76px 26px 28px 74px;
+  inset: 76px 0 28px 74px;
+  box-sizing: border-box;
+  padding-right: 26px;
   overflow-y: auto;
   color: #292927;
   -webkit-app-region: no-drag;
@@ -8,6 +10,16 @@
 
 .tasks-view::-webkit-scrollbar { width: 3px; }
 .tasks-view::-webkit-scrollbar-thumb { background: #d1d1ce; border-radius: 3px; }
+.tasks-view__title {
+  position: absolute;
+  top: 45px;
+  right: 14px;
+  z-index: 2;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 590;
+  letter-spacing: -.01em;
+}
 .tasks-view__sheet {
   box-sizing: border-box;
   width: 100%;
@@ -16,6 +28,5 @@
   border: 1px solid #ecece8;
   border-radius: 20px;
 }
-.tasks-view h1 { margin: 0 0 10px; font-size: 13px; font-weight: 590; letter-spacing: -.01em; }
 .tasks-view__list { display: grid; }
 .tasks-view__list > .task-item + .task-item { border-top: 1px solid #ecece8; }

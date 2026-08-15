@@ -9,17 +9,19 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
   const orderedTasks = [...running, ...finished];
 
   return (
-    <section className="tasks-view" aria-label="Sherpa tasks">
-      <div className="tasks-view__sheet">
-        <h1>Tasks</h1>
+    <>
+      <h1 className="tasks-view__title">Tasks</h1>
+      <section className="tasks-view" aria-label="Sherpa tasks">
         {orderedTasks.length ? (
+          <div className="tasks-view__sheet">
           <div className="tasks-view__list">
             {orderedTasks.map((task) => (
               <TaskItem key={task.id} task={task} />
             ))}
           </div>
+          </div>
         ) : null}
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
