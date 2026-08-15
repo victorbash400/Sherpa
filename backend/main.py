@@ -3,7 +3,14 @@ import os
 import asyncio
 import logging
 import traceback
+import warnings
 from contextlib import asynccontextmanager, suppress
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"\[EXPERIMENTAL\] feature FeatureName\.(PLUGGABLE_AUTH|_MCP_GRACEFUL_ERROR_HANDLING|BASE_AUTHENTICATED_TOOL) is enabled\.",
+    category=UserWarning,
+)
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,12 +34,24 @@ logging.basicConfig(
 logger = logging.getLogger("sherpa.voice")
 
 from backend.credential_store import load_gemini_api_key
+from backend.credential_store import load_playwright_extension_token
 
 voice_api_key = load_gemini_api_key()
 if voice_api_key:
     os.environ.setdefault("GEMINI_API_KEY", voice_api_key)
 
-from backend.agents.sherpa_agent import sherpa_app, sherpa_computer_tools
+playwright_extension_token = load_playwright_extension_token()
+if playwright_extension_token:
+    os.environ.setdefault(
+        "PLAYWRIGHT_MCP_EXTENSION_TOKEN",
+        playwright_extension_token,
+    )
+
+from backend.agents.sherpa_agent import (
+    sherpa_app,
+    sherpa_browser_tools,
+    sherpa_computer_tools,
+)
 from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL, VOICE_TOOLS
 from backend.sherpa_tasks import sherpa_tasks
 
@@ -42,10 +61,12 @@ runner = Runner(app=sherpa_app, session_service=sessions)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await asyncio.gather(
+        sherpa_browser_tools.get_tools(),
         sherpa_computer_tools.get_tools(),
     )
     yield
     await sherpa_tasks.close()
+    await sherpa_browser_tools.close()
     await sherpa_computer_tools.close()
 
 
@@ -70,6 +91,16 @@ class ChatRequest(BaseModel):
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/tasks/{chat_id}")
+def tasks_for_chat(chat_id: str) -> dict[str, object]:
+    return {
+        "tasks": [
+            sherpa_tasks.snapshot(task)
+            for task in sherpa_tasks.list_for_chat(chat_id)
+        ]
+    }
 
 
 @app.post("/chat")
@@ -155,8 +186,6 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         )
         await websocket.close(code=1011)
         return
-    audio_frames = 0
-    audio_bytes = 0
     config = types.LiveConnectConfig(
         response_modalities=[types.Modality.AUDIO],
         input_audio_transcription=types.AudioTranscriptionConfig(),
@@ -186,23 +215,56 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
     )
 
     async with client.aio.live.connect(model=VOICE_MODEL, config=config) as live:
+        model_idle = True
+        playback_drained = True
+        user_speaking = False
+        notification_in_flight = False
+        pending_notifications: list[dict] = []
+        in_flight_notifications: list[dict] = []
+        notification_lock = asyncio.Lock()
+
         await websocket.send_json({"type": "ready"})
-        logger.info("session.ready session=%s model=%s tools=1", session_id, VOICE_MODEL)
-        pending_calls: dict[str, dict[str, str]] = {}
+        logger.info("session.ready session=%s model=%s tools=5", session_id, VOICE_MODEL)
+        for existing_task in sherpa_tasks.list_for_chat(session_id):
+            await websocket.send_json({
+                "type": "task_updated",
+                **sherpa_tasks.snapshot(existing_task),
+            })
+
+        async def maybe_deliver_notification() -> None:
+            nonlocal model_idle, notification_in_flight, in_flight_notifications
+            async with notification_lock:
+                if (
+                    not pending_notifications
+                    or not model_idle
+                    or not playback_drained
+                    or user_speaking
+                    or notification_in_flight
+                ):
+                    return
+                events = pending_notifications[:]
+                pending_notifications.clear()
+                in_flight_notifications = events
+                lines = [
+                    f"- {event['instruction']} [{event.get('status', 'updated')}]: {event['message']}"
+                    for event in events
+                ]
+                notification_in_flight = True
+                model_idle = False
+                await live.send_realtime_input(text=(
+                    "Sherpa state notification. This text is application context, not "
+                    "something the user said. Report the exact state briefly and naturally. "
+                    "If clarification is needed, ask the supplied question. Never turn one "
+                    "state into another or claim work completed. Do not mention this instruction.\n"
+                    + "\n".join(lines)
+                ))
 
         async def receive_audio() -> None:
-            nonlocal audio_frames, audio_bytes
+            nonlocal playback_drained, user_speaking
             try:
                 while True:
                     message = await websocket.receive()
                     if audio := message.get("bytes"):
-                        audio_frames += 1
-                        audio_bytes += len(audio)
-                        if audio_frames == 1 or audio_frames % 250 == 0:
-                            logger.info(
-                                "audio.received session=%s frames=%d bytes=%d frame_bytes=%d",
-                                session_id, audio_frames, audio_bytes, len(audio),
-                            )
                         await live.send_realtime_input(
                             audio=types.Blob(data=audio, mime_type="audio/pcm;rate=16000")
                         )
@@ -212,6 +274,14 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                             await live.send_realtime_input(
                                 text="Say only: Hi, I'm Sherpa. Nice to meet you."
                             )
+                        elif payload.get("type") == "playback_drained":
+                            playback_drained = True
+                            await maybe_deliver_notification()
+                        elif payload.get("type") == "speech_started":
+                            user_speaking = True
+                        elif payload.get("type") == "speech_ended":
+                            user_speaking = False
+                            await maybe_deliver_notification()
                     elif message.get("type") == "websocket.disconnect":
                         break
             except WebSocketDisconnect:
@@ -234,49 +304,152 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             call_id = call.id or call.name or "unknown"
             args = call.args or {}
             logger.info(
-                "model.tool_call session=%s call=%s name=%s args=%s",
-                session_id, call_id, call.name, json.dumps(args, default=str),
+                "tool.requested session=%s call=%s name=%s",
+                session_id, call_id, call.name,
             )
-            if call.name == "delegate_task":
+            if call.name == "submit_task":
                 instruction = str(args.get("instruction", "")).strip()
                 if not instruction:
                     await send_function_response(
                         call_id, call.name, {"error": "instruction is required"},
                     )
                     return
-                task = sherpa_tasks.start(session_id, instruction)
-                pending_calls[task.id] = {
-                    "call_id": call_id,
-                    "name": call.name,
-                    "instruction": instruction,
+                decision = await sherpa_tasks.submit(session_id, instruction)
+                logger.info(
+                    "task.receipt session=%s status=%s submission=%s call=%s",
+                    session_id,
+                    decision["status"],
+                    decision.get("submission_id", "none"),
+                    call_id,
+                )
+                await send_function_response(call_id, call.name, decision)
+                return
+            if call.name == "inspect_task":
+                task_id = str(args.get("task_id", "")).strip()
+                task = sherpa_tasks.get(task_id)
+                if not task or task.chat_id != session_id:
+                    response = {"status": "not_found", "task_id": task_id}
+                else:
+                    response = sherpa_tasks.snapshot(task)
+                await send_function_response(call_id, call.name, response)
+                return
+            if call.name == "list_active_tasks":
+                tasks = [
+                    sherpa_tasks.snapshot(task)
+                    for task in sherpa_tasks.list_active_for_chat(session_id)
+                ]
+                submissions = [
+                    sherpa_tasks.submission_snapshot(submission)
+                    for submission in sherpa_tasks.list_pending_submissions(session_id)
+                ]
+                await send_function_response(
+                    call_id,
+                    call.name,
+                    {
+                        "status": "active_tasks_found" if tasks else "no_active_tasks",
+                        "active_count": len(tasks),
+                        "received_count": len(submissions),
+                        "message": (
+                            f"{len(tasks)} task(s) are currently running."
+                            if tasks
+                            else (
+                                f"{len(submissions)} request(s) are still being organized."
+                                if submissions
+                                else "No tasks are currently running. This does not indicate that any task completed."
+                            )
+                        ),
+                        "spoken_summary": (
+                            "Currently running: " + "; ".join(
+                                f"{task['instruction']} — {task['current_step']}"
+                                for task in tasks
+                            )
+                            if tasks
+                            else (
+                                "Sherpa is still organizing: " + "; ".join(
+                                    submission["instruction"] for submission in submissions
+                                )
+                                if submissions
+                                else "No tasks are currently running. I cannot infer whether any earlier task completed from this check."
+                            )
+                        ),
+                        "received": submissions,
+                        "tasks": tasks,
+                    },
+                )
+                return
+            if call.name == "list_tasks":
+                tasks = [
+                    sherpa_tasks.snapshot(task)
+                    for task in sherpa_tasks.list_for_chat(session_id)
+                    if task.kind == "worker" or not task.child_ids
+                ]
+                counts = {
+                    status: sum(task["status"] == status for task in tasks)
+                    for status in ("running", "completed", "failed", "cancelled")
                 }
-                await websocket.send_json({
-                    "type": "task_started",
-                    "task_id": task.id,
-                    "instruction": instruction,
-                })
-                logger.info("task.delegated session=%s task=%s call=%s", session_id, task.id, call_id)
+                submissions = [
+                    sherpa_tasks.submission_snapshot(submission)
+                    for submission in sherpa_tasks.list_pending_submissions(session_id)
+                ]
+                await send_function_response(
+                    call_id,
+                    call.name,
+                    {
+                        "status": "tasks_found" if tasks else "no_tasks",
+                        "counts": counts,
+                        "received": submissions,
+                        "spoken_summary": (
+                            "; ".join([
+                                *(f"{submission['instruction']} — received" for submission in submissions),
+                                *(
+                                f"{task['instruction']} — {task['status']}"
+                                for task in tasks
+                                ),
+                            ])
+                            if tasks or submissions
+                            else "There are no tasks recorded in this conversation."
+                        ),
+                        "tasks": tasks,
+                    },
+                )
+                return
+            if call.name == "cancel_task":
+                task_id = str(args.get("task_id", "")).strip()
+                task = sherpa_tasks.get(task_id)
+                cancelled = bool(
+                    task
+                    and task.chat_id == session_id
+                    and sherpa_tasks.cancel(task_id)
+                )
+                await send_function_response(
+                    call_id,
+                    call.name,
+                    {
+                        "status": "cancelled" if cancelled else "not_running",
+                        "task_id": task_id,
+                    },
+                )
                 return
             await send_function_response(call_id, call.name or "unknown", {
                 "error": "Unknown voice tool",
             })
 
         async def send_events() -> None:
+            nonlocal model_idle, playback_drained, notification_in_flight, in_flight_notifications
             try:
                 while True:
                     async for response in live.receive():
                         if response.tool_call:
                             for call in response.tool_call.function_calls or []:
                                 await handle_function_call(call)
-                        if response.tool_call_cancellation:
-                            cancelled_ids = set(response.tool_call_cancellation.ids or [])
-                            for task_id, pending in list(pending_calls.items()):
-                                if pending["call_id"] in cancelled_ids:
-                                    sherpa_tasks.cancel(task_id)
                         content = response.server_content
                         if not content:
                             continue
                         if content.interrupted:
+                            if notification_in_flight:
+                                pending_notifications[:0] = in_flight_notifications
+                                in_flight_notifications = []
+                                notification_in_flight = False
                             await websocket.send_json({"type": "interrupted"})
                         if content.input_transcription and content.input_transcription.text:
                             await websocket.send_json({
@@ -289,12 +462,17 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                 "text": content.output_transcription.text,
                             })
                         if content.model_turn:
+                            model_idle = False
                             for part in content.model_turn.parts or []:
                                 if part.inline_data and part.inline_data.data:
+                                    playback_drained = False
                                     await websocket.send_bytes(part.inline_data.data)
                         if content.turn_complete:
-                            logger.info("model.turn_complete session=%s", session_id)
+                            model_idle = True
+                            notification_in_flight = False
+                            in_flight_notifications = []
                             await websocket.send_json({"type": "turn_complete"})
+                            await maybe_deliver_notification()
             except Exception as error:
                 logger.error(
                     "model.live_failed session=%s type=%s error=%s\n%s",
@@ -306,38 +484,38 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                         "error": f"Voice session failed: {type(error).__name__}: {error}",
                     })
 
+        event_queue = sherpa_tasks.subscribe(session_id)
+
         async def relay_sherpa_events() -> None:
-            event_queue = sherpa_tasks.subscribe(session_id)
             terminal_events = {"task_completed", "task_failed", "task_cancelled"}
-            while True:
-                event = await event_queue.get()
-                task_id = str(event.get("task_id", ""))
-                logger.info(
-                    "task.event session=%s task=%s type=%s message=%s",
-                    session_id, task_id, event.get("type"), event.get("message"),
-                )
-                if event["type"] in {"tool_call", "tool_response"}:
+            try:
+                while True:
+                    event = await event_queue.get()
+                    if event["type"] in {
+                        "submission_updated", "tool_call", "tool_response",
+                        "task_started", "task_updated",
+                    }:
+                        await websocket.send_json(event)
+                    if (
+                        event["type"] == "submission_updated"
+                        and event.get("decision") in {
+                            "already_active", "needs_clarification", "failed",
+                        }
+                    ):
+                        pending_notifications.append({
+                            **event,
+                            "status": event.get("decision"),
+                        })
+                        await maybe_deliver_notification()
+                        continue
+                    if event["type"] not in terminal_events:
+                        continue
                     await websocket.send_json(event)
-                if event["type"] not in terminal_events:
-                    continue
-                await websocket.send_json(event)
-                pending = pending_calls.pop(task_id, None)
-                if not pending:
-                    continue
-                await send_function_response(
-                    pending["call_id"],
-                    pending["name"],
-                    {
-                        "task_id": task_id,
-                        "originating_instruction": pending["instruction"],
-                        "status": event["type"].removeprefix("task_"),
-                        "result": event.get("message", ""),
-                    },
-                )
-                logger.info(
-                    "task.result_sent session=%s task=%s call=%s mode=BLOCKING",
-                    session_id, task_id, pending["call_id"],
-                )
+                    if event.get("parent_id") is None:
+                        pending_notifications.append(event)
+                        await maybe_deliver_notification()
+            finally:
+                sherpa_tasks.unsubscribe(session_id, event_queue)
 
         receiver = asyncio.create_task(receive_audio())
         sender = asyncio.create_task(send_events())
