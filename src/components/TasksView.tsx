@@ -1,6 +1,6 @@
 import type { VoiceTask } from "../hooks/useVoiceSession";
-import { TasksEmptyState } from "./TasksEmptyState";
 import { TaskItem } from "./TaskItem";
+import { TasksPanel } from "./TasksPanel";
 import "./TasksView.css";
 
 export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
@@ -13,15 +13,9 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
     <>
       <h1 className="tasks-view__title">Tasks</h1>
       <section className="tasks-view" aria-label="Sherpa tasks">
-        {orderedTasks.length ? (
-          <div className="tasks-view__sheet">
-          <div className="tasks-view__list">
-            {orderedTasks.map((task) => (
-              <TaskItem key={task.id} task={task} />
-            ))}
-          </div>
-          </div>
-        ) : <TasksEmptyState />}
+        <TasksPanel empty={!orderedTasks.length} working={running.length > 0}>
+          {orderedTasks.map((task) => <TaskItem key={task.id} task={task} />)}
+        </TasksPanel>
       </section>
     </>
   );

@@ -21,13 +21,3 @@
   font-weight: 590;
   letter-spacing: -.01em;
 }
-.tasks-view__sheet {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 100%;
-  padding: 17px 18px 18px;
-  background: #fafaf8;
-  border: 1px solid #ecece8;
-  border-radius: 20px;
-}
-.tasks-view__list { display: grid; gap: 4px; }
