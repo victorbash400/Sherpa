@@ -15,10 +15,12 @@ from google.adk.tools import ToolContext
 from google.genai import types
 
 from backend.agents.sherpa_agent import sherpa_app
-from backend.agents.task_coordinator import AdmissionDecision, WorkerAssignment, task_coordinator_app
+from backend.agents.task_coordinator import task_coordinator_app
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
+from backend.task_graph import AdmissionDecision, WorkerAssignment
+from backend.task_graph import dependency_context, validate_admission_decision
 from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
 from backend.tools.google_tools import run_with_google_tool_scope
 
@@ -56,6 +58,8 @@ class SherpaTask:
     kind: str = "coordinator"
     parent_id: str | None = None
     child_ids: list[str] = field(default_factory=list)
+    dependency_ids: list[str] = field(default_factory=list)
+    capabilities: tuple[str, ...] = ()
     status: str = "running"
     phase: str = "starting"
     progress: int = 0
@@ -164,6 +168,7 @@ class SherpaTaskManager:
         submission: SherpaSubmission,
         admission: AdmissionDecision,
     ) -> None:
+        validate_admission_decision(admission)
         submission.status = "resolved"
         submission.decision = admission.decision
         submission.message = admission.message
@@ -177,8 +182,6 @@ class SherpaTaskManager:
                 raise RuntimeError("Sherpa returned an invalid active task reference.")
             submission.task_id = existing.id
         elif admission.decision == "accepted":
-            if not admission.assignments:
-                raise RuntimeError("Sherpa accepted the request without creating an assignment.")
             task = SherpaTask(
                 id=f"task_{crypto_id()}",
                 chat_id=submission.chat_id,
@@ -249,6 +252,8 @@ class SherpaTaskManager:
             "kind": task.kind,
             "parent_id": task.parent_id,
             "child_ids": list(task.child_ids),
+            "dependency_ids": list(task.dependency_ids),
+            "capabilities": list(task.capabilities),
             "status": task.status,
             "phase": task.phase,
             "progress": task.progress,
@@ -269,17 +274,11 @@ class SherpaTaskManager:
 
     def cancel(self, task_id: str) -> bool:
         task = self._tasks.get(task_id)
-        if not task or task.status != "running" or not task.worker:
+        if not task or task.status != "running":
             return False
-        task.status = "cancelled"
-        task.phase = "cancelled"
-        task.summary = "Sherpa stopped the task."
-        self._emit_nowait(task, {
-            "type": "task_cancelled",
-            "message": task.summary,
-            **self.snapshot(task),
-        })
-        task.worker.cancel()
+        self._mark_cancelled(task)
+        if task.worker and task.worker is not asyncio.current_task():
+            task.worker.cancel()
         return True
 
     async def steer(self, task_id: str, instruction: str) -> dict[str, Any]:
@@ -401,24 +400,33 @@ class SherpaTaskManager:
                 assignment = assignments[0]
                 task.kind = "worker"
                 task.instruction = assignment.title
+                task.capabilities = tuple(assignment.tools)
                 await self._run_worker(task, assignment.instruction)
                 return
 
-            child_tasks = [
-                self._start_worker(task, assignment.title, assignment.instruction)
+            assignment_by_key = {assignment.key: assignment for assignment in assignments}
+            child_by_key = {
+                assignment.key: self._create_worker(task, assignment)
                 for assignment in assignments
-            ]
+            }
+            child_tasks = list(child_by_key.values())
             task.child_ids = [child.id for child in child_tasks]
+            for assignment in assignments:
+                child_by_key[assignment.key].dependency_ids = [
+                    child_by_key[key].id for key in assignment.depends_on
+                ]
+            for child in child_tasks:
+                self._emit_nowait(child, {"type": "task_started", **self.snapshot(child)})
             titles = ", ".join(assignment.title for assignment in assignments)
             self._record_update(
                 task,
                 "working",
                 5,
                 f"Sherpa separated the request into {len(child_tasks)} tasks: {titles}.",
-                "The workers are handling their assignments now.",
+                "Ready assignments are running in parallel.",
             )
             await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-            await asyncio.gather(*(child.worker for child in child_tasks if child.worker))
+            await self._run_assignment_graph(assignment_by_key, child_by_key)
 
             failed = [child for child in child_tasks if child.status == "failed"]
             cancelled = [child for child in child_tasks if child.status == "cancelled"]
@@ -442,8 +450,12 @@ class SherpaTaskManager:
                 **self.snapshot(task),
             })
         except asyncio.CancelledError:
+            for child_id in task.child_ids:
+                child = self._tasks.get(child_id)
+                if child and child.status == "running":
+                    self.cancel(child.id)
             if task.status != "cancelled":
-                self.cancel(task.id)
+                self._mark_cancelled(task)
         except Exception as error:
             task.status = "failed"
             task.phase = "failed"
@@ -456,27 +468,100 @@ class SherpaTaskManager:
                 **self.snapshot(task),
             })
 
-    def _start_worker(
+    def _create_worker(
         self,
         parent: SherpaTask,
-        title: str,
-        instruction: str,
+        assignment: WorkerAssignment,
     ) -> SherpaTask:
         child = SherpaTask(
             id=f"task_{crypto_id()}",
             chat_id=parent.chat_id,
-            instruction=title,
-            request=instruction,
+            instruction=assignment.title,
+            request=assignment.instruction,
             kind="worker",
             parent_id=parent.id,
+            capabilities=tuple(assignment.tools),
+            phase="queued",
+            current_step="Waiting for prerequisite work" if assignment.depends_on else "Ready to start",
         )
         self._tasks[child.id] = child
+        return child
+
+    def _start_created_worker(self, child: SherpaTask, instruction: str) -> None:
         child.worker = asyncio.create_task(
             self._run_worker(child, instruction),
             name=child.id,
         )
-        self._emit_nowait(child, {"type": "task_started", **self.snapshot(child)})
-        return child
+
+    async def _run_assignment_graph(
+        self,
+        assignments: dict[str, WorkerAssignment],
+        children: dict[str, SherpaTask],
+    ) -> None:
+        pending = set(assignments)
+        running: dict[str, asyncio.Task[None]] = {}
+        completed: dict[str, tuple[str, str, str]] = {}
+
+        while pending or running:
+            for key in tuple(pending):
+                assignment = assignments[key]
+                child = children[key]
+                dependencies = [children[item] for item in assignment.depends_on]
+                if child.status == "cancelled":
+                    pending.remove(key)
+                    continue
+                blocked = next(
+                    (dependency for dependency in dependencies if dependency.status in {"failed", "cancelled"}),
+                    None,
+                )
+                if blocked:
+                    child.status = "failed"
+                    child.phase = "failed"
+                    child.summary = f"Did not start because {blocked.instruction} did not complete."
+                    child.current_step = child.summary
+                    pending.remove(key)
+                    await self._emit(child, {
+                        "type": "task_failed",
+                        "message": child.summary,
+                        **self.snapshot(child),
+                    })
+                    continue
+                if not all(dependency.status == "completed" for dependency in dependencies):
+                    continue
+                instruction = dependency_context(assignment, completed)
+                self._start_created_worker(child, instruction)
+                if child.worker:
+                    running[key] = child.worker
+                pending.remove(key)
+
+            if not running:
+                if pending:
+                    raise RuntimeError("Sherpa's task graph could not make progress.")
+                break
+
+            done, _ = await asyncio.wait(
+                tuple(running.values()),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for key, worker in tuple(running.items()):
+                if worker not in done:
+                    continue
+                await worker
+                child = children[key]
+                if child.status == "completed":
+                    completed[key] = (child.instruction, child.summary, child.evidence)
+                running.pop(key)
+
+    def _mark_cancelled(self, task: SherpaTask) -> None:
+        task.status = "cancelled"
+        task.phase = "cancelled"
+        task.summary = "Sherpa stopped the task."
+        task.current_step = task.summary
+        self._emit_nowait(task, {
+            "type": "task_cancelled",
+            "message": task.summary,
+            **self.snapshot(task),
+        })
 
     async def _run_worker(self, task: SherpaTask, instruction: str) -> None:
         next_instruction = instruction
@@ -535,6 +620,7 @@ class SherpaTaskManager:
             async for event in run_with_google_tool_scope(
                 self._runner,
                 f"{task.request}\n{instruction}",
+                capabilities=task.capabilities,
                 user_id="local-user",
                 session_id=worker_session_id,
                 new_message=message,
