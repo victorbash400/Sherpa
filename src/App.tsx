@@ -186,7 +186,7 @@ export function App() {
         />
       </div>
       <div hidden={view !== "skills"}>
-        <SkillsView error={skills.error} skills={skills.skills} />
+        <SkillsView error={skills.error} skills={skills.skills} onSave={skills.updateSkill} />
       </div>
       <div hidden={view !== "accessibility"}>
         <AccessibilityView />

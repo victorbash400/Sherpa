@@ -4,6 +4,7 @@ export type SherpaSkill = {
   id: string;
   name: string;
   description: string;
+  instructions: string;
   built_in: boolean;
 };
 
@@ -31,5 +32,19 @@ export function useSkills(active: boolean) {
     return () => controller.abort();
   }, [active]);
 
-  return { error, skills };
+  async function updateSkill(id: string, instructions: string) {
+    const response = await fetch(`http://127.0.0.1:8000/skills/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ instructions }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { detail?: string } | null;
+      throw new Error(result?.detail || "Could not save this skill.");
+    }
+    const updated = await response.json() as SherpaSkill;
+    setSkills((current) => current.map((skill) => skill.id === id ? updated : skill));
+  }
+
+  return { error, skills, updateSkill };
 }

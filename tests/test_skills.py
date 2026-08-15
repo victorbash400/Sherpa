@@ -1,6 +1,8 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from backend.skill_store import skill_store
+from backend.skill_store import SkillStore, skill_store
 
 
 class SkillStoreTests(unittest.TestCase):
@@ -8,20 +10,28 @@ class SkillStoreTests(unittest.TestCase):
         skills = {skill.id: skill for skill in skill_store.all()}
 
         self.assertIn("native-whatsapp", skills)
-        self.assertIn("google-workspace", skills)
-        self.assertEqual(skills["native-whatsapp"].snapshot()["name"], "Native WhatsApp")
+        self.assertIn("workspace-email", skills)
+        self.assertIn("workspace-documents", skills)
 
-    def test_whatsapp_request_selects_native_app_skill(self) -> None:
-        context = skill_store.context_for("Send this to Alice on WhatsApp")
+    def test_selected_skills_are_combined_without_keyword_matching(self) -> None:
+        context = skill_store.context_for(["workspace-email", "native-whatsapp"])
 
         self.assertIn("Never navigate to WhatsApp Web", context)
-        self.assertNotIn("workspace_*", context)
+        self.assertIn("workspace_gmail_search_threads", context)
 
-    def test_docs_request_selects_workspace_api_skill(self) -> None:
-        context = skill_store.context_for("Create a Google Doc with these notes")
+    def test_unknown_skills_are_not_loaded(self) -> None:
+        self.assertEqual(skill_store.context_for(["made-up-skill"]), "")
 
-        self.assertIn("workspace_*", context)
-        self.assertNotIn("WhatsApp Web", context)
+    def test_skill_instructions_can_be_overridden(self) -> None:
+        with TemporaryDirectory() as directory:
+            store = SkillStore(Path(directory) / "skills.json")
+            updated = store.update("workspace-email", "Use the narrowest Gmail query.")
+
+            self.assertEqual(updated.instructions, "Use the narrowest Gmail query.")
+            self.assertEqual(
+                next(skill for skill in store.all() if skill.id == "workspace-email").instructions,
+                "Use the narrowest Gmail query.",
+            )
 
 
 if __name__ == "__main__":

@@ -1,26 +1,11 @@
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
 SKILLS_ROOT = Path(__file__).with_name("skills")
-SKILL_TRIGGERS = {
-    "native-whatsapp": ("whatsapp",),
-    "google-workspace": (
-        "gmail",
-        "google calendar",
-        "google contacts",
-        "google doc",
-        "google drive",
-        "google sheet",
-        "google slide",
-        "workspace",
-    ),
-}
-SKILL_DISPLAY_NAMES = {
-    "native-whatsapp": "Native WhatsApp",
-    "google-workspace": "Google Workspace",
-}
+SKILL_OVERRIDES = Path.home() / "Library/Application Support/Sherpa/skills.json"
 FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n(.*)\Z", re.DOTALL)
 
 
@@ -31,35 +16,68 @@ class SherpaSkill:
     description: str
     instructions: str
 
+    def catalog_entry(self) -> dict[str, str]:
+        return {"id": self.id, "name": self.name, "description": self.description}
+
     def snapshot(self) -> dict[str, str | bool]:
         return {
-            "id": self.id,
-            "name": SKILL_DISPLAY_NAMES.get(self.id, self.name),
-            "description": self.description,
+            **self.catalog_entry(),
+            "instructions": self.instructions.strip(),
             "built_in": True,
         }
 
 
 class SkillStore:
+    def __init__(self, overrides_path: Path = SKILL_OVERRIDES) -> None:
+        self._overrides_path = overrides_path
+
     def all(self) -> list[SherpaSkill]:
+        overrides = self._load_overrides()
         skills: list[SherpaSkill] = []
         for skill_file in sorted(SKILLS_ROOT.glob("*/SKILL.md")):
             skill = parse_skill(skill_file)
             if skill:
-                skills.append(skill)
+                skills.append(replace(skill, instructions=overrides.get(skill.id, skill.instructions)))
         return skills
 
-    def context_for(self, instruction: str) -> str:
-        normalized = instruction.casefold()
-        selected = [
-            skill
-            for skill in self.all()
-            if any(trigger in normalized for trigger in SKILL_TRIGGERS.get(skill.id, ()))
-        ]
+    def catalog(self) -> list[dict[str, str]]:
+        return [skill.catalog_entry() for skill in self.all()]
+
+    def context_for(self, skill_ids: list[str]) -> str:
+        available = {skill.id: skill for skill in self.all()}
+        selected = [available[skill_id] for skill_id in skill_ids if skill_id in available]
         if not selected:
             return ""
-        sections = [f"## {skill.name}\n{skill.instructions.strip()}" for skill in selected]
-        return "Relevant Sherpa skills:\n\n" + "\n\n".join(sections)
+        sections = [f"## Skill: {skill.name}\n{skill.instructions.strip()}" for skill in selected]
+        return "Selected task skills:\n\n" + "\n\n".join(sections)
+
+    def update(self, skill_id: str, instructions: str) -> SherpaSkill:
+        clean = instructions.strip()
+        if not clean:
+            raise ValueError("Skill instructions cannot be empty.")
+        if len(clean) > 30_000:
+            raise ValueError("Skill instructions are too long.")
+        existing = next((skill for skill in self.all() if skill.id == skill_id), None)
+        if not existing:
+            raise KeyError(skill_id)
+        overrides = self._load_overrides()
+        overrides[skill_id] = clean
+        self._overrides_path.parent.mkdir(parents=True, exist_ok=True)
+        self._overrides_path.write_text(json.dumps(overrides, indent=2) + "\n")
+        return replace(existing, instructions=clean)
+
+    def _load_overrides(self) -> dict[str, str]:
+        try:
+            value = json.loads(self._overrides_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            return {}
+        if not isinstance(value, dict):
+            return {}
+        return {
+            key: content
+            for key, content in value.items()
+            if isinstance(key, str) and isinstance(content, str)
+        }
 
 
 def parse_skill(path: Path) -> SherpaSkill | None:

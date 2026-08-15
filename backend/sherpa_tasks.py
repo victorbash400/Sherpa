@@ -57,6 +57,7 @@ class SherpaTask:
     kind: str = "worker"
     parent_id: str | None = None
     child_ids: list[str] = field(default_factory=list)
+    skill_ids: list[str] = field(default_factory=list)
     status: str = "running"
     phase: str = "starting"
     progress: int = 0
@@ -171,7 +172,12 @@ class SherpaTaskManager:
             if operation.action == "create":
                 if not operation.title or not operation.instruction:
                     raise RuntimeError("The task planner returned an incomplete task.")
-                task = self._create_task(submission.chat_id, operation.title, operation.instruction)
+                task = self._create_task(
+                    submission.chat_id,
+                    operation.title,
+                    operation.instruction,
+                    operation.skill_ids,
+                )
                 created += 1
             elif operation.action == "reuse":
                 if not task:
@@ -179,6 +185,8 @@ class SherpaTaskManager:
             elif operation.action == "steer":
                 if not task or not operation.instruction:
                     raise RuntimeError("The task planner returned an invalid task update.")
+                if operation.skill_ids:
+                    task.skill_ids = list(operation.skill_ids)
                 await self.steer(task.id, operation.instruction)
                 changed = True
             elif operation.action == "cancel":
@@ -204,13 +212,20 @@ class SherpaTaskManager:
             ",".join(affected) or "none",
         )
 
-    def _create_task(self, chat_id: str, title: str, instruction: str) -> SherpaTask:
+    def _create_task(
+        self,
+        chat_id: str,
+        title: str,
+        instruction: str,
+        skill_ids: list[str] | None = None,
+    ) -> SherpaTask:
         queued = any(task.status == "running" for task in self._tasks.values())
         task = SherpaTask(
             id=f"task_{crypto_id()}",
             chat_id=chat_id,
             instruction=" ".join(title.split()).strip(),
             request=" ".join(instruction.split()).strip(),
+            skill_ids=list(skill_ids or []),
             phase="queued" if queued else "starting",
             current_step="Waiting for the active task to finish" if queued else "Starting work",
         )
@@ -232,7 +247,13 @@ class SherpaTaskManager:
     def _validate_plan(self, chat_id: str, plan: TaskPlan) -> None:
         created = 0
         referenced: set[str] = set()
+        available_skills = {skill["id"] for skill in skill_store.catalog()}
         for operation in plan.operations:
+            unknown_skills = set(operation.skill_ids) - available_skills
+            if unknown_skills:
+                raise RuntimeError(
+                    f"The task planner selected unknown skills: {', '.join(sorted(unknown_skills))}."
+                )
             if operation.action == "create":
                 created += 1
                 if not operation.title or not operation.instruction:
@@ -292,6 +313,7 @@ class SherpaTaskManager:
             "kind": task.kind,
             "parent_id": task.parent_id,
             "child_ids": list(task.child_ids),
+            "skill_ids": list(task.skill_ids),
             "status": task.status,
             "phase": task.phase,
             "progress": task.progress,
@@ -416,6 +438,7 @@ class SherpaTaskManager:
                 "instruction": task.request,
                 "phase": task.phase,
                 "current_step": task.current_step,
+                "skill_ids": task.skill_ids,
             }
             for task in self._tasks.values()
             if task.chat_id == chat_id and task.status == "running"
@@ -426,7 +449,11 @@ class SherpaTaskManager:
             session_id=planner_session_id,
         )
         response_text = ""
-        prompt = json.dumps({"request": instruction, "task_ledger": ledger})
+        prompt = json.dumps({
+            "request": instruction,
+            "task_ledger": ledger,
+            "skill_catalog": skill_store.catalog(),
+        })
         async for event in self._planner_runner.run_async(
             user_id="local-user",
             session_id=planner_session_id,
@@ -498,7 +525,7 @@ class SherpaTaskManager:
                     session_id=worker_session_id,
                 )
             memory_context = memory_store.context_for("sherpa") if not resume else ""
-            skill_context = skill_store.context_for(f"{task.request}\n{instruction}")
+            skill_context = skill_store.context_for(task.skill_ids)
             worker_prompt = "\n\n".join(part for part in (
                 memory_context,
                 skill_context,

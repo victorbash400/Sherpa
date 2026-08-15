@@ -119,6 +119,42 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(starts, ["one", "two", "three"])
 
+    async def test_planner_attaches_multiple_skills_to_one_task(self) -> None:
+        plan = TaskPlan(
+            message="Queued the workflow.",
+            operations=[TaskOperation(
+                action="create",
+                title="Share prize details",
+                instruction="Find the email, create a Doc, then send it on WhatsApp.",
+                skill_ids=["workspace-email", "workspace-documents", "native-whatsapp"],
+            )],
+        )
+        submission = SherpaSubmission(id="submission", chat_id="chat", instruction="share details")
+
+        async def run(task, instruction: str) -> None:
+            del instruction
+            task.status = "completed"
+
+        with patch.object(self.manager, "_run_worker", side_effect=run):
+            await self.manager._apply_plan(submission, plan)
+            task = self.manager.get(submission.task_id or "")
+            self.assertIsNotNone(task)
+            self.assertEqual(task.skill_ids, plan.operations[0].skill_ids)
+            await task.worker
+
+    async def test_planner_rejects_unknown_skills(self) -> None:
+        plan = TaskPlan(
+            message="Queued.",
+            operations=[TaskOperation(
+                action="create",
+                title="Unknown",
+                instruction="Do something.",
+                skill_ids=["not-a-real-skill"],
+            )],
+        )
+        with self.assertRaisesRegex(RuntimeError, "unknown skills"):
+            self.manager._validate_plan("chat", plan)
+
 
 if __name__ == "__main__":
     unittest.main()

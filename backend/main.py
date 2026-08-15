@@ -123,6 +123,10 @@ class MemoryItemRequest(BaseModel):
     active: bool | None = None
 
 
+class SkillRequest(BaseModel):
+    instructions: str = Field(min_length=1, max_length=30_000)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -264,6 +268,16 @@ def memory() -> dict[str, object]:
 @app.get("/skills")
 def skills() -> dict[str, object]:
     return {"skills": [skill.snapshot() for skill in skill_store.all()]}
+
+
+@app.patch("/skills/{skill_id}")
+def update_skill(skill_id: str, body: SkillRequest) -> dict[str, object]:
+    try:
+        return skill_store.update(skill_id, body.instructions).snapshot()
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="Skill not found") from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @app.put("/memory/settings")

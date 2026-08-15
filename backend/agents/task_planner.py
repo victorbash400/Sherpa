@@ -12,6 +12,7 @@ class TaskOperation(BaseModel):
     task_id: str | None = None
     title: str | None = None
     instruction: str | None = None
+    skill_ids: list[str] = Field(default_factory=list, max_length=4)
 
 
 class TaskPlan(BaseModel):
@@ -43,10 +44,17 @@ task_planner = Agent(
     prioritize new work. Do not duplicate overlapping outcomes.
 
     A create operation needs a short task-list title and a complete standalone
-    instruction containing its constraints and completion criteria. A steer
-    operation needs the target task ID and the changed instruction. Reuse and
-    cancel need a valid task ID from the supplied ledger. Keep operations in the
-    exact order they should be applied and keep the message under twenty words.
+    instruction containing its constraints and completion criteria. Select zero
+    or more skill IDs from the supplied skill catalog for each create operation.
+    Skills contain execution procedures, not separate jobs: attach every skill
+    needed for a cross-tool outcome to that one task. Never invent a skill ID.
+    Do not select a skill for a simple task that does not benefit from one.
+
+    A steer operation needs the target task ID and the changed instruction. It
+    may also replace that task's skill IDs when the refinement changes the tools
+    or workflow it needs. Reuse and cancel need a valid task ID from the supplied
+    ledger. Keep operations in the exact order they should be applied and keep
+    the message under twenty words.
     """,
 )
 
