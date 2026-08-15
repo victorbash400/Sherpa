@@ -6,10 +6,8 @@
   width: clamp(240px, 31%, 380px);
   aspect-ratio: 16 / 10;
   touch-action: none;
-  cursor: grab;
 }
 
-.task-window-stack:active { cursor: grabbing; }
 .task-window-stack__layer { position: absolute; inset: 0; transform-origin: right top; transition: transform 220ms cubic-bezier(.2, .8, .2, 1); }
 
 .task-window-stack[data-expanded="true"] {
@@ -19,7 +17,6 @@
   width: auto;
   aspect-ratio: auto;
   transform: none;
-  cursor: default;
 }
 
 .task-window-stack[data-expanded="true"] .task-window-stack__layer:not(:last-child) { visibility: hidden; }

@@ -7,16 +7,14 @@ type TaskWindowCardProps = {
   active: boolean;
   expanded: boolean;
   onExpand: () => void;
-  onSelect: () => void;
   task: VoiceTask;
 };
 
-export function TaskWindowCard({ active, expanded, onExpand, onSelect, task }: TaskWindowCardProps) {
+export function TaskWindowCard({ active, expanded, onExpand, task }: TaskWindowCardProps) {
   const label = task.previewTarget?.window_title || task.previewTarget?.app || "Task window";
 
   return (
     <article className="task-window-card" data-active={active} data-expanded={expanded} aria-label={label}>
-      <button className="task-window-card__select" type="button" aria-label={`Show ${label}`} onClick={onSelect} />
       <TaskPreview
         active={active}
         cursor={active ? task.previewCursor : undefined}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { VoiceTask } from "../hooks/useVoiceSession";
 import { TaskWindowCard } from "./TaskWindowCard";
+import { TaskWindowSwitcher } from "./TaskWindowSwitcher";
 import "./TaskWindowStack.css";
 
 type Position = { x: number; y: number };
@@ -29,10 +30,17 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
   if (!tasks.length) return null;
 
   const selectedIndex = Math.max(0, tasks.findIndex((task) => task.id === selectedTaskId));
+  const selectedTask = tasks[selectedIndex];
   const ordered = [...tasks.slice(0, selectedIndex), ...tasks.slice(selectedIndex + 1), tasks[selectedIndex]];
+  const label = selectedTask.previewTarget?.window_title || selectedTask.previewTarget?.app || selectedTask.instruction;
+
+  const selectOffset = (offset: number) => {
+    const nextIndex = (selectedIndex + offset + tasks.length) % tasks.length;
+    onSelect(tasks[nextIndex].id);
+  };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (expanded || (event.target as HTMLElement).closest(".task-window-card__expand")) return;
+    if (expanded || (event.target as HTMLElement).closest("button")) return;
     dragRef.current = { origin: position, pointer: { x: event.clientX, y: event.clientY } };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -52,16 +60,26 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
     });
   };
 
+  const stopDragging = () => { dragRef.current = undefined; };
+
   return (
     <div
       ref={stackRef}
       className="task-window-stack"
       data-expanded={expanded}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={() => { dragRef.current = undefined; }}
       style={expanded ? undefined : { transform: `translate(${position.x}px, ${position.y}px)` }}
     >
+      <TaskWindowSwitcher
+        current={selectedIndex}
+        label={label}
+        onNext={() => selectOffset(1)}
+        onPointerCancel={stopDragging}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDragging}
+        onPrevious={() => selectOffset(-1)}
+        total={tasks.length}
+      />
       {ordered.map((task, index) => {
         const active = index === ordered.length - 1;
         const depth = ordered.length - index - 1;
@@ -75,7 +93,6 @@ export function TaskWindowStack({ onSelect, selectedTaskId, tasks }: TaskWindowS
               active={active}
               expanded={expanded && active}
               onExpand={() => setExpanded((current) => !current)}
-              onSelect={() => onSelect(task.id)}
               task={task}
             />
           </div>
