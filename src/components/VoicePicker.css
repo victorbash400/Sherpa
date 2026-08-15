@@ -37,13 +37,6 @@
 
 .voice-picker button:hover { color: #1d1d1b; background: #f1f1ef; }
 .voice-picker button svg { width: 18px; height: 18px; stroke-width: 1.6; }
-.voice-picker .voice-picker__back {
-  position: fixed;
-  top: 1px;
-  left: 76px;
-  z-index: 4;
-}
-
 .voice-picker__carousel {
   display: grid;
   width: 100%;

@@ -1,6 +1,6 @@
 .memory-view {
   position: absolute;
-  inset: 76px 0 24px 74px;
+  inset: 76px 0 24px var(--sidebar-content-left);
   box-sizing: border-box;
   padding-right: 28px;
   color: #292927;
@@ -8,6 +8,7 @@
   scrollbar-width: thin;
   scrollbar-color: #d5d5d2 transparent;
   -webkit-app-region: no-drag;
+  transition: left 220ms cubic-bezier(.2, .8, .2, 1);
 }
 
 .memory-view::-webkit-scrollbar { width: 3px; }

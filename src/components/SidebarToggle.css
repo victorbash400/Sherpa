@@ -1,36 +1,33 @@
-.refresh-button {
+.sidebar-toggle {
   position: absolute;
   top: 5px;
-  right: 36px;
-  z-index: 3;
+  left: 78px;
+  z-index: 4;
   display: grid;
   width: 26px;
   height: 26px;
   padding: 0;
   place-items: center;
-  color: #676762;
-  background: transparent;
+  color: #686864;
   border: 0;
   border-radius: 8px;
+  background: transparent;
   cursor: pointer;
   -webkit-app-region: no-drag;
 }
 
-.refresh-button:hover {
-  background: #f3f3f3;
+.sidebar-toggle:hover {
+  color: #20201e;
+  background: #f3f3f1;
 }
 
-.refresh-button:focus-visible {
+.sidebar-toggle:focus-visible {
   outline: 2px solid #7c6cff;
   outline-offset: 2px;
 }
 
-.refresh-button img {
+.sidebar-toggle svg {
   width: 15px;
   height: 15px;
-  opacity: .68;
-}
-
-.refresh-button:hover img {
-  opacity: .92;
+  stroke-width: 1.7;
 }

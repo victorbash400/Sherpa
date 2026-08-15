@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioControls } from "./components/AudioControls";
+import { AccessibilityView } from "./components/AccessibilityView";
 import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
 import { ChatHistoryDrawer } from "./components/ChatHistoryDrawer";
@@ -17,12 +18,16 @@ import { VoiceSessionButton } from "./components/VoiceSessionButton";
 import { VoicePicker } from "./components/VoicePicker";
 import { VoiceTranscript } from "./components/VoiceTranscript";
 import { VoiceToolActivity } from "./components/VoiceToolActivity";
+import { WorkspaceView } from "./components/WorkspaceView";
+import { SidebarToggle } from "./components/SidebarToggle";
+import { useConnectionSections } from "./hooks/useConnectionSections";
 import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
 export function App() {
-  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins">("voice");
+  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "workspace" | "accessibility">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
@@ -31,6 +36,7 @@ export function App() {
   const automaticTaskViewRef = useRef(false);
   const hadActiveTasksRef = useRef(false);
   const chat = useSherpaChat();
+  const connections = useConnectionSections();
   const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
     chat.appendTranscript(chat.activeChatId, role, text);
   }, [chat.activeChatId, chat.appendTranscript]);
@@ -81,12 +87,16 @@ export function App() {
   };
 
   return (
-    <main className="shell">
+    <main className="shell" data-sidebar-open={sidebarOpen}>
+      <SidebarToggle open={sidebarOpen} onToggle={() => setSidebarOpen((current) => !current)} />
       <ControlRail
         activeView={view}
         computerActive={voice.computerActive}
+        expanded={sidebarOpen}
+        onOpenAccessibility={() => setView("accessibility")}
         onOpenMemory={() => setView("memory")}
         onOpenPlugins={() => setView("plugins")}
+        onOpenWorkspace={() => setView("workspace")}
         onOpenVoice={() => {
           voicePreview.stop();
           automaticTaskViewRef.current = false;
@@ -135,10 +145,6 @@ export function App() {
       ) : view === "voices" ? (
         <VoicePicker
           error={voicePreview.error}
-          onBack={() => {
-            voicePreview.stop();
-            setView("voice");
-          }}
           onPreview={() => void voicePreview.preview(selectedVoice.id)}
           onSelect={selectVoice}
           previewing={voicePreview.playing}
@@ -160,7 +166,23 @@ export function App() {
         <MemoryView />
       </div>
       <div hidden={view !== "plugins"}>
-        <PluginsView />
+        <PluginsView
+          error={connections.error}
+          sections={connections.sections}
+          onError={(message) => connections.setError(message || undefined)}
+          onPermissionChange={(id, enabled) => void connections.setPermission(id, enabled)}
+        />
+      </div>
+      <div hidden={view !== "workspace"}>
+        <WorkspaceView
+          error={connections.error}
+          section={connections.sections.find((section) => section.id === "workspace")}
+          onError={(message) => connections.setError(message || undefined)}
+          onPermissionChange={(id, enabled) => void connections.setPermission(id, enabled)}
+        />
+      </div>
+      <div hidden={view !== "accessibility"}>
+        <AccessibilityView />
       </div>
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
       <RefreshButton />
@@ -175,7 +197,7 @@ export function App() {
           voice.stop();
           chat.selectChat(id);
           setHistoryOpen(false);
-          setView("chat");
+          setView("voice");
         }}
         open={historyOpen}
       />

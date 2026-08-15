@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Orb } from "./Orb";
 import type { VoiceOption } from "../voice/voiceOptions";
 import { voiceOptions } from "../voice/voiceOptions";
@@ -6,14 +6,13 @@ import "./VoicePicker.css";
 
 interface VoicePickerProps {
   error?: string;
-  onBack: () => void;
   onPreview: () => void;
   onSelect: (voice: VoiceOption) => void;
   previewing: boolean;
   selected: VoiceOption;
 }
 
-export function VoicePicker({ error, onBack, onPreview, onSelect, previewing, selected }: VoicePickerProps) {
+export function VoicePicker({ error, onPreview, onSelect, previewing, selected }: VoicePickerProps) {
   const selectedIndex = voiceOptions.findIndex((voice) => voice.id === selected.id);
   const move = (direction: number) => {
     const nextIndex = (selectedIndex + direction + voiceOptions.length) % voiceOptions.length;
@@ -22,7 +21,6 @@ export function VoicePicker({ error, onBack, onPreview, onSelect, previewing, se
 
   return (
     <section className="voice-picker" aria-label="Choose voice">
-      <button className="voice-picker__back" aria-label="Back to orb" onClick={onBack} type="button"><ArrowLeft aria-hidden="true" /></button>
       <header>Voice</header>
       <div className="voice-picker__carousel">
         <button aria-label="Previous voice" onClick={() => move(-1)} type="button"><ChevronLeft aria-hidden="true" /></button>

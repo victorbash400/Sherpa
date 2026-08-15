@@ -1,11 +1,12 @@
 .tasks-view {
   position: absolute;
-  inset: 76px 0 28px 74px;
+  inset: 76px 0 28px var(--sidebar-content-left);
   box-sizing: border-box;
   padding-right: 26px;
   overflow-y: auto;
   color: #292927;
   -webkit-app-region: no-drag;
+  transition: left 220ms cubic-bezier(.2, .8, .2, 1);
 }
 
 .tasks-view::-webkit-scrollbar { width: 3px; }
@@ -23,10 +24,10 @@
 .tasks-view__sheet {
   box-sizing: border-box;
   width: 100%;
+  min-height: 100%;
   padding: 17px 18px 18px;
   background: #fafaf8;
   border: 1px solid #ecece8;
   border-radius: 20px;
 }
-.tasks-view__list { display: grid; }
-.tasks-view__list > .task-item + .task-item { border-top: 1px solid #ecece8; }
+.tasks-view__list { display: grid; gap: 4px; }

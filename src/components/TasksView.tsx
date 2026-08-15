@@ -1,4 +1,5 @@
 import type { VoiceTask } from "../hooks/useVoiceSession";
+import { TasksEmptyState } from "./TasksEmptyState";
 import { TaskItem } from "./TaskItem";
 import "./TasksView.css";
 
@@ -20,7 +21,7 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
             ))}
           </div>
           </div>
-        ) : null}
+        ) : <TasksEmptyState />}
       </section>
     </>
   );

@@ -1,6 +1,7 @@
 .chat-shell {
   position: absolute;
-  inset: 42px 0 18px 72px;
+  inset: 42px 0 18px var(--sidebar-content-left);
+  transition: left 220ms cubic-bezier(.2, .8, .2, 1);
   display: grid;
   min-width: 0;
   min-height: 0;

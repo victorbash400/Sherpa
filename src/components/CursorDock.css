@@ -1,10 +1,19 @@
 .cursor-dock {
   display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
   width: 34px;
   height: 34px;
-  place-items: center;
+  align-items: center;
   color: #555;
   border-radius: 9px;
+}
+
+.control-rail[data-expanded="true"] .cursor-dock {
+  width: 148px;
+}
+
+.control-rail .cursor-dock img {
+  justify-self: center;
 }
 
 .control-rail .cursor-dock img {
