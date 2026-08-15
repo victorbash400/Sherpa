@@ -3,7 +3,12 @@ import unittest
 from unittest.mock import patch
 
 from backend.agents.task_planner import TaskOperation, TaskPlan
-from backend.sherpa_tasks import SherpaSubmission, SherpaTaskManager, is_observation_tool
+from backend.sherpa_tasks import (
+    SherpaSubmission,
+    SherpaTaskManager,
+    is_observation_tool,
+    preview_target_for,
+)
 
 
 class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
@@ -159,6 +164,17 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(is_observation_tool("workspace_sheets_read_range"))
         self.assertTrue(is_observation_tool("workspace_docs_read_doc"))
         self.assertFalse(is_observation_tool("workspace_sheets_update_range"))
+
+    async def test_window_preview_requires_verified_ownership(self) -> None:
+        self.assertIsNone(preview_target_for("computer_see", {"window_id": 1664}))
+        self.assertEqual(
+            preview_target_for(
+                "computer_see",
+                {"window_id": 1664},
+                {"app": "Finder", "pid": None, "window_id": None, "window_title": None},
+            ),
+            {"app": "Finder", "pid": None, "window_id": 1664, "window_title": None},
+        )
 
 
 if __name__ == "__main__":

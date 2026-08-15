@@ -369,8 +369,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
         } else if (message.type === "task_started" && message.task_id && message.instruction) {
           runningTaskIdsRef.current.add(message.task_id);
           setTasks((current) => [
-            taskFromMessage(message, sessionId),
             ...current.filter((task) => task.id !== message.task_id),
+            taskFromMessage(message, sessionId),
           ]);
         } else if (
           [
@@ -393,7 +393,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
                 previewCursor: item.previewCursor,
                 previewRevision: item.previewRevision,
               } : item)
-              : [task, ...current];
+              : [...current, task];
           });
         } else if (
           (message.type === "task_completed" || message.type === "task_failed" || message.type === "task_cancelled")

@@ -606,7 +606,11 @@ class SherpaTaskManager:
                             len(element_targets) + len(browser_targets),
                         )
                     task.current_step = describe_tool(call.name, event_args)
-                    preview_target = preview_target_for(call.name, event_args)
+                    preview_target = preview_target_for(
+                        call.name,
+                        event_args,
+                        task.preview_target,
+                    )
                     if preview_target:
                         task.preview_target = preview_target
                         task.interaction_mode = interaction_mode(call.name, event_args)
@@ -1189,6 +1193,7 @@ def normalize_label(value: str) -> str:
 def preview_target_for(
     tool_name: str,
     args: dict[str, Any],
+    previous: dict[str, str | int | None] | None = None,
 ) -> dict[str, str | int | None] | None:
     if tool_name.startswith("browser_"):
         return ComputerTarget(app="Google Chrome").snapshot()
@@ -1202,7 +1207,19 @@ def preview_target_for(
             if isinstance(args.get(key), str) and args.get(key)
         ), None)
         target = ComputerTarget(app=app)
-    return target.snapshot() if target.key else None
+    if target.window_id is not None and not target.app and target.pid is None:
+        owner = previous if previous and previous.get("kind") != "workspace" else None
+        if not owner or (not owner.get("app") and owner.get("pid") is None):
+            return None
+        target = ComputerTarget(
+            app=owner.get("app") if isinstance(owner.get("app"), str) else None,
+            pid=owner.get("pid") if isinstance(owner.get("pid"), int) else None,
+            window_id=target.window_id,
+            window_title=target.window_title,
+        )
+    if not target.app and target.pid is None:
+        return None
+    return target.snapshot()
 
 
 def describe_tool(name: str, args: dict[str, Any]) -> str:
