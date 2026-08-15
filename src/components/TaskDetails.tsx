@@ -25,7 +25,7 @@ export function TaskDetails({ active, task }: { active: boolean; task: VoiceTask
       </div>
       <TaskPreview
         active={active}
-        interactionMode={task.interactionMode}
+        cursor={task.previewCursor}
         target={task.previewTarget}
         taskId={task.id}
       />

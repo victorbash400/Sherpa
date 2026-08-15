@@ -20,6 +20,7 @@ from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
 from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
+from backend.tools.google_tools import run_with_google_tool_scope
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -531,7 +532,9 @@ class SherpaTaskManager:
             last_successful_action = -1
             last_successful_observation = -1
             completion: dict[str, Any] | None = None
-            async for event in self._runner.run_async(
+            async for event in run_with_google_tool_scope(
+                self._runner,
+                f"{task.request}\n{instruction}",
                 user_id="local-user",
                 session_id=worker_session_id,
                 new_message=message,
@@ -650,6 +653,7 @@ class SherpaTaskManager:
                         if next_browser_targets:
                             browser_targets = next_browser_targets
                     failed = tool_failed(response.response)
+                    failure_message = tool_error_message(response.response) if failed else None
                     is_control_tool = response.name in {
                         "ask_task_question",
                         "complete_task",
@@ -671,8 +675,11 @@ class SherpaTaskManager:
                         "type": "tool_response",
                         "id": response_id,
                         "name": response.name,
-                        "result": {"status": "failed" if failed else "done"},
-                        "message": describe_result(response.name, failed),
+                        "result": {
+                            "status": "failed" if failed else "done",
+                            "error": failure_message,
+                        },
+                        "message": failure_message or describe_result(response.name, failed),
                     })
                     directive = self._take_directive(task)
                     if directive:
@@ -891,6 +898,24 @@ def tool_failed(response: dict | None) -> bool:
         or response.get("error")
         or response.get("status") == "failed"
     ))
+
+
+def tool_error_message(response: dict | None) -> str:
+    if not response:
+        return "The tool failed without returning an error."
+    error = response.get("error")
+    if isinstance(error, str) and error.strip():
+        return error.strip()[:1000]
+    content = response.get("content")
+    if isinstance(content, list):
+        text = " ".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and isinstance(block.get("text"), str)
+        ).strip()
+        if text:
+            return text[:1000]
+    return "The tool reported a failure without an explanation."
 
 
 def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:

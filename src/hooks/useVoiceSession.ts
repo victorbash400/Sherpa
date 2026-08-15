@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { VoiceTranscriptEntry } from "../chat/chatTypes";
-import type { PreviewTarget } from "../types/sherpaOverlay";
+import type { PreviewCursor, PreviewTarget } from "../types/sherpaOverlay";
 
 export type VoiceStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
 export type VoiceToolActivity = {
@@ -8,6 +8,7 @@ export type VoiceToolActivity = {
   name: string;
   args: Record<string, unknown>;
   status: "running" | "done" | "error";
+  error?: string;
 };
 export type VoiceTask = {
   id: string;
@@ -23,6 +24,7 @@ export type VoiceTask = {
   result?: string;
   previewTarget?: PreviewTarget;
   interactionMode?: "background" | "foreground";
+  previewCursor?: PreviewCursor;
 };
 export type VoiceTaskUpdate = {
   phase: string;
@@ -264,7 +266,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           id?: string;
           name?: string;
           args?: Record<string, unknown>;
-          result?: { status?: string };
+          result?: { status?: string; error?: string };
           task_id?: string;
           chat_id?: string;
           instruction?: string;
@@ -323,11 +325,19 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           });
           if (message.name.startsWith("computer_") || message.name.startsWith("browser_")) {
             if (message.task_id && message.preview_target) {
+              const overlayX = message.args?.overlay_x;
+              const overlayY = message.args?.overlay_y;
               setTasks((current) => current.map((task) => task.id === message.task_id
                 ? {
                   ...task,
                   previewTarget: message.preview_target,
                   interactionMode: message.interaction_mode || "background",
+                  previewCursor: typeof overlayX === "number" && typeof overlayY === "number" ? {
+                    id: toolId,
+                    action: toolName,
+                    x: overlayX,
+                    y: overlayY,
+                  } : task.previewCursor,
                 }
                 : task));
             }
@@ -343,7 +353,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
         } else if (message.type === "tool_response" && message.id) {
           setToolActivities((current) => current.map((activity) =>
             activity.id === message.id
-              ? { ...activity, status: message.result?.status === "failed" ? "error" : "done" }
+              ? {
+                ...activity,
+                status: message.result?.status === "failed" ? "error" : "done",
+                error: message.result?.error,
+              }
               : activity,
           ));
         } else if (message.type === "task_started" && message.task_id && message.instruction) {
@@ -369,6 +383,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
                 ...task,
                 previewTarget: item.previewTarget,
                 interactionMode: item.interactionMode,
+                previewCursor: item.previewCursor,
               } : item)
               : [task, ...current];
           });
@@ -384,6 +399,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
               ...taskFromMessage(message, sessionId),
               previewTarget: task.previewTarget,
               interactionMode: task.interactionMode,
+              previewCursor: task.previewCursor,
               status: taskStatus,
               result: message.message || message.summary,
             }

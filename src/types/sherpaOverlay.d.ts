@@ -22,6 +22,21 @@ export type PreviewTarget = {
   window_title?: string;
 };
 
+export type PreviewBounds = {
+  type: "metadata";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type PreviewCursor = {
+  id: string;
+  action: string;
+  x: number;
+  y: number;
+};
+
 declare global {
   interface Window {
     sherpaOverlay?: {
@@ -38,8 +53,9 @@ declare global {
     sherpaPreview?: {
       start: (taskId: string, target: PreviewTarget) => Promise<boolean>;
       stop: (taskId: string) => void;
-      onFrame: (callback: (taskId: string, frame: string) => void) => () => void;
+      onFrame: (callback: (taskId: string, frame: Uint8Array) => void) => () => void;
       onError: (callback: (taskId: string, message: string) => void) => () => void;
+      onMetadata: (callback: (taskId: string, bounds: PreviewBounds) => void) => () => void;
     };
   }
 }

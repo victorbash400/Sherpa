@@ -32,7 +32,7 @@ struct CaptureTarget {
     }
 }
 
-final class FrameOutput: NSObject, SCStreamOutput {
+final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let output = FileHandle.standardOutput
     private var writing = false
@@ -52,9 +52,12 @@ final class FrameOutput: NSObject, SCStreamOutput {
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         guard let cgImage = context.createCGImage(image, from: image.extent),
               let data = jpegData(from: cgImage) else { return }
-        var length = UInt32(data.count).bigEndian
-        output.write(Data(bytes: &length, count: MemoryLayout<UInt32>.size))
-        output.write(data)
+        writePacket(data, to: output)
+    }
+
+    func stream(_ stream: SCStream, didStopWithError error: any Error) {
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        exit(EXIT_FAILURE)
     }
 
     private func jpegData(from image: CGImage) -> Data? {
@@ -68,7 +71,7 @@ final class FrameOutput: NSObject, SCStreamOutput {
         CGImageDestinationAddImage(
             destination,
             image,
-            [kCGImageDestinationLossyCompressionQuality: 0.68] as CFDictionary
+            [kCGImageDestinationLossyCompressionQuality: 0.62] as CFDictionary
         )
         guard CGImageDestinationFinalize(destination) else { return nil }
         return data as Data
@@ -92,27 +95,39 @@ struct WindowCapture {
                 throw CaptureError.windowNotFound
             }
 
+            let metadata = try JSONEncoder().encode(WindowMetadata(
+                x: window.frame.origin.x,
+                y: window.frame.origin.y,
+                width: window.frame.width,
+                height: window.frame.height
+            ))
+            writePacket(metadata, to: FileHandle.standardOutput)
+
             let configuration = SCStreamConfiguration()
             let scale = min(1, 720 / max(window.frame.width, 1))
             configuration.width = max(1, Int(window.frame.width * scale))
             configuration.height = max(1, Int(window.frame.height * scale))
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 6)
+            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 4)
             configuration.queueDepth = 3
             configuration.showsCursor = false
             configuration.capturesAudio = false
 
+            let output = FrameOutput()
             let stream = SCStream(
                 filter: SCContentFilter(desktopIndependentWindow: window),
                 configuration: configuration,
-                delegate: nil
+                delegate: output
             )
-            let output = FrameOutput()
             try stream.addStreamOutput(
                 output,
                 type: .screen,
                 sampleHandlerQueue: DispatchQueue(label: "sherpa.window.capture")
             )
             try await stream.startCapture()
+            Task.detached {
+                _ = FileHandle.standardInput.readDataToEndOfFile()
+                exit(EXIT_SUCCESS)
+            }
             await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in }
         } catch {
             FileHandle.standardError.write(Data("\(error)\n".utf8))
@@ -124,6 +139,20 @@ struct WindowCapture {
         if lhs.isOnScreen != rhs.isOnScreen { return lhs.isOnScreen }
         return lhs.frame.width * lhs.frame.height > rhs.frame.width * rhs.frame.height
     }
+}
+
+struct WindowMetadata: Encodable {
+    let type = "metadata"
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+}
+
+func writePacket(_ data: Data, to output: FileHandle) {
+    var length = UInt32(data.count).bigEndian
+    output.write(Data(bytes: &length, count: MemoryLayout<UInt32>.size))
+    output.write(data)
 }
 
 enum CaptureError: LocalizedError {

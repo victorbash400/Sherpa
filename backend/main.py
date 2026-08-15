@@ -68,6 +68,7 @@ from backend.agents.sherpa_agent import (
 from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL
 from backend.sherpa_tasks import sherpa_tasks
 from backend.tools.voice_tools import VOICE_TOOLS, handle_voice_tool_call
+from backend.tools.google_tools import run_with_google_tool_scope
 
 sessions = InMemorySessionService()
 runner = Runner(app=sherpa_app, session_service=sessions)
@@ -297,7 +298,9 @@ async def stream_chat(body: ChatRequest):
         config = RunConfig(streaming_mode=StreamingMode.SSE)
         assistant_text = ""
         tool_assisted = False
-        async for event in runner.run_async(
+        async for event in run_with_google_tool_scope(
+            runner,
+            body.message,
             user_id="local-user",
             session_id=body.session_id,
             new_message=message,

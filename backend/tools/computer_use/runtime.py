@@ -8,14 +8,7 @@ OBSERVATION_TOOLS = {
     "computer_inspect_ui",
     "computer_permissions",
 }
-FOREGROUND_TOOLS = {
-    "computer_app",
-    "computer_dialog",
-    "computer_drag",
-    "computer_menu",
-    "computer_move",
-    "computer_window",
-}
+FOREGROUND_TOOLS = {"computer_drag", "computer_move"}
 
 
 @dataclass(frozen=True)
@@ -66,7 +59,7 @@ class ComputerRuntime:
         args: dict[str, Any],
     ) -> str:
         if tool_name in OBSERVATION_TOOLS:
-            target = ComputerTarget.from_args(args)
+            target = target_for_tool(tool_name, args)
             if not target.key:
                 return "background"
             lock = self._target_lock(target.key)
@@ -79,7 +72,7 @@ class ComputerRuntime:
             self._held[call_id] = self._browser
             return "background"
 
-        target = ComputerTarget.from_args(args)
+        target = target_for_tool(tool_name, args)
         foreground = requires_foreground(tool_name, args, target)
         lock = self._foreground if foreground else self._target_lock(target.key)
         await lock.acquire()
@@ -106,7 +99,25 @@ def requires_foreground(
         return True
     if args.get("foreground") is True or args.get("global") is True:
         return True
+    action = string_arg(args, "action")
+    if tool_name == "computer_app" and action in {"focus", "switch"}:
+        return True
+    if tool_name == "computer_window" and action == "focus":
+        return True
+    if tool_name == "computer_dialog" and action in {"file", "input"}:
+        return True
     return target.key is None
+
+
+def target_for_tool(tool_name: str, args: dict[str, Any]) -> ComputerTarget:
+    target = ComputerTarget.from_args(args)
+    if target.key or tool_name != "computer_app":
+        return target
+    return ComputerTarget(app=string_arg(args, "name", "to"))
+
+
+def is_interaction_tool(tool_name: str) -> bool:
+    return tool_name.startswith("computer_") or tool_name.startswith("browser_")
 
 
 def string_arg(args: dict[str, Any], *keys: str) -> str | None:
@@ -134,5 +145,5 @@ computer_runtime = ComputerRuntime()
 def interaction_mode(tool_name: str, args: dict[str, Any]) -> str:
     if tool_name.startswith("browser_") or tool_name in OBSERVATION_TOOLS:
         return "background"
-    target = ComputerTarget.from_args(args)
+    target = target_for_tool(tool_name, args)
     return "foreground" if requires_foreground(tool_name, args, target) else "background"

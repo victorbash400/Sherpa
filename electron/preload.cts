@@ -24,8 +24,8 @@ contextBridge.exposeInMainWorld("sherpaSystem", {
 contextBridge.exposeInMainWorld("sherpaPreview", {
   start: (taskId: string, target: unknown) => ipcRenderer.invoke("preview:start", taskId, target),
   stop: (taskId: string) => ipcRenderer.send("preview:stop", taskId),
-  onFrame: (callback: (taskId: string, frame: string) => void) => {
-    const listener = (_: Electron.IpcRendererEvent, taskId: string, frame: string) => callback(taskId, frame);
+  onFrame: (callback: (taskId: string, frame: Uint8Array) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, taskId: string, frame: Uint8Array) => callback(taskId, frame);
     ipcRenderer.on("preview:frame", listener);
     return () => ipcRenderer.removeListener("preview:frame", listener);
   },
@@ -33,5 +33,10 @@ contextBridge.exposeInMainWorld("sherpaPreview", {
     const listener = (_: Electron.IpcRendererEvent, taskId: string, message: string) => callback(taskId, message);
     ipcRenderer.on("preview:error", listener);
     return () => ipcRenderer.removeListener("preview:error", listener);
+  },
+  onMetadata: (callback: (taskId: string, bounds: unknown) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, taskId: string, bounds: unknown) => callback(taskId, bounds);
+    ipcRenderer.on("preview:metadata", listener);
+    return () => ipcRenderer.removeListener("preview:metadata", listener);
   },
 });

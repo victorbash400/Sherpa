@@ -4,7 +4,7 @@ from typing import Any
 from google.adk.tools import BaseTool, ToolContext
 
 from backend.permission_store import permission_store
-from backend.tools.computer_use.runtime import computer_runtime
+from backend.tools.computer_use.runtime import computer_runtime, is_interaction_tool
 
 
 logger = logging.getLogger("sherpa.computer_use")
@@ -38,12 +38,12 @@ async def before_computer_tool(
             "status": "failed",
             "error": f"Access to {app_target} is turned off in Sherpa Plugins.",
         }
-    mode = await computer_runtime.acquire(
-        tool_call_key(tool, tool_context),
-        tool.name,
-        args,
-    )
-    del mode
+    if is_interaction_tool(tool.name):
+        await computer_runtime.acquire(
+            tool_call_key(tool, tool_context),
+            tool.name,
+            args,
+        )
     return None
 
 
@@ -54,14 +54,20 @@ async def after_computer_tool(
     tool_response: dict,
 ) -> dict:
     del args
-    computer_runtime.release(tool_call_key(tool, tool_context))
+    if is_interaction_tool(tool.name):
+        computer_runtime.release(tool_call_key(tool, tool_context))
     safe_response = sanitize_tool_response(tool_response)
-    if safe_response.get("isError") or safe_response.get("error"):
+    if (
+        safe_response.get("isError")
+        or safe_response.get("error")
+        or safe_response.get("status") == "failed"
+    ):
         logger.warning(
-            "tool.failed session=%s call=%s name=%s",
+            "tool.failed session=%s call=%s name=%s error=%s",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
+            response_error(safe_response),
         )
     else:
         logger.debug(
@@ -80,7 +86,8 @@ async def on_computer_tool_error(
     error: Exception,
 ) -> dict[str, str]:
     del args
-    computer_runtime.release(tool_call_key(tool, tool_context))
+    if is_interaction_tool(tool.name):
+        computer_runtime.release(tool_call_key(tool, tool_context))
     logger.error(
         "tool.failed session=%s call=%s name=%s error=%s",
         tool_context.session.id,
@@ -119,6 +126,20 @@ def sanitize_tool_response(response: dict) -> dict:
 
 def tool_call_key(tool: BaseTool, tool_context: ToolContext) -> str:
     return tool_context.function_call_id or f"{tool_context.session.id}:{tool.name}"
+
+
+def response_error(response: dict) -> str:
+    error = response.get("error")
+    if isinstance(error, str):
+        return error[:1000]
+    content = response.get("content")
+    if isinstance(content, list):
+        return " ".join(
+            block.get("text", "")
+            for block in content
+            if isinstance(block, dict) and block.get("type") == "text"
+        )[:1000]
+    return "Unknown tool error"
 
 
 def tool_permission(tool_name: str) -> str | None:

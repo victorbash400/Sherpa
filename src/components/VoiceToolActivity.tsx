@@ -16,6 +16,7 @@ export function VoiceToolActivity({ activities }: { activities: Activity[] }) {
 }
 
 function activityLabel(activity: Activity) {
+  if (activity.status === "error" && activity.error) return activity.error;
   const value = firstText(activity.args.name, activity.args.to, activity.args.query, activity.args.app_target);
   const action = typeof activity.args.action === "string" ? activity.args.action : "";
 

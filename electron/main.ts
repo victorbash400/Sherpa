@@ -249,7 +249,15 @@ function configurePreviewEvents() {
         if (buffer.length < length + 4) break;
         const frame = buffer.subarray(4, length + 4);
         buffer = buffer.subarray(length + 4);
-        mainWindow?.webContents.send("preview:frame", taskId, `data:image/jpeg;base64,${frame.toString("base64")}`);
+        if (frame[0] === 0x7b) {
+          try {
+            mainWindow?.webContents.send("preview:metadata", taskId, JSON.parse(frame.toString()));
+          } catch {
+            mainWindow?.webContents.send("preview:error", taskId, "Window preview metadata was invalid.");
+          }
+        } else {
+          mainWindow?.webContents.send("preview:frame", taskId, Uint8Array.from(frame));
+        }
       }
     });
     let errorText = "";
