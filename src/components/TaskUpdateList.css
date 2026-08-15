@@ -1,0 +1,24 @@
+.task-updates {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-updates li {
+  position: relative;
+  padding-left: 13px;
+}
+
+.task-updates li::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #aaa9a4;
+  content: "–";
+}
+
+.task-updates .markdown { color: #5f5f5b; font-size: 11px; line-height: 1.5; }
+.task-updates__next { margin-top: 2px; }
+.task-updates__next .markdown { color: #858580; }

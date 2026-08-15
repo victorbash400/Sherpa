@@ -1,0 +1,149 @@
+:root {
+  color: #242422;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body,
+#overlay-root,
+.overlay-surface {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+.agent-cursor-x {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 560ms cubic-bezier(.22, .72, .18, 1);
+  will-change: transform;
+}
+
+.agent-cursor {
+  position: relative;
+  top: -23px;
+  left: -23px;
+  width: 46px;
+  height: 46px;
+  opacity: 0;
+  transition: transform 650ms cubic-bezier(.34, .04, .16, 1), opacity 140ms ease;
+  will-change: transform;
+}
+
+.agent-cursor[data-visible="true"] { opacity: 1; }
+
+.agent-cursor__icon {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 24%));
+}
+
+.agent-cursor__icon::before,
+.agent-cursor__icon::after {
+  position: absolute;
+  content: "";
+  mask: url("/cursor-alt-svgrepo-com.svg?v=2") center / contain no-repeat;
+  -webkit-mask: url("/cursor-alt-svgrepo-com.svg?v=2") center / contain no-repeat;
+}
+
+.agent-cursor__icon::before {
+  inset: 0;
+  background: #fff;
+}
+
+.agent-cursor__icon::after {
+  inset: 3px;
+  background: #2d2d2b;
+}
+
+.agent-cursor[data-action*="click"]::before {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgb(45 45 43 / 40%);
+  border-radius: 50%;
+  content: "";
+  animation: cursor-click 520ms 480ms ease-out both;
+}
+
+.agent-cursor__label {
+  position: absolute;
+  top: 39px;
+  left: 25px;
+  display: grid;
+  width: max-content;
+  max-width: 260px;
+  gap: 2px;
+  padding: 8px 10px;
+  background: rgb(248 248 246 / 94%);
+  border: 1px solid rgb(32 32 30 / 10%);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.agent-cursor[data-action="docked"] .agent-cursor__label {
+  opacity: 0;
+}
+
+.agent-cursor[data-horizontal="left"] .agent-cursor__label {
+  right: 25px;
+  left: auto;
+}
+
+.agent-cursor[data-vertical="up"] .agent-cursor__label {
+  top: auto;
+  bottom: 39px;
+}
+
+.agent-cursor__label-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-cursor__label strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 590;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-cursor__intent {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #72726e;
+  font-size: 10px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@keyframes cursor-click {
+  from { opacity: .8; transform: scale(.3); }
+  to { opacity: 0; transform: scale(1.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-cursor-x,
+  .agent-cursor { transition: opacity 140ms ease; }
+  .agent-cursor[data-action*="click"]::before { animation: none; }
+}

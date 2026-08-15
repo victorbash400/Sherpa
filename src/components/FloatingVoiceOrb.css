@@ -1,0 +1,18 @@
+.floating-voice-orb {
+  position: absolute;
+  bottom: 22px;
+  left: calc(50% + 24px);
+  z-index: 3;
+  display: grid;
+  width: 104px;
+  height: 104px;
+  place-items: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.floating-voice-orb .orb {
+  width: 104px;
+  height: 104px;
+  filter: drop-shadow(0 10px 18px rgb(69 68 164 / 13%));
+}

@@ -38,7 +38,13 @@ function activityLabel(activity: Activity) {
   if (activity.name === "computer_drag") return "Dragging";
   if (activity.name === "computer_set_value") return `Setting ${value || "value"}`;
   if (activity.name === "computer_action") return `Using ${value || "control"}`;
-  return activity.name.replace(/^computer_/, "").replaceAll("_", " ");
+  if (activity.name === "browser_snapshot" || activity.name === "browser_find") return "Reading page";
+  if (activity.name === "browser_navigate") return `Opening ${firstText(activity.args.url) || "page"}`;
+  if (activity.name === "browser_click") return `Clicking ${firstText(activity.args.element) || "page control"}`;
+  if (activity.name === "browser_type" || activity.name === "browser_fill_form") return "Typing in page";
+  if (activity.name === "browser_tabs") return "Checking browser tabs";
+  if (activity.name === "browser_wait_for") return "Waiting for page";
+  return activity.name.replace(/^(computer|browser)_/, "").replaceAll("_", " ");
 }
 
 function firstText(...values: unknown[]) {

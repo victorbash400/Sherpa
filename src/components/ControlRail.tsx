@@ -1,29 +1,21 @@
-import { Circle, Mic, Settings } from "lucide-react";
+import { Mic, Settings } from "lucide-react";
+import { CursorDock } from "./CursorDock";
 import "./ControlRail.css";
 
 interface ControlRailProps {
   activeView: "voice" | "chat" | "voices" | "tasks" | "memory";
+  computerActive: boolean;
   onOpenMemory: () => void;
   onOpenTasks: () => void;
   onOpenVoices: () => void;
-  onToggleChat: () => void;
   onOpenSettings: () => void;
 }
 
-export function ControlRail({ activeView, onOpenMemory, onOpenTasks, onOpenVoices, onToggleChat, onOpenSettings }: ControlRailProps) {
+export function ControlRail({ activeView, computerActive, onOpenMemory, onOpenTasks, onOpenVoices, onOpenSettings }: ControlRailProps) {
   return (
     <nav className="control-rail" aria-label="Sherpa controls">
       <span className="control-rail__title">Sherpa</span>
       <div className="control-rail__actions">
-        <button
-          type="button"
-          aria-label={activeView === "chat" ? "Open orb view" : "Open code view"}
-          aria-pressed={activeView === "chat"}
-          title={activeView === "chat" ? "Orb view" : "Code view"}
-          onClick={onToggleChat}
-        >
-          {activeView === "chat" ? <Circle aria-hidden="true" className="control-rail__orb-icon" /> : <img alt="" aria-hidden="true" src="/chat-line-svgrepo-com.svg" />}
-        </button>
         <button
           type="button"
           aria-label="Choose voice"
@@ -54,6 +46,7 @@ export function ControlRail({ activeView, onOpenMemory, onOpenTasks, onOpenVoice
         >
           <img alt="" aria-hidden="true" src="/brain-fill-svgrepo-com.svg" />
         </button>
+        <CursorDock active={computerActive} />
       </div>
     </nav>
   );

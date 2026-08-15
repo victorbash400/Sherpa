@@ -3,24 +3,23 @@ import { TaskItem } from "./TaskItem";
 import "./TasksView.css";
 
 export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
-  const running = tasks.filter((task) => task.status === "running");
-  const recent = tasks.filter((task) => task.status !== "running");
+  const visibleTasks = tasks.filter((task) => task.kind === "worker");
+  const running = visibleTasks.filter((task) => task.status === "running");
+  const finished = visibleTasks.filter((task) => task.status !== "running");
+  const orderedTasks = [...running, ...finished];
 
   return (
     <section className="tasks-view" aria-label="Sherpa tasks">
-      <header>
+      <div className="tasks-view__sheet">
         <h1>Tasks</h1>
-        <span>{running.length} running</span>
-      </header>
-      {!tasks.length ? (
-        <p className="tasks-view__empty">Tasks you give Sherpa will appear here.</p>
-      ) : (
-        <>
-          {running.length ? <div className="tasks-view__list">{running.map((task) => <TaskItem key={task.id} task={task} />)}</div> : null}
-          {recent.length ? <h2>Recent</h2> : null}
-          {recent.length ? <div className="tasks-view__list">{recent.map((task) => <TaskItem key={task.id} task={task} />)}</div> : null}
-        </>
-      )}
+        {orderedTasks.length ? (
+          <div className="tasks-view__list">
+            {orderedTasks.map((task) => (
+              <TaskItem key={task.id} task={task} />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

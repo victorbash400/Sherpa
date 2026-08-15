@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioControls } from "./components/AudioControls";
 import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
 import { ChatHistoryDrawer } from "./components/ChatHistoryDrawer";
 import { ControlRail } from "./components/ControlRail";
+import { FloatingVoiceOrb } from "./components/FloatingVoiceOrb";
 import { MemoryView } from "./components/MemoryView";
 import { useSherpaChat } from "./hooks/useSherpaChat";
 import { useVoiceSession } from "./hooks/useVoiceSession";
@@ -26,6 +27,8 @@ export function App() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
+  const automaticTaskViewRef = useRef(false);
+  const hadActiveTasksRef = useRef(false);
   const chat = useSherpaChat();
   const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
     chat.appendTranscript(chat.activeChatId, role, text);
@@ -39,6 +42,28 @@ export function App() {
     voiceName: selectedVoice.id,
   });
   const voicePreview = useVoicePreview(volume, speakerMuted);
+  const orbMode = voice.status === "speaking" ? "speaking" : voice.status === "listening" ? "listening" : "idle";
+  const voiceActive = voice.status === "connecting" || voice.status === "listening" || voice.status === "speaking";
+  const hasActiveTasks = voice.tasks.some((task) => task.status === "running");
+  const hasTranscript = chat.activeChat.transcript.some((entry) => entry.text.trim().length > 0);
+
+  useEffect(() => {
+    if (!hasTranscript && transcriptExpanded) setTranscriptExpanded(false);
+  }, [hasTranscript, transcriptExpanded]);
+
+  useEffect(() => {
+    const tasksBecameActive = hasActiveTasks && !hadActiveTasksRef.current;
+    hadActiveTasksRef.current = hasActiveTasks;
+    if (tasksBecameActive && voiceActive && view === "voice") {
+      automaticTaskViewRef.current = true;
+      setView("tasks");
+      return;
+    }
+    if ((!hasActiveTasks || !voiceActive) && view === "tasks" && automaticTaskViewRef.current) {
+      automaticTaskViewRef.current = false;
+      setView("voice");
+    }
+  }, [hasActiveTasks, view, voiceActive]);
 
   const selectVoice = (nextVoice: VoiceOption) => {
     voice.stop();
@@ -58,21 +83,26 @@ export function App() {
     <main className="shell">
       <ControlRail
         activeView={view}
+        computerActive={voice.computerActive}
         onOpenMemory={() => setView("memory")}
-        onOpenTasks={() => setView("tasks")}
+        onOpenTasks={() => {
+          automaticTaskViewRef.current = false;
+          setView("tasks");
+        }}
         onOpenVoices={() => {
           voice.stop();
           setView("voices");
         }}
-        onToggleChat={() => setView((current) => current === "voice" ? "chat" : "voice")}
         onOpenSettings={() => undefined}
       />
       {view === "voice" ? (
         <>
-          <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} onExpandedChange={setTranscriptExpanded} />
-          <section className="orb-stage" data-transcript-expanded={transcriptExpanded} aria-label="Sherpa is listening">
+          {hasTranscript ? (
+            <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} onExpandedChange={setTranscriptExpanded} />
+          ) : null}
+          <section className="orb-stage" data-transcript-expanded={hasTranscript && transcriptExpanded} aria-label="Sherpa is listening">
             <Orb
-              mode={voice.status === "speaking" ? "speaking" : voice.status === "listening" ? "listening" : "idle"}
+              mode={orbMode}
               audioLevel={voice.audioLevel}
               hue={selectedVoice.hue}
             />
@@ -109,7 +139,16 @@ export function App() {
           selected={selectedVoice}
         />
       ) : view === "tasks" ? (
-        <TasksView tasks={voice.tasks} />
+        <>
+          <TasksView tasks={voice.tasks} />
+          {hasActiveTasks && voiceActive ? (
+            <FloatingVoiceOrb
+              audioLevel={voice.audioLevel}
+              hue={selectedVoice.hue}
+              mode={orbMode}
+            />
+          ) : null}
+        </>
       ) : (
         <MemoryView />
       )}
