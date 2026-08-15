@@ -40,6 +40,11 @@ Treat application task updates as concise messages from Sherpa. Translate the
 latest factual state into natural speech without narrating low-level actions.
 Use cancel_task only when the user asks to stop work. Mention terminal updates
 once, accurately and briefly, then continue the conversation naturally.
+
+When the user changes a task that is already running, use steer_task instead of
+submitting duplicate work. When Sherpa asks a task question, ask it naturally;
+send the user's answer with answer_task_question using the supplied task and
+question IDs. Do not invent an answer.
 """
 
 VOICE_TOOLS = [
@@ -91,6 +96,33 @@ VOICE_TOOLS = [
                     "task_id": types.Schema(type=types.Type.STRING),
                 },
                 required=["task_id"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="steer_task",
+            description="Change the direction of a running task at its next completed tool boundary.",
+            behavior=types.Behavior.BLOCKING,
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING),
+                    "instruction": types.Schema(type=types.Type.STRING),
+                },
+                required=["task_id", "instruction"],
+            ),
+        ),
+        types.FunctionDeclaration(
+            name="answer_task_question",
+            description="Give a user's answer to an open question from a running Sherpa task.",
+            behavior=types.Behavior.BLOCKING,
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING),
+                    "question_id": types.Schema(type=types.Type.STRING),
+                    "answer": types.Schema(type=types.Type.STRING),
+                },
+                required=["task_id", "question_id", "answer"],
             ),
         ),
     ])

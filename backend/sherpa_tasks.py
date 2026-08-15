@@ -35,6 +35,16 @@ BROWSER_BOX = re.compile(
 )
 
 
+class TaskSteeringBoundary(Exception):
+    def __init__(self, directive: dict[str, Any]) -> None:
+        self.directive = directive
+
+
+class TaskQuestionBoundary(Exception):
+    def __init__(self, question: dict[str, Any]) -> None:
+        self.question = question
+
+
 @dataclass
 class SherpaTask:
     id: str
@@ -49,7 +59,13 @@ class SherpaTask:
     progress: int = 0
     current_step: str = "Waiting to start"
     summary: str = ""
+    evidence: str = ""
     updates: list[dict[str, Any]] = field(default_factory=list)
+    questions: list[dict[str, Any]] = field(default_factory=list)
+    directives: asyncio.Queue[dict[str, Any]] = field(
+        default_factory=asyncio.Queue,
+        repr=False,
+    )
     worker: asyncio.Task[None] | None = field(default=None, repr=False)
 
 
@@ -235,7 +251,9 @@ class SherpaTaskManager:
             "progress": task.progress,
             "current_step": task.current_step,
             "summary": task.summary,
+            "evidence": task.evidence,
             "updates": list(task.updates),
+            "questions": list(task.questions),
         }
         snapshot["children"] = [
             self.snapshot(child)
@@ -258,6 +276,61 @@ class SherpaTaskManager:
         })
         task.worker.cancel()
         return True
+
+    async def steer(self, task_id: str, instruction: str) -> dict[str, Any]:
+        task = self._tasks.get(task_id)
+        clean_instruction = " ".join(instruction.split()).strip()
+        if not task or task.status != "running":
+            return {"status": "not_running", "task_id": task_id}
+        if not clean_instruction:
+            return {"status": "invalid", "task_id": task_id}
+        directive = {
+            "type": "steer",
+            "id": f"directive_{crypto_id()}",
+            "instruction": clean_instruction,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        await task.directives.put(directive)
+        self._record_update(
+            task,
+            "working",
+            task.progress,
+            f"Direction changed: {clean_instruction}",
+            "Applying the change after the current action.",
+        )
+        await self._emit(task, {"type": "task_steering_queued", **self.snapshot(task)})
+        return {"status": "queued", "task_id": task_id, "directive_id": directive["id"]}
+
+    async def answer_question(
+        self,
+        task_id: str,
+        question_id: str,
+        answer: str,
+    ) -> dict[str, Any]:
+        task = self._tasks.get(task_id)
+        clean_answer = " ".join(answer.split()).strip()
+        question = next(
+            (item for item in task.questions if item["id"] == question_id),
+            None,
+        ) if task else None
+        if not task or task.status != "running":
+            return {"status": "not_running", "task_id": task_id}
+        if not question or question["status"] != "open":
+            return {"status": "question_not_open", "task_id": task_id}
+        if not clean_answer:
+            return {"status": "invalid", "task_id": task_id}
+        question["status"] = "answered"
+        question["answer"] = clean_answer
+        await task.directives.put({
+            "type": "answer",
+            "id": f"directive_{crypto_id()}",
+            "question_id": question_id,
+            "question": question["question"],
+            "answer": clean_answer,
+            "created_at": datetime.now(UTC).isoformat(),
+        })
+        await self._emit(task, {"type": "task_question_answered", **self.snapshot(task)})
+        return {"status": "queued", "task_id": task_id, "question_id": question_id}
 
     async def close(self) -> None:
         workers = [
@@ -401,24 +474,44 @@ class SherpaTaskManager:
         return child
 
     async def _run_worker(self, task: SherpaTask, instruction: str) -> None:
-        if self._computer_lease.locked():
-            self._record_update(task, "queued", 0, "Waiting for computer access")
-            await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-        async with self._computer_lease:
-            await self._run_with_computer(task, instruction)
+        next_instruction = instruction
+        resume = False
+        while task.status == "running":
+            if self._computer_lease.locked():
+                self._record_update(task, "queued", 0, "Waiting for computer access")
+                await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
+            try:
+                async with self._computer_lease:
+                    await self._run_with_computer(
+                        task,
+                        next_instruction,
+                        resume=resume,
+                    )
+                return
+            except TaskQuestionBoundary as boundary:
+                directives = await self._wait_for_answer(task, boundary.question["id"])
+                next_instruction = await self._directive_prompt(task, directives)
+                resume = True
 
-    async def _run_with_computer(self, task: SherpaTask, instruction: str) -> None:
+    async def _run_with_computer(
+        self,
+        task: SherpaTask,
+        instruction: str,
+        *,
+        resume: bool = False,
+    ) -> None:
         worker_session_id = f"{task.chat_id}:{task.id}"
         try:
             task.phase = "starting"
             task.current_step = "Starting work"
             await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-            await self._sessions.create_session(
-                app_name="sherpa",
-                user_id="local-user",
-                session_id=worker_session_id,
-            )
-            memory_context = memory_store.context_for("sherpa")
+            if not resume:
+                await self._sessions.create_session(
+                    app_name="sherpa",
+                    user_id="local-user",
+                    session_id=worker_session_id,
+                )
+            memory_context = memory_store.context_for("sherpa") if not resume else ""
             worker_prompt = (
                 f"{memory_context}\n\nAssigned task:\n{instruction}"
                 if memory_context else instruction
@@ -433,9 +526,11 @@ class SherpaTaskManager:
             tool_call_args: dict[str, dict[str, Any]] = {}
             element_targets: dict[str, tuple[float, float]] = {}
             browser_targets: dict[str, tuple[float, float]] = {}
+            browser_elements: list[dict[str, Any]] = []
             result_sequence = 0
             last_successful_action = -1
             last_successful_observation = -1
+            completion: dict[str, Any] | None = None
             async for event in self._runner.run_async(
                 user_id="local-user",
                 session_id=worker_session_id,
@@ -467,7 +562,14 @@ class SherpaTaskManager:
                     event_args = dict(call.args or {})
                     tool_call_args[call_id] = event_args
                     if call.name.startswith("browser_"):
-                        target = await browser_overlay_target(event_args, browser_targets)
+                        if not browser_elements:
+                            browser_elements = await chrome_accessibility_elements()
+                        target = browser_overlay_target(
+                            call.name,
+                            event_args,
+                            browser_targets,
+                            browser_elements,
+                        )
                     else:
                         target = overlay_target(event_args, element_targets)
                     if target:
@@ -501,14 +603,54 @@ class SherpaTaskManager:
                         continue
                     seen_responses.add(response_id)
                     if response.name == "update_task_board":
+                        directive = self._take_directive(task)
+                        if directive:
+                            raise TaskSteeringBoundary(directive)
                         continue
+                    if response.name == "ask_task_question":
+                        payload = response.response or {}
+                        question = {
+                            "id": f"question_{crypto_id()}",
+                            "question": str(payload.get("question", "")).strip(),
+                            "context": str(payload.get("context", "")).strip(),
+                            "blocking": bool(payload.get("blocking")),
+                            "status": "open",
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                        task.questions.append(question)
+                        self._record_update(
+                            task,
+                            "blocked" if question["blocking"] else "working",
+                            task.progress,
+                            question["question"],
+                            "Waiting for the user's answer." if question["blocking"] else "Continuing independent work.",
+                        )
+                        if question["blocking"]:
+                            task.phase = "blocked"
+                            task.current_step = question["question"]
+                        await self._emit(task, {
+                            "type": "task_question",
+                            "question": question,
+                            **self.snapshot(task),
+                        })
+                        if question["blocking"]:
+                            raise TaskQuestionBoundary(question)
+                    if response.name == "complete_task":
+                        completion = dict(response.response or {})
                     if response.name in {"computer_see", "computer_inspect_ui"}:
                         element_targets = extract_element_targets(response.response)
-                    if response.name in {"browser_snapshot", "browser_find"}:
-                        browser_targets.update(extract_browser_targets(response.response))
+                    if response.name.startswith("browser_"):
+                        next_browser_targets = extract_browser_targets(response.response)
+                        if next_browser_targets:
+                            browser_targets = next_browser_targets
                     failed = tool_failed(response.response)
-                    result_sequence += 1
-                    if not failed:
+                    is_control_tool = response.name in {
+                        "ask_task_question",
+                        "complete_task",
+                    }
+                    if not is_control_tool:
+                        result_sequence += 1
+                    if not failed and not is_control_tool:
                         if is_observation_tool(response.name):
                             last_successful_observation = result_sequence
                         elif tool_result_self_verifies(
@@ -526,10 +668,17 @@ class SherpaTaskManager:
                         "result": {"status": "failed" if failed else "done"},
                         "message": describe_result(response.name, failed),
                     })
+                    directive = self._take_directive(task)
+                    if directive:
+                        raise TaskSteeringBoundary(directive)
                 if event.content:
                     for part in event.content.parts or []:
                         if part.text and not part.thought:
                             response_text = merge_stream_text(response_text, part.text)
+            if not completion:
+                raise RuntimeError(
+                    "Sherpa stopped without explicitly completing the task."
+                )
             if (
                 last_successful_observation < 0
                 or last_successful_observation < last_successful_action
@@ -540,7 +689,11 @@ class SherpaTaskManager:
             task.status = "completed"
             task.phase = "completed"
             task.progress = 100
-            task.summary = response_text.strip() or "Sherpa finished the task."
+            task.summary = str(completion.get("summary", "")).strip()
+            evidence = str(completion.get("evidence", "")).strip()
+            if not task.summary or not evidence:
+                raise RuntimeError("Sherpa completed the task without sufficient evidence.")
+            task.evidence = evidence
             task.current_step = task.summary
             await self._emit(task, {
                 "type": "task_completed",
@@ -550,10 +703,15 @@ class SherpaTaskManager:
             memory_manager.schedule(
                 source_type="task",
                 source_id=task.id,
-                user_text=instruction,
+                user_text=task.request or instruction,
                 assistant_text=task.summary,
                 tool_assisted=True,
             )
+        except TaskSteeringBoundary as boundary:
+            prompt = await self._directive_prompt(task, [boundary.directive])
+            await self._run_with_computer(task, prompt, resume=True)
+        except TaskQuestionBoundary:
+            raise
         except asyncio.CancelledError:
             if task.status != "cancelled":
                 task.status = "cancelled"
@@ -575,6 +733,53 @@ class SherpaTaskManager:
                 "message": f"Sherpa could not finish: {error}",
                 **self.snapshot(task),
             })
+
+    def _take_directive(self, task: SherpaTask) -> dict[str, Any] | None:
+        try:
+            return task.directives.get_nowait()
+        except asyncio.QueueEmpty:
+            return None
+
+    async def _wait_for_answer(
+        self,
+        task: SherpaTask,
+        question_id: str,
+    ) -> list[dict[str, Any]]:
+        directives: list[dict[str, Any]] = []
+        while True:
+            directive = await task.directives.get()
+            directives.append(directive)
+            if (
+                directive["type"] == "answer"
+                and directive.get("question_id") == question_id
+            ):
+                return directives
+
+    async def _directive_prompt(
+        self,
+        task: SherpaTask,
+        directives: list[dict[str, Any]],
+    ) -> str:
+        while (queued := self._take_directive(task)) is not None:
+            directives.append(queued)
+        lines: list[str] = []
+        for directive in directives:
+            if directive["type"] == "answer":
+                lines.append(
+                    f"Answer to your question '{directive['question']}': "
+                    f"{directive['answer']}"
+                )
+            else:
+                lines.append(f"The user changed the active task: {directive['instruction']}")
+        task.phase = "working"
+        task.current_step = "Applying the latest direction"
+        await self._emit(task, {"type": "task_steering_applied", **self.snapshot(task)})
+        return "\n".join([
+            *lines,
+            "Continue this same task from its current state.",
+            "Keep verified completed work and do not repeat it.",
+            "Observe the current interface before the next action.",
+        ])
 
     async def _emit(self, task: SherpaTask, event: dict[str, Any]) -> None:
         event["task_id"] = task.id
@@ -646,6 +851,27 @@ async def cancel_task(task_id: str, tool_context: ToolContext) -> dict[str, str]
     del tool_context
     cancelled = sherpa_tasks.cancel(task_id)
     return {"status": "cancelled" if cancelled else "not_running", "task_id": task_id}
+
+
+async def steer_task(
+    task_id: str,
+    instruction: str,
+    tool_context: ToolContext,
+) -> dict[str, Any]:
+    """Queue a changed instruction for a running task's next tool boundary."""
+    del tool_context
+    return await sherpa_tasks.steer(task_id, instruction)
+
+
+async def answer_task_question(
+    task_id: str,
+    question_id: str,
+    answer: str,
+    tool_context: ToolContext,
+) -> dict[str, Any]:
+    """Answer an open worker question and resume it when the question blocks work."""
+    del tool_context
+    return await sherpa_tasks.answer_question(task_id, question_id, answer)
 
 
 def crypto_id() -> str:
@@ -760,25 +986,39 @@ def extract_browser_targets(response: Any) -> dict[str, tuple[float, float]]:
     return targets
 
 
-async def browser_overlay_target(
+def browser_overlay_target(
+    tool_name: str,
     args: dict[str, Any],
     browser_targets: dict[str, tuple[float, float]],
+    elements: list[dict[str, Any]],
 ) -> tuple[float, float] | None:
+    reference = args.get("target")
+    viewport = chrome_viewport_bounds(elements)
+    if isinstance(reference, str) and reference in browser_targets and viewport:
+        local_x, local_y = browser_targets[reference]
+        return viewport["x"] + local_x, viewport["y"] + local_y
+
     description = args.get("element")
     if isinstance(description, str) and description.strip():
-        target = await find_chrome_accessibility_target(description)
+        target = find_chrome_accessibility_target(description, elements)
         if target:
             return target
 
-    reference = args.get("target")
-    if not isinstance(reference, str):
-        return None
-    return browser_targets.get(reference)
+    window = chrome_window_bounds(elements)
+    if tool_name == "browser_tabs" and window:
+        return window["x"] + window["width"] * 0.5, window["y"] + 22
+    if tool_name in {"browser_navigate", "browser_navigate_back"} and window:
+        return window["x"] + window["width"] * 0.5, window["y"] + 66
+    if viewport:
+        return (
+            viewport["x"] + viewport["width"] * 0.5,
+            viewport["y"] + min(90, viewport["height"] * 0.16),
+        )
+    return None
 
 
-async def find_chrome_accessibility_target(
-    description: str,
-) -> tuple[float, float] | None:
+async def chrome_accessibility_elements() -> list[dict[str, Any]]:
+    """Read Chrome once so all overlay coordinates share macOS screen space."""
     process = await asyncio.create_subprocess_exec(
         str((Path(__file__).resolve().parents[1] / "node_modules/.bin/peekaboo")),
         "see",
@@ -792,14 +1032,21 @@ async def find_chrome_accessibility_target(
     )
     stdout, _ = await process.communicate()
     if process.returncode != 0:
-        return None
+        return []
     try:
         payload = json.loads(stdout)
     except json.JSONDecodeError:
-        return None
+        return []
+    elements = payload.get("data", {}).get("ui_elements", [])
+    return elements if isinstance(elements, list) else []
+
+
+def find_chrome_accessibility_target(
+    description: str,
+    elements: list[dict[str, Any]],
+) -> tuple[float, float] | None:
     query = normalize_label(description)
-    candidates = payload.get("data", {}).get("ui_elements", [])
-    for element in candidates:
+    for element in elements:
         labels = (
             element.get("description"),
             element.get("label"),
@@ -813,6 +1060,58 @@ async def find_chrome_accessibility_target(
             x, y, width, height = values
             return x + width / 2, y + height / 2
     return None
+
+
+def chrome_window_bounds(
+    elements: list[dict[str, Any]],
+) -> dict[str, float] | None:
+    for element in elements:
+        if element.get("role_description") != "standard window":
+            continue
+        bounds = numeric_bounds(element.get("bounds"))
+        if bounds:
+            return bounds
+    return None
+
+
+def chrome_viewport_bounds(
+    elements: list[dict[str, Any]],
+) -> dict[str, float] | None:
+    window = chrome_window_bounds(elements)
+    if not window:
+        return None
+    candidates = []
+    for element in elements:
+        bounds = numeric_bounds(element.get("bounds"))
+        if not bounds:
+            continue
+        if (
+            bounds["y"] >= window["y"] + 60
+            and bounds["width"] >= window["width"] * 0.8
+            and bounds["height"] >= window["height"] * 0.5
+        ):
+            candidates.append(bounds)
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda bounds: (bounds["y"], -bounds["width"] * bounds["height"]),
+    )
+
+
+def numeric_bounds(value: Any) -> dict[str, float] | None:
+    if not isinstance(value, dict):
+        return None
+    numbers = tuple(value.get(key) for key in ("x", "y", "width", "height"))
+    if not all(isinstance(number, (int, float)) for number in numbers):
+        return None
+    x, y, width, height = numbers
+    return {
+        "x": float(x),
+        "y": float(y),
+        "width": float(width),
+        "height": float(height),
+    }
 
 
 def normalize_label(value: str) -> str:

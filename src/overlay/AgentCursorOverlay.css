@@ -67,7 +67,7 @@ body,
   background: #2d2d2b;
 }
 
-.agent-cursor[data-action*="click"]::before {
+.agent-cursor__click {
   position: absolute;
   top: 15px;
   left: 15px;
@@ -76,7 +76,6 @@ body,
   height: 16px;
   border: 1px solid rgb(45 45 43 / 40%);
   border-radius: 50%;
-  content: "";
   animation: cursor-click 520ms 480ms ease-out both;
 }
 
@@ -145,5 +144,5 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .agent-cursor-x,
   .agent-cursor { transition: opacity 140ms ease; }
-  .agent-cursor[data-action*="click"]::before { animation: none; }
+  .agent-cursor__click { animation: none; }
 }

@@ -335,7 +335,17 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
             taskFromMessage(message, sessionId),
             ...current.filter((task) => task.id !== message.task_id),
           ]);
-        } else if (message.type === "task_updated" && message.task_id && message.instruction) {
+        } else if (
+          [
+            "task_updated",
+            "task_question",
+            "task_question_answered",
+            "task_steering_queued",
+            "task_steering_applied",
+          ].includes(message.type)
+          && message.task_id
+          && message.instruction
+        ) {
           setTasks((current) => {
             const task = taskFromMessage(message, sessionId);
             return current.some((item) => item.id === task.id)

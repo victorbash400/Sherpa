@@ -8,11 +8,13 @@ from backend.tools.computer_use import create_peekaboo_toolset
 from backend.tools.computer_use.callbacks import after_computer_tool
 from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
-from backend.tools.task_board import update_task_board
+from backend.tools.task_board import ask_task_question, complete_task, update_task_board
+from backend.tools.google_tools import create_google_toolsets
 
 SHERPA_MODEL = "gemini-3.7-flash"
 sherpa_computer_tools = create_peekaboo_toolset()
 sherpa_browser_tools = create_playwright_toolset()
+sherpa_google_tools = create_google_toolsets()
 
 sherpa_agent = Agent(
     name="sherpa_agent",
@@ -56,6 +58,14 @@ sherpa_agent = Agent(
     connected, report that explicitly and stop instead of falling back to the
     desktop tools or claiming the browser action happened.
 
+    Use workspace tools for Google Drive, Docs, Sheets, Slides, Gmail, Calendar,
+    and Contacts. Use cloud tools for Google Cloud projects and infrastructure.
+    Prefer these authenticated APIs over browser or computer interaction. Never
+    use one Google account surface as a substitute for another. If the required
+    Google connection or permission is unavailable, ask the user to enable it
+    in Plugins. Ask a focused question when the target account, file, project,
+    recipient, or destructive intent is ambiguous.
+
     Keep the task board current using update_task_board after each meaningful
     milestone and whenever you become blocked. Each update is a message to both
     the user and the voice agent: state what you learned, changed, or verified,
@@ -64,8 +74,21 @@ sherpa_agent = Agent(
     repeat the user's request or a previous update. Estimate progress according
     to the whole task, not the number of tool calls. Never mark progress as 100;
     the runner does that only after it verifies your final response.
+
+    Finish work only by calling complete_task with a concise outcome and the
+    current observation that proves it. Do not merely stop or write that the
+    task is complete. If required information is missing, call
+    ask_task_question. Mark it blocking only when no safe useful work remains;
+    otherwise ask once and continue with independent work.
     """,
-    tools=[sherpa_computer_tools, sherpa_browser_tools, update_task_board],
+    tools=[
+        sherpa_computer_tools,
+        sherpa_browser_tools,
+        update_task_board,
+        ask_task_question,
+        complete_task,
+        *sherpa_google_tools,
+    ],
     before_tool_callback=before_computer_tool,
     after_tool_callback=after_computer_tool,
     on_tool_error_callback=on_computer_tool_error,

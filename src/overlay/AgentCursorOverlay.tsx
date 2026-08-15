@@ -27,7 +27,6 @@ export function AgentCursorOverlay() {
         style={{ transform: `translate3d(${action?.x ?? 0}px, 0, 0)` }}
       >
         <div
-          key={action?.id || "idle"}
           className="agent-cursor"
           data-action={action?.action || "idle"}
           data-horizontal={action?.horizontal || "right"}
@@ -36,6 +35,9 @@ export function AgentCursorOverlay() {
           style={{ transform: `translate3d(0, ${action?.y ?? 0}px, 0)` }}
         >
           <span className="agent-cursor__icon" aria-hidden="true" />
+          {action?.action.includes("click") ? (
+            <span key={action.id} className="agent-cursor__click" aria-hidden="true" />
+          ) : null}
           <div className="agent-cursor__label">
             <span className="agent-cursor__label-heading">
               <OverlayObservationIcon action={action?.action} />

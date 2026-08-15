@@ -109,6 +109,13 @@ def sanitize_tool_response(response: dict) -> dict:
 
 
 def tool_permission(tool_name: str) -> str | None:
+    for product in ("drive", "docs", "sheets", "slides", "gmail", "calendar", "people"):
+        if tool_name.startswith(f"workspace_{product}_"):
+            return f"workspace.{product}"
+    if tool_name.startswith("cloud_resources_"):
+        return "cloud.resources"
+    if tool_name.startswith("cloud_cli_"):
+        return "cloud.cli"
     if tool_name in {"browser_snapshot", "browser_find"}:
         return "browser.read"
     if tool_name == "browser_tabs":
