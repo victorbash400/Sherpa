@@ -27,6 +27,7 @@ from backend.tools.google_tools import run_with_google_tool_scope
 
 
 logger = logging.getLogger("sherpa.tasks")
+ACTIVE_TASK_STATUSES = {"queued", "running", "blocked"}
 PEEKABOO_ELEMENT_LINE = re.compile(
     r'^\s*(?P<id>\S+)\s+-\s+.*?\s+-\s+at\s+'
     r'\((?P<x>-?\d+(?:\.\d+)?),\s*(?P<y>-?\d+(?:\.\d+)?)\)\s+'
@@ -60,8 +61,11 @@ class SherpaTask:
     parent_id: str | None = None
     child_ids: list[str] = field(default_factory=list)
     skill_ids: list[str] = field(default_factory=list)
-    status: str = "running"
-    phase: str = "starting"
+    depends_on: list[str] = field(default_factory=list)
+    required_inputs: list[str] = field(default_factory=list)
+    expected_outputs: list[str] = field(default_factory=list)
+    status: str = "queued"
+    phase: str = "queued"
     progress: int = 0
     current_step: str = "Waiting to start"
     summary: str = ""
@@ -169,6 +173,7 @@ class SherpaTaskManager:
         affected: list[str] = []
         created = 0
         changed = False
+        created_by_key: dict[str, SherpaTask] = {}
         for operation in plan.operations:
             task = self._valid_task(submission.chat_id, operation.task_id)
             if operation.action == "create":
@@ -179,7 +184,11 @@ class SherpaTaskManager:
                     operation.title,
                     operation.instruction,
                     operation.skill_ids,
+                    [created_by_key[key].id for key in operation.depends_on],
+                    operation.required_inputs,
+                    operation.expected_outputs,
                 )
+                created_by_key[operation.key] = task
                 created += 1
             elif operation.action == "reuse":
                 if not task:
@@ -220,36 +229,49 @@ class SherpaTaskManager:
         title: str,
         instruction: str,
         skill_ids: list[str] | None = None,
+        depends_on: list[str] | None = None,
+        required_inputs: list[str] | None = None,
+        expected_outputs: list[str] | None = None,
     ) -> SherpaTask:
-        queued = any(task.status == "running" for task in self._tasks.values())
         task = SherpaTask(
             id=f"task_{crypto_id()}",
             chat_id=chat_id,
             instruction=" ".join(title.split()).strip(),
             request=" ".join(instruction.split()).strip(),
             skill_ids=list(skill_ids or []),
-            phase="queued" if queued else "starting",
-            current_step="Waiting for the active task to finish" if queued else "Starting work",
+            depends_on=list(depends_on or []),
+            required_inputs=list(required_inputs or []),
+            expected_outputs=list(expected_outputs or []),
+            current_step=(
+                "Waiting for prerequisite tasks"
+                if depends_on
+                else "Waiting for the execution lease"
+            ),
         )
         self._tasks[task.id] = task
         task.worker = asyncio.create_task(self._run_sequential(task), name=task.id)
         self._emit_nowait(task, {"type": "task_started", **self.snapshot(task)})
         logger.info(
-            "task.%s task=%s chat=%s",
-            "queued" if queued else "started",
+            "task.queued task=%s chat=%s depends_on=%s",
             task.id,
             chat_id,
+            ",".join(task.depends_on) or "none",
         )
         return task
 
     def _valid_task(self, chat_id: str, task_id: str | None) -> SherpaTask | None:
         task = self._tasks.get(task_id or "")
-        return task if task and task.chat_id == chat_id and task.status == "running" else None
+        return (
+            task
+            if task and task.chat_id == chat_id and task.status in ACTIVE_TASK_STATUSES
+            else None
+        )
 
     def _validate_plan(self, chat_id: str, plan: TaskPlan) -> None:
         created = 0
         referenced: set[str] = set()
         available_skills = {skill["id"] for skill in skill_store.catalog()}
+        create_keys: set[str] = set()
         for operation in plan.operations:
             unknown_skills = set(operation.skill_ids) - available_skills
             if unknown_skills:
@@ -258,8 +280,15 @@ class SherpaTaskManager:
                 )
             if operation.action == "create":
                 created += 1
-                if not operation.title or not operation.instruction:
+                if not operation.title or not operation.instruction or not operation.key:
                     raise RuntimeError("The task planner returned an incomplete task.")
+                if operation.key in create_keys:
+                    raise RuntimeError("The task planner returned a duplicate task key.")
+                if set(operation.depends_on) - create_keys:
+                    raise RuntimeError(
+                        "The task planner returned a dependency that is not an earlier task."
+                    )
+                create_keys.add(operation.key)
                 continue
             task = self._valid_task(chat_id, operation.task_id)
             if not task:
@@ -285,7 +314,7 @@ class SherpaTaskManager:
         return [
             task
             for task in self.list_for_chat(chat_id)
-            if task.status == "running"
+            if task.status in ACTIVE_TASK_STATUSES
         ]
 
     def list_pending_submissions(self, chat_id: str) -> list[SherpaSubmission]:
@@ -316,6 +345,9 @@ class SherpaTaskManager:
             "parent_id": task.parent_id,
             "child_ids": list(task.child_ids),
             "skill_ids": list(task.skill_ids),
+            "depends_on": list(task.depends_on),
+            "required_inputs": list(task.required_inputs),
+            "expected_outputs": list(task.expected_outputs),
             "status": task.status,
             "phase": task.phase,
             "progress": task.progress,
@@ -336,7 +368,7 @@ class SherpaTaskManager:
 
     def cancel(self, task_id: str) -> bool:
         task = self._tasks.get(task_id)
-        if not task or task.status != "running" or not task.worker:
+        if not task or task.status not in ACTIVE_TASK_STATUSES or not task.worker:
             return False
         task.status = "cancelled"
         task.phase = "cancelled"
@@ -352,11 +384,11 @@ class SherpaTaskManager:
     async def steer(self, task_id: str, instruction: str) -> dict[str, Any]:
         task = self._tasks.get(task_id)
         clean_instruction = " ".join(instruction.split()).strip()
-        if not task or task.status != "running":
+        if not task or task.status not in ACTIVE_TASK_STATUSES:
             return {"status": "not_running", "task_id": task_id}
         if not clean_instruction:
             return {"status": "invalid", "task_id": task_id}
-        if task.phase == "queued":
+        if task.status == "queued":
             task.instruction = clean_instruction
             task.request = clean_instruction
             self._record_update(
@@ -397,7 +429,7 @@ class SherpaTaskManager:
             (item for item in task.questions if item["id"] == question_id),
             None,
         ) if task else None
-        if not task or task.status != "running":
+        if not task or task.status != "blocked":
             return {"status": "not_running", "task_id": task_id}
         if not question or question["status"] != "open":
             return {"status": "question_not_open", "task_id": task_id}
@@ -444,7 +476,7 @@ class SherpaTaskManager:
                 "skill_ids": task.skill_ids,
             }
             for task in self._tasks.values()
-            if task.chat_id == chat_id and task.status == "running"
+            if task.chat_id == chat_id and task.status in ACTIVE_TASK_STATUSES
         ]
         await self._sessions.create_session(
             app_name="task_planner",
@@ -484,16 +516,45 @@ class SherpaTaskManager:
             token_usage["thinking"],
             token_usage["total"],
         )
+        for operation in plan.operations:
+            logger.info(
+                'planner.operation action=%s key=%s title="%s" depends_on=%s',
+                operation.action,
+                operation.key or "-",
+                (operation.title or "")[:160],
+                ",".join(operation.depends_on) or "none",
+            )
         return plan
 
     async def _run_sequential(self, task: SherpaTask) -> None:
         try:
-            if task.status != "running":
+            if task.status not in ACTIVE_TASK_STATUSES:
                 return
-            task.phase = "starting"
-            task.current_step = "Starting work"
-            await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-            await self._run_worker(task, task.request)
+            dependencies = [
+                dependency
+                for dependency_id in task.depends_on
+                if (dependency := self._tasks.get(dependency_id))
+            ]
+            workers = [dependency.worker for dependency in dependencies if dependency.worker]
+            if workers:
+                await asyncio.gather(*workers, return_exceptions=True)
+            failed_dependencies = [
+                dependency for dependency in dependencies
+                if dependency.status != "completed"
+            ]
+            if failed_dependencies:
+                task.status = "failed"
+                task.phase = "failed"
+                task.summary = "A prerequisite task did not complete successfully."
+                task.current_step = task.summary
+                await self._emit(task, {
+                    "type": "task_failed",
+                    "message": task.summary,
+                    **self.snapshot(task),
+                })
+                return
+            handoff = self._dependency_handoff(task, dependencies)
+            await self._run_worker(task, task.request, handoff)
         except asyncio.CancelledError:
             if task.status != "cancelled":
                 task.status = "cancelled"
@@ -505,21 +566,34 @@ class SherpaTaskManager:
                     **self.snapshot(task),
                 })
 
-    async def _run_worker(self, task: SherpaTask, instruction: str) -> None:
+    async def _run_worker(
+        self,
+        task: SherpaTask,
+        instruction: str,
+        handoff: str = "",
+    ) -> None:
         next_instruction = instruction
         resume = False
-        while task.status == "running":
+        while task.status in ACTIVE_TASK_STATUSES:
             try:
                 async with self._execution_lease:
-                    if task.status != "running":
+                    if task.status not in ACTIVE_TASK_STATUSES:
                         return
+                    task.status = "running"
+                    task.phase = "starting"
+                    task.current_step = "Starting work"
+                    await self._emit(task, {
+                        "type": "task_updated",
+                        **self.snapshot(task),
+                    })
                     await self._run_with_computer(
                         task,
-                        next_instruction,
+                        "\n\n".join(part for part in (handoff, next_instruction) if part),
                         resume=resume,
                     )
                 return
             except TaskQuestionBoundary as boundary:
+                task.status = "blocked"
                 logger.info(
                     "task.paused task=%s question=%s",
                     task.id,
@@ -527,7 +601,35 @@ class SherpaTaskManager:
                 )
                 directives = await self._wait_for_answer(task, boundary.question["id"])
                 next_instruction = await self._directive_prompt(task, directives)
+                task.status = "queued"
                 resume = True
+
+    def _dependency_handoff(
+        self,
+        task: SherpaTask,
+        dependencies: list[SherpaTask],
+    ) -> str:
+        if not dependencies:
+            return ""
+        payload = [{
+            "task_id": dependency.id,
+            "title": dependency.instruction,
+            "summary": dependency.summary,
+            "evidence": dependency.evidence,
+            "expected_outputs": dependency.expected_outputs,
+        } for dependency in dependencies]
+        logger.info(
+            "task.handoff task=%s dependencies=%s",
+            task.id,
+            ",".join(dependency.id for dependency in dependencies),
+        )
+        return (
+            "Verified prerequisite task handoff. Use these results directly; do not "
+            "rediscover them from open windows:\n"
+            + json.dumps(payload, ensure_ascii=False)
+            + "\nRequired inputs for this task:\n"
+            + json.dumps(task.required_inputs, ensure_ascii=False)
+        )
 
     async def _run_with_computer(
         self,
@@ -569,14 +671,16 @@ class SherpaTaskManager:
             last_successful_action = -1
             last_successful_observation = -1
             completion: dict[str, Any] | None = None
+            token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
             async for event in run_with_google_tool_scope(
                 self._runner,
-                f"{task.request}\n{instruction}",
+                instruction,
                 user_id="local-user",
                 session_id=worker_session_id,
                 new_message=message,
                 run_config=RunConfig(streaming_mode=StreamingMode.SSE),
             ):
+                add_token_usage(token_usage, getattr(event, "usage_metadata", None))
                 if event.error_message:
                     raise RuntimeError(event.error_message)
                 for call in event.get_function_calls():
@@ -676,6 +780,7 @@ class SherpaTaskManager:
                             "Waiting for the user's answer." if question["blocking"] else "Continuing independent work.",
                         )
                         if question["blocking"]:
+                            task.status = "blocked"
                             task.phase = "blocked"
                             task.current_step = question["question"]
                         await self._emit(task, {
@@ -715,6 +820,7 @@ class SherpaTaskManager:
                             "Waiting for the user's answer.",
                         )
                         task.phase = "blocked"
+                        task.status = "blocked"
                         task.current_step = waiting_question
                         await self._emit(task, {
                             "type": "task_question",
@@ -789,6 +895,15 @@ class SherpaTaskManager:
                 raise RuntimeError("Sherpa completed the task without sufficient evidence.")
             task.evidence = evidence
             task.current_step = task.summary
+            logger.info(
+                "task.completed task=%s tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d summary=%s",
+                task.id,
+                token_usage["input"],
+                token_usage["output"],
+                token_usage["thinking"],
+                token_usage["total"],
+                task.summary[:240],
+            )
             await self._emit(task, {
                 "type": "task_completed",
                 "message": task.summary,
@@ -1287,6 +1402,8 @@ def preview_target_for(
     if not tool_name.startswith("computer_"):
         return None
     target = ComputerTarget.from_args(args)
+    if target.app and target.app.casefold() == "frontmost":
+        return previous if previous and previous.get("kind") != "workspace" else None
     if not target.key and tool_name == "computer_app":
         app = next((
             args.get(key)

@@ -16,7 +16,7 @@ export type VoiceTask = {
   instruction: string;
   kind: "worker";
   parentId?: string;
-  status: "running" | "completed" | "failed" | "cancelled";
+  status: "queued" | "running" | "blocked" | "completed" | "failed" | "cancelled";
   phase: string;
   progress: number;
   currentStep: string;
@@ -57,7 +57,7 @@ interface VoiceSessionOptions {
   speakerMuted: boolean;
   volume: number;
   voiceName: string;
-  onTranscript: (role: VoiceTranscriptEntry["role"], text: string) => void;
+  onTranscript: (entry: VoiceTranscriptEntry) => void;
   onTurnComplete: () => void;
 }
 
@@ -253,7 +253,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
             speechActiveRef.current = false;
             speechEndTimerRef.current = undefined;
             sendControl("speech_ended");
-          }, 350);
+          }, 1000);
         }
         socket.send(event.data);
       };
@@ -269,6 +269,9 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           type: string;
           error?: string;
           text?: string;
+          role?: VoiceTranscriptEntry["role"];
+          sequence?: number;
+          final?: boolean;
           id?: string;
           name?: string;
           args?: Record<string, unknown>;
@@ -312,10 +315,19 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
         } else if (message.type === "error") {
           setError(message.error || "Sherpa voice failed.");
           setStatus("error");
-        } else if (message.type === "input_transcript") {
-          onTranscript("user", message.text || "");
-        } else if (message.type === "output_transcript") {
-          onTranscript("assistant", message.text || "");
+        } else if (
+          message.type === "transcript_update"
+          && message.id
+          && message.role
+          && typeof message.sequence === "number"
+        ) {
+          onTranscript({
+            id: message.id,
+            role: message.role,
+            sequence: message.sequence,
+            text: message.text || "",
+            final: Boolean(message.final),
+          });
         } else if (message.type === "tool_call" && message.id && message.name) {
           const toolId = message.id;
           const toolName = message.name;
@@ -477,7 +489,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   }, [sessionId]);
 
   useEffect(() => {
-    if (!tasks.some((task) => task.chatId === sessionId && task.status === "running")) {
+    if (!tasks.some((task) => (
+      task.chatId === sessionId
+      && ["running", "blocked"].includes(task.status)
+      && task.previewTarget
+    ))) {
       window.sherpaPreview?.stopAll();
     }
   }, [sessionId, tasks]);

@@ -26,7 +26,13 @@ export function loadSherpaChats(): SherpaChat[] {
       titleStatus: chat.titleStatus
         ? chat.titleStatus === "naming" ? "failed" : chat.titleStatus
         : chat.messages.length || chat.transcript?.length ? "complete" : "pending",
-      transcript: Array.isArray(chat.transcript) ? chat.transcript : [],
+      transcript: Array.isArray(chat.transcript)
+        ? chat.transcript.map((entry, index) => ({
+          ...entry,
+          sequence: typeof entry.sequence === "number" ? entry.sequence : index,
+          final: typeof entry.final === "boolean" ? entry.final : true,
+        }))
+        : [],
     }))
     .sort((left, right) => right.updatedAt - left.updatedAt);
 }

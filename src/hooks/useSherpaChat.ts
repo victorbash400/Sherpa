@@ -55,17 +55,18 @@ export function useSherpaChat() {
     } : chat));
   }, []);
 
-  const appendTranscript = useCallback((chatId: string, role: VoiceTranscriptEntry["role"], text: string) => {
-    if (!text) return;
+  const updateTranscript = useCallback((chatId: string, entry: VoiceTranscriptEntry) => {
+    if (!entry.text) return;
     const nextChats = chatsRef.current.map((chat) => {
       if (chat.id !== chatId) return chat;
-      const latest = chat.transcript.at(-1);
-      const transcript = latest?.role === role
-        ? [...chat.transcript.slice(0, -1), { ...latest, text: mergeTranscript(latest.text, text) }]
-        : [...chat.transcript, { id: crypto.randomUUID(), role, text }];
+      const exists = chat.transcript.some((item) => item.id === entry.id);
+      const transcript = (exists
+        ? chat.transcript.map((item) => item.id === entry.id ? entry : item)
+        : [...chat.transcript, entry]
+      ).sort((left, right) => left.sequence - right.sequence);
       return {
         ...chat,
-        title: chat.transcript.length || role !== "user" ? chat.title : text.slice(0, 42),
+        title: chat.transcript.length || entry.role !== "user" ? chat.title : entry.text.slice(0, 42),
         transcript,
         updatedAt: Date.now(),
       };
@@ -160,12 +161,5 @@ export function useSherpaChat() {
     }
   }, [activeChat, nameChat, streaming, updateMessages]);
 
-  return { activeChat, activeChatId, appendTranscript, chats, completeVoiceTurn, deleteChat, error, newChat, selectChat, send, streaming };
-}
-
-function mergeTranscript(current: string, incoming: string) {
-  if (current === incoming || current.endsWith(incoming)) return current;
-  if (incoming.startsWith(current)) return incoming;
-  const needsSpace = !current.endsWith(" ") && !incoming.startsWith(" ");
-  return `${current}${needsSpace ? " " : ""}${incoming}`;
+  return { activeChat, activeChatId, chats, completeVoiceTurn, deleteChat, error, newChat, selectChat, send, streaming, updateTranscript };
 }

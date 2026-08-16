@@ -5,7 +5,7 @@ import { TaskDetails } from "./TaskDetails";
 import "./TaskItem.css";
 
 export function TaskItem({ onSelect, selected, task }: { onSelect: () => void; selected: boolean; task: VoiceTask }) {
-  const [expanded, setExpanded] = useState(task.status === "running");
+  const [expanded, setExpanded] = useState(task.status === "running" || task.status === "blocked");
 
   return (
     <article className="task-item" data-expanded={expanded} data-phase={task.phase} data-selected={selected} data-status={task.status}>
@@ -38,6 +38,8 @@ export function TaskItem({ onSelect, selected, task }: { onSelect: () => void; s
 
 function statusLabel(status: VoiceTask["status"]) {
   if (status === "running") return "Working";
+  if (status === "queued") return "Queued";
+  if (status === "blocked") return "Waiting for input";
   if (status === "completed") return "Completed";
   if (status === "cancelled") return "Cancelled";
   return "Failed";

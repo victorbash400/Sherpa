@@ -23,6 +23,7 @@ import { SidebarToggle } from "./components/SidebarToggle";
 import { SkillsView } from "./components/SkillsView";
 import { useConnectionSections } from "./hooks/useConnectionSections";
 import { useSkills } from "./hooks/useSkills";
+import type { VoiceTranscriptEntry } from "./chat/chatTypes";
 import {
   loadAccessibilitySettings,
   saveAccessibilitySettings,
@@ -47,9 +48,9 @@ export function App() {
   const chat = useSherpaChat();
   const connections = useConnectionSections();
   const skills = useSkills(view === "skills");
-  const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
-    chat.appendTranscript(chat.activeChatId, role, text);
-  }, [chat.activeChatId, chat.appendTranscript]);
+  const appendVoiceTranscript = useCallback((entry: VoiceTranscriptEntry) => {
+    chat.updateTranscript(chat.activeChatId, entry);
+  }, [chat.activeChatId, chat.updateTranscript]);
   const completeVoiceTurn = useCallback(() => {
     chat.completeVoiceTurn(chat.activeChatId);
   }, [chat.activeChatId, chat.completeVoiceTurn]);
@@ -65,7 +66,7 @@ export function App() {
   const voicePreview = useVoicePreview(volume, speakerMuted);
   const orbMode = voice.status === "speaking" ? "speaking" : voice.status === "listening" ? "listening" : "idle";
   const voiceActive = voice.status === "connecting" || voice.status === "listening" || voice.status === "speaking";
-  const hasActiveTasks = voice.tasks.some((task) => task.status === "running");
+  const hasActiveTasks = voice.tasks.some((task) => ["queued", "running", "blocked"].includes(task.status));
   const hasTranscript = chat.activeChat.transcript.some((entry) => entry.text.trim().length > 0);
 
   useEffect(() => {

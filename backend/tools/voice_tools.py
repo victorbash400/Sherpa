@@ -39,7 +39,7 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="list_active_tasks",
-            description="List only tasks currently running. An empty result does not mean earlier tasks completed.",
+            description="List unfinished tasks with explicit running, queued, or blocked state. An empty result does not mean earlier tasks completed.",
             behavior=types.Behavior.BLOCKING,
         ),
         types.FunctionDeclaration(
@@ -103,6 +103,11 @@ async def handle_voice_tool_call(
         if not instruction:
             await respond(call_id, name, {"error": "instruction is required"})
             return
+        logger.info(
+            'task.admission session=%s instruction="%s"',
+            session_id,
+            " ".join(instruction.split())[:1000],
+        )
         decision = await sherpa_tasks.submit(session_id, instruction)
         logger.info(
             "task.receipt session=%s status=%s submission=%s call=%s",
@@ -192,9 +197,17 @@ async def handle_voice_tool_call(
 
 def active_tasks_response(tasks: list[dict], submissions: list[dict]) -> dict:
     if tasks:
-        message = f"{len(tasks)} task(s) are currently running."
-        spoken_summary = "Currently running: " + "; ".join(
-            f"{task['instruction']} — {task['current_step']}" for task in tasks
+        counts = {
+            status: sum(task["status"] == status for task in tasks)
+            for status in ("running", "queued", "blocked")
+        }
+        message = (
+            f"{counts['running']} running, {counts['queued']} queued, "
+            f"and {counts['blocked']} waiting for input."
+        )
+        spoken_summary = "Current tasks: " + "; ".join(
+            f"{task['instruction']} [{task['status']}] — {task['current_step']}"
+            for task in tasks
         )
     elif submissions:
         message = f"{len(submissions)} request(s) are still being organized."
@@ -202,7 +215,7 @@ def active_tasks_response(tasks: list[dict], submissions: list[dict]) -> dict:
             submission["instruction"] for submission in submissions
         )
     else:
-        message = "No tasks are currently running. This does not indicate that any task completed."
+        message = "No tasks are currently active. This does not indicate that any task completed."
         spoken_summary = "No tasks are currently running. I cannot infer whether any earlier task completed from this check."
     return {
         "status": "active_tasks_found" if tasks else "no_active_tasks",

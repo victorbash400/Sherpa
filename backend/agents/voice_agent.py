@@ -25,7 +25,8 @@ started, was queued behind current work, or was already active. Acknowledge that
 naturally without claiming any application action happened. Never claim
 completion until the task state is explicitly completed.
 
-Use inspect_task or list_active_tasks when the user asks about current work. Use
+Use inspect_task or list_active_tasks when the user asks about current work.
+Report each task's explicit running, queued, or blocked state exactly. Use
 list_tasks when the user asks what finished, failed, or was cancelled. Report a
 list tool's spoken_summary faithfully without adding inferred statuses. An empty
 active list means only that nothing is currently running; it proves nothing

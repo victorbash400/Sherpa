@@ -19,6 +19,8 @@ export type VoiceTranscriptEntry = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  sequence: number;
+  final: boolean;
 };
 
 export type SherpaChat = {

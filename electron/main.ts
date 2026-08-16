@@ -14,6 +14,7 @@ let overlayReady = false;
 let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
 const previewProcesses = new Map<string, ChildProcessWithoutNullStreams>();
+const previewTargets = new Map<string, string>();
 const previewRestarts = new Map<string, ReturnType<typeof setTimeout>>();
 const stoppingPreviews = new Set<ChildProcessWithoutNullStreams>();
 const previewStopTimers = new Map<ChildProcessWithoutNullStreams, ReturnType<typeof setTimeout>>();
@@ -226,7 +227,17 @@ function configureSystemEvents() {
 function configurePreviewEvents() {
   ipcMain.handle("preview:start", (event, taskId: string, target: PreviewTarget) => {
     if (event.sender !== mainWindow?.webContents || !taskId || !validPreviewTarget(target)) return false;
+    const targetKey = previewTargetKey(target);
+    if (previewProcesses.has(taskId) && previewTargets.get(taskId) === targetKey) return true;
+    if (previewTargets.has(taskId)) {
+      console.info("preview.target_changed", {
+        taskId,
+        from: previewTargets.get(taskId),
+        to: targetKey,
+      });
+    }
     stopPreview(taskId, true);
+    previewTargets.set(taskId, targetKey);
     startPreview(taskId, target, 0);
     return true;
   });
@@ -304,7 +315,18 @@ function startPreview(taskId: string, target: PreviewTarget, attempt: number) {
 }
 
 function validPreviewTarget(target: PreviewTarget) {
-  return Boolean(target && (target.app || target.pid));
+  return Boolean(
+    target
+    && (target.app || target.pid)
+    && target.app !== "frontmost"
+    && !target.app?.includes(":"),
+  );
+}
+
+function previewTargetKey(target: PreviewTarget) {
+  return [target.app, target.pid, target.window_id, target.window_title]
+    .map((value) => value ?? "")
+    .join(":");
 }
 
 function previewArguments(target: PreviewTarget) {
@@ -323,7 +345,11 @@ function stopPreview(taskId: string, immediate = false) {
     previewRestarts.delete(taskId);
   }
   const child = previewProcesses.get(taskId);
-  if (!child) return;
+  if (!child) {
+    previewTargets.delete(taskId);
+    return;
+  }
+  previewTargets.delete(taskId);
   stoppingPreviews.add(child);
   console.info("preview.capture_stopping", { taskId, pid: child.pid, immediate });
   if (immediate) {

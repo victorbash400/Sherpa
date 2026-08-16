@@ -18,6 +18,16 @@ async def before_computer_tool(
     args: dict[str, Any],
     tool_context: ToolContext,
 ) -> dict[str, str] | None:
+    validation_error = normalize_tool_args(tool.name, args)
+    if validation_error:
+        logger.warning(
+            "tool.rejected session=%s call=%s name=%s error=%s",
+            tool_context.session.id,
+            tool_context.function_call_id,
+            tool.name,
+            validation_error,
+        )
+        return {"status": "failed", "error": validation_error}
     key = tool_call_key(tool, tool_context)
     tool_started_at[key] = time.perf_counter()
     logger.info(
@@ -38,7 +48,11 @@ async def before_computer_tool(
         for key in ("app", "app_target", "bundle_id")
         if isinstance(args.get(key), str)
     ), None)
-    if app_target and not permission_store.app_enabled(app_target):
+    if (
+        app_target
+        and app_target.casefold() != "frontmost"
+        and not permission_store.app_enabled(app_target)
+    ):
         return {
             "status": "failed",
             "error": f"Access to {app_target} is turned off in Sherpa Plugins.",
@@ -97,7 +111,7 @@ async def on_computer_tool_error(
     duration_ms = tool_duration_ms(tool, tool_context)
     if is_interaction_tool(tool.name):
         computer_runtime.release(tool_call_key(tool, tool_context))
-    if tool.name == "computer_dialog" and is_mcp_response_timeout(error):
+    if tool.name == "computer_dialog" and is_dialog_timeout(error):
         logger.info(
             "tool.paused session=%s call=%s name=%s duration_ms=%d reason=user_dialog",
             tool_context.session.id,
@@ -162,9 +176,30 @@ def tool_target(args: dict[str, Any]) -> str:
     return " ".join(values) or "-"
 
 
-def is_mcp_response_timeout(error: Exception) -> bool:
+def is_dialog_timeout(error: Exception) -> bool:
     message = str(error).lower()
-    return "timed out while waiting for response to clientrequest" in message
+    return "timeout" in message or "timed out" in message
+
+
+def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
+    if tool_name.startswith("browser_"):
+        target = args.get("target")
+        if isinstance(target, str):
+            clean = target.strip()
+            if clean.startswith("ref="):
+                clean = clean.removeprefix("ref=").strip()
+            if not clean:
+                return "The browser target is empty. Observe the page again and use a fresh reference."
+            args["target"] = clean
+    for key in ("app", "app_target"):
+        value = args.get(key)
+        if not isinstance(value, str) or ":" not in value:
+            continue
+        app_name, window_title = value.split(":", 1)
+        if app_name.strip() and window_title.strip():
+            args[key] = app_name.strip()
+            args.setdefault("window_title", window_title.strip())
+    return None
 
 
 def response_error(response: dict) -> str:

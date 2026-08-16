@@ -483,7 +483,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                 prefix_padding_ms=20,
                 end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                silence_duration_ms=300,
+                silence_duration_ms=1000,
             ),
         ),
         speech_config=types.SpeechConfig(
@@ -517,6 +517,13 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         voice_assistant_text: list[str] = []
         turn_user_text: list[str] = []
         turn_assistant_text: list[str] = []
+        transcript_sequence = 0
+        input_transcript_id: str | None = None
+        output_transcript_id: str | None = None
+        input_transcript_sequence = 0
+        output_transcript_sequence = 0
+        input_transcript_text = ""
+        output_transcript_text = ""
 
         await websocket.send_json({"type": "ready"})
         logger.info("session.ready session=%s model=%s tools=7", session_id, VOICE_MODEL)
@@ -605,7 +612,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             )])
 
         async def send_events() -> None:
-            nonlocal model_idle, playback_drained, notification_in_flight, in_flight_notifications
+            nonlocal model_idle, playback_drained, notification_in_flight
+            nonlocal in_flight_notifications, transcript_sequence
+            nonlocal input_transcript_id, output_transcript_id
+            nonlocal input_transcript_sequence, output_transcript_sequence
+            nonlocal input_transcript_text, output_transcript_text
             try:
                 while True:
                     async for response in live.receive():
@@ -625,20 +636,67 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                 in_flight_notifications = []
                                 notification_in_flight = False
                             await websocket.send_json({"type": "interrupted"})
-                        if content.input_transcription and content.input_transcription.text:
-                            voice_user_text.append(content.input_transcription.text)
-                            turn_user_text.append(content.input_transcription.text)
+                        interim = content.interim_input_transcription
+                        if interim and interim.text:
+                            if input_transcript_id is None:
+                                transcript_sequence += 1
+                                input_transcript_sequence = transcript_sequence
+                                input_transcript_id = f"voice-user-{transcript_sequence}"
+                            input_transcript_text = interim.text
                             await websocket.send_json({
-                                "type": "input_transcript",
-                                "text": content.input_transcription.text,
+                                "type": "transcript_update",
+                                "id": input_transcript_id,
+                                "role": "user",
+                                "sequence": input_transcript_sequence,
+                                "text": interim.text,
+                                "final": False,
                             })
-                        if content.output_transcription and content.output_transcription.text:
-                            voice_assistant_text.append(content.output_transcription.text)
-                            turn_assistant_text.append(content.output_transcription.text)
+                        transcription = content.input_transcription
+                        if transcription and transcription.text:
+                            if input_transcript_id is None:
+                                transcript_sequence += 1
+                                input_transcript_sequence = transcript_sequence
+                                input_transcript_id = f"voice-user-{transcript_sequence}"
+                            input_transcript_text = merge_transcript_text(
+                                input_transcript_text,
+                                transcription.text,
+                            )
                             await websocket.send_json({
-                                "type": "output_transcript",
-                                "text": content.output_transcription.text,
+                                "type": "transcript_update",
+                                "id": input_transcript_id,
+                                "role": "user",
+                                "sequence": input_transcript_sequence,
+                                "text": input_transcript_text,
+                                "final": bool(transcription.finished),
                             })
+                            if transcription.finished:
+                                voice_user_text.append(input_transcript_text)
+                                turn_user_text.append(input_transcript_text)
+                                input_transcript_id = None
+                                input_transcript_text = ""
+                        transcription = content.output_transcription
+                        if transcription and transcription.text:
+                            if output_transcript_id is None:
+                                transcript_sequence += 1
+                                output_transcript_sequence = transcript_sequence
+                                output_transcript_id = f"voice-assistant-{transcript_sequence}"
+                            output_transcript_text = merge_transcript_text(
+                                output_transcript_text,
+                                transcription.text,
+                            )
+                            await websocket.send_json({
+                                "type": "transcript_update",
+                                "id": output_transcript_id,
+                                "role": "assistant",
+                                "sequence": output_transcript_sequence,
+                                "text": output_transcript_text,
+                                "final": bool(transcription.finished),
+                            })
+                            if transcription.finished:
+                                voice_assistant_text.append(output_transcript_text)
+                                turn_assistant_text.append(output_transcript_text)
+                                output_transcript_id = None
+                                output_transcript_text = ""
                         if content.model_turn:
                             model_idle = False
                             for part in content.model_turn.parts or []:
@@ -646,6 +704,19 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                     playback_drained = False
                                     await websocket.send_bytes(part.inline_data.data)
                         if content.turn_complete:
+                            if output_transcript_id and output_transcript_text:
+                                await websocket.send_json({
+                                    "type": "transcript_update",
+                                    "id": output_transcript_id,
+                                    "role": "assistant",
+                                    "sequence": output_transcript_sequence,
+                                    "text": output_transcript_text,
+                                    "final": True,
+                                })
+                                voice_assistant_text.append(output_transcript_text)
+                                turn_assistant_text.append(output_transcript_text)
+                            output_transcript_id = None
+                            output_transcript_text = ""
                             chat_logger.info(
                                 'turn channel=voice session=%s user="%s" assistant="%s"',
                                 session_id,
@@ -748,6 +819,14 @@ def sse(event: dict[str, object]) -> str:
 def is_expected_live_close(error: Exception) -> bool:
     message = str(error).lower()
     return "goaway" in message and "session durat" in message
+
+
+def merge_transcript_text(current: str, incoming: str) -> str:
+    if not current or incoming.startswith(current):
+        return incoming
+    if current == incoming or current.endswith(incoming):
+        return current
+    return f"{current.rstrip()} {incoming.lstrip()}"
 
 
 def public_tool_result(result: dict | None) -> dict[str, str]:
