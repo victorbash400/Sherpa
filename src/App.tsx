@@ -138,7 +138,7 @@ export function App() {
       {view === "voice" ? (
         <>
           {hasTranscript ? (
-            <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} onExpandedChange={setTranscriptExpanded} />
+            <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} hue={selectedVoice.hue} onExpandedChange={setTranscriptExpanded} />
           ) : null}
           <section className="orb-stage" data-transcript-expanded={hasTranscript && transcriptExpanded} aria-label="Sherpa is listening">
             <Orb

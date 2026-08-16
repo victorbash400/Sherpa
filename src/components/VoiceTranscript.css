@@ -1,59 +1,98 @@
 .voice-transcript {
+  --transcript-hue: 0;
   position: absolute;
-  top: calc(50% - 178px);
+  top: calc(50% - 190px);
   left: 50%;
   z-index: 3;
-  display: grid;
-  width: min(310px, calc(100% - 190px));
-  height: 58px;
-  padding: 9px 34px 9px 12px;
+  width: min(340px, calc(100% - 190px));
+  height: 72px;
   box-sizing: border-box;
-  color: #555552;
-  background: rgb(255 255 255 / 78%);
-  border: 1px solid #ececea;
-  border-radius: 12px;
+  overflow: hidden;
+  color: #343432;
+  border: 1px solid rgb(255 255 255 / 78%);
+  border-radius: 22px;
+  background: linear-gradient(132deg, rgb(255 255 255 / 76%), rgb(247 247 252 / 58%)), hsl(var(--transcript-hue) 62% 93% / 34%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 94%), inset 0 -1px 0 hsl(var(--transcript-hue) 48% 68% / 14%), 0 16px 42px hsl(var(--transcript-hue) 34% 35% / 12%);
+  backdrop-filter: blur(22px) saturate(145%);
   transform: translateX(-50%);
-  transition: width 180ms ease, height 180ms ease, top 180ms ease;
+  transition: width 220ms cubic-bezier(.2, .8, .2, 1), height 220ms cubic-bezier(.2, .8, .2, 1), top 220ms cubic-bezier(.2, .8, .2, 1), border-radius 220ms ease;
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
   -webkit-app-region: no-drag;
 }
 
+.voice-transcript::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 22% -20%, hsl(var(--transcript-hue) 82% 76% / 28%), transparent 44%), radial-gradient(circle at 92% 120%, hsl(calc(var(--transcript-hue) + 70) 74% 82% / 22%), transparent 46%);
+  content: "";
+  pointer-events: none;
+}
+
 .voice-transcript[data-expanded="true"] {
-  top: 58px;
-  width: min(470px, calc(100% - 170px));
-  height: 150px;
+  top: 52px;
+  width: min(490px, calc(100% - 170px));
+  height: 176px;
+  border-radius: 28px;
 }
 
 .voice-transcript__content {
-  min-height: 0;
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 15px 18px 24px;
   overflow: hidden auto;
   scrollbar-width: none;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 430;
+  letter-spacing: -.012em;
   line-height: 1.45;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 22px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 22px), transparent 100%);
+}
+
+.voice-transcript[data-expanded="true"] .voice-transcript__content {
+  padding: 22px 25px 34px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .voice-transcript__content::-webkit-scrollbar { display: none; }
-.voice-transcript p { margin: 0 0 5px; }
+.voice-transcript p { margin: 0 0 8px; }
 .voice-transcript p[data-role="user"] { color: #777773; }
-.voice-transcript p[data-role="assistant"] { color: #292927; }
+.voice-transcript p[data-role="assistant"] { color: #242422; font-weight: 490; }
+
 .voice-transcript > button {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
   display: grid;
-  width: 24px;
+  width: 100%;
   height: 24px;
   padding: 0;
   place-items: center;
-  color: #858581;
-  background: transparent;
   border: 0;
-  border-radius: 7px;
+  background: linear-gradient(to bottom, transparent, rgb(255 255 255 / 44%));
   cursor: pointer;
 }
 
-.voice-transcript > button:hover { color: #292927; background: #f1f1ef; }
-.voice-transcript > button svg { width: 14px; height: 14px; stroke-width: 1.7; }
+.voice-transcript > button span {
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(83 83 80 / 24%);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 70%);
+  transition: width 150ms ease, background 150ms ease;
+}
+
+.voice-transcript > button:hover span { width: 50px; background: hsl(var(--transcript-hue) 26% 34% / 42%); }
+.voice-transcript > button:focus-visible { outline: 2px solid hsl(var(--transcript-hue) 52% 48% / 70%); outline-offset: -4px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .voice-transcript { transition: none; }
+  .voice-transcript,
+  .voice-transcript > button span { transition: none; }
 }

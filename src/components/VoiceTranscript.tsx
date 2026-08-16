@@ -1,15 +1,15 @@
-import { Maximize2, Minimize2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import type { VoiceTranscriptEntry } from "../chat/chatTypes";
 import "./VoiceTranscript.css";
 
 interface VoiceTranscriptProps {
   entries: VoiceTranscriptEntry[];
   expanded: boolean;
+  hue: number;
   onExpandedChange: (expanded: boolean) => void;
 }
 
-export function VoiceTranscript({ entries, expanded, onExpandedChange }: VoiceTranscriptProps) {
+export function VoiceTranscript({ entries, expanded, hue, onExpandedChange }: VoiceTranscriptProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -18,7 +18,12 @@ export function VoiceTranscript({ entries, expanded, onExpandedChange }: VoiceTr
   }, [entries]);
 
   return (
-    <section className="voice-transcript" data-expanded={expanded} aria-label="Live transcript">
+    <section
+      className="voice-transcript"
+      data-expanded={expanded}
+      aria-label="Live transcript"
+      style={{ "--transcript-hue": hue } as CSSProperties}
+    >
       <div className="voice-transcript__content" ref={contentRef}>
         {entries.map((entry) => (
           <p data-role={entry.role} key={entry.id}>{entry.text}</p>
@@ -29,7 +34,7 @@ export function VoiceTranscript({ entries, expanded, onExpandedChange }: VoiceTr
         onClick={() => onExpandedChange(!expanded)}
         type="button"
       >
-        {expanded ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+        <span aria-hidden="true" />
       </button>
     </section>
   );
