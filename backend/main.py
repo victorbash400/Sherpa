@@ -695,15 +695,26 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                     playback_drained = False
                                     await websocket.send_bytes(part.inline_data.data)
                         if content.turn_complete:
-                            if output_transcript_id and output_transcript_text:
-                                await websocket.send_json({
-                                    "type": "transcript_update",
-                                    "id": output_transcript_id,
-                                    "role": "assistant",
-                                    "sequence": output_transcript_sequence,
-                                    "text": output_transcript_text,
-                                    "final": True,
-                                })
+                            input_event = final_transcript_event(
+                                input_transcript_id,
+                                "user",
+                                input_transcript_sequence,
+                                input_transcript_text,
+                            )
+                            if input_event:
+                                await websocket.send_json(input_event)
+                                voice_user_text.append(input_transcript_text)
+                                turn_user_text.append(input_transcript_text)
+                            input_transcript_id = None
+                            input_transcript_text = ""
+                            output_event = final_transcript_event(
+                                output_transcript_id,
+                                "assistant",
+                                output_transcript_sequence,
+                                output_transcript_text,
+                            )
+                            if output_event:
+                                await websocket.send_json(output_event)
                                 voice_assistant_text.append(output_transcript_text)
                                 turn_assistant_text.append(output_transcript_text)
                             output_transcript_id = None
@@ -818,6 +829,24 @@ def merge_transcript_text(current: str, incoming: str) -> str:
     if current == incoming or current.endswith(incoming):
         return current
     return f"{current.rstrip()} {incoming.lstrip()}"
+
+
+def final_transcript_event(
+    transcript_id: str | None,
+    role: str,
+    sequence: int,
+    text: str,
+) -> dict[str, object] | None:
+    if not transcript_id or not text:
+        return None
+    return {
+        "type": "transcript_update",
+        "id": transcript_id,
+        "role": role,
+        "sequence": sequence,
+        "text": text,
+        "final": True,
+    }
 
 
 def public_tool_result(result: dict | None) -> dict[str, str]:

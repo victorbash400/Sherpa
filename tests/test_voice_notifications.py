@@ -1,10 +1,28 @@
 import unittest
 
+from backend.main import final_transcript_event
 from backend.tools.voice_tools import VOICE_TOOLS
 from backend.voice_notifications import task_state_notification
 
 
 class VoiceNotificationTests(unittest.TestCase):
+    def test_turn_completion_finalizes_pending_user_transcript(self) -> None:
+        event = final_transcript_event(
+            "voice-user-3",
+            "user",
+            3,
+            "Show my exact words",
+        )
+
+        self.assertEqual(event, {
+            "type": "transcript_update",
+            "id": "voice-user-3",
+            "role": "user",
+            "sequence": 3,
+            "text": "Show my exact words",
+            "final": True,
+        })
+
     def test_voice_exposes_distinct_update_and_steer_tools(self) -> None:
         names = {
             declaration.name
