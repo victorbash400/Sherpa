@@ -74,6 +74,8 @@ class SherpaTask:
     interaction_mode: str = "background"
     updates: list[dict[str, Any]] = field(default_factory=list)
     questions: list[dict[str, Any]] = field(default_factory=list)
+    tool_counts: dict[str, int] = field(default_factory=dict)
+    tool_failures: dict[str, int] = field(default_factory=dict)
     directives: asyncio.Queue[dict[str, Any]] = field(
         default_factory=asyncio.Queue,
         repr=False,
@@ -358,6 +360,8 @@ class SherpaTaskManager:
             "interaction_mode": task.interaction_mode,
             "updates": list(task.updates),
             "questions": list(task.questions),
+            "tool_counts": dict(task.tool_counts),
+            "tool_failures": dict(task.tool_failures),
         }
         snapshot["children"] = [
             self.snapshot(child)
@@ -373,6 +377,12 @@ class SherpaTaskManager:
         task.status = "cancelled"
         task.phase = "cancelled"
         task.summary = "Sherpa stopped the task."
+        logger.info(
+            "task.cancelled task=%s tools=%s failures=%s",
+            task.id,
+            json.dumps(task.tool_counts, sort_keys=True, separators=(",", ":")),
+            json.dumps(task.tool_failures, sort_keys=True, separators=(",", ":")),
+        )
         self._emit_nowait(task, {
             "type": "task_cancelled",
             "message": task.summary,
@@ -847,6 +857,9 @@ class SherpaTaskManager:
                     }
                     if not is_control_tool:
                         result_sequence += 1
+                        task.tool_counts[response.name] = task.tool_counts.get(response.name, 0) + 1
+                        if failed:
+                            task.tool_failures[response.name] = task.tool_failures.get(response.name, 0) + 1
                     if not failed and not is_control_tool:
                         if is_observation_tool(response.name):
                             last_successful_observation = result_sequence
@@ -896,12 +909,14 @@ class SherpaTaskManager:
             task.evidence = evidence
             task.current_step = task.summary
             logger.info(
-                "task.completed task=%s tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d summary=%s",
+                "task.completed task=%s tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d tools=%s failures=%s summary=%s",
                 task.id,
                 token_usage["input"],
                 token_usage["output"],
                 token_usage["thinking"],
                 token_usage["total"],
+                json.dumps(task.tool_counts, sort_keys=True, separators=(",", ":")),
+                json.dumps(task.tool_failures, sort_keys=True, separators=(",", ":")),
                 task.summary[:240],
             )
             await self._emit(task, {
@@ -936,7 +951,12 @@ class SherpaTaskManager:
             task.phase = "failed"
             task.summary = str(error)
             task.current_step = task.summary
-            logger.exception("task.failed task=%s", task.id)
+            logger.exception(
+                "task.failed task=%s tools=%s failures=%s",
+                task.id,
+                json.dumps(task.tool_counts, sort_keys=True, separators=(",", ":")),
+                json.dumps(task.tool_failures, sort_keys=True, separators=(",", ":")),
+            )
             await self._emit(task, {
                 "type": "task_failed",
                 "message": f"Sherpa could not finish: {error}",

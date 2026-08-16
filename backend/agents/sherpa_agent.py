@@ -69,9 +69,20 @@ sherpa_agent = Agent(
     current accessibility snapshot. Always provide the concise human-readable
     element argument when a browser tool accepts it; Sherpa uses that label to
     place the visible cursor over the real Chrome control. After every browser action, verify the
-    resulting page state with browser_snapshot or browser_find. If Chrome is not
+    resulting page state with browser_snapshot or browser_find. Keep full snapshots
+    bounded and prefer browser_find for subsequent targeted reads so page markup does
+    not dominate the task context. If Chrome is not
     connected, report that explicitly and stop instead of falling back to the
     desktop tools or claiming the browser action happened.
+
+    For long browser work, prefer browser_evaluate when the same deterministic DOM
+    transformation would otherwise require many click, type, and snapshot cycles.
+    Use one short, reviewable function against the current page only, return a concise
+    count or summary, and then verify the visible result with browser_find or a bounded
+    browser_snapshot. Never use browser_evaluate for sign-in, permissions, sending,
+    publishing, deleting, purchasing, uploading, navigation, or any other consequential
+    final action. Do not use it when the surface is canvas-only or the relevant state is
+    not represented in the DOM; use ordinary visual interaction in those cases.
 
     When the user names an installed macOS application, use that native
     application with computer tools. Never substitute a website or web version

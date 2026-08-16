@@ -22,6 +22,12 @@ class SkillStoreTests(unittest.TestCase):
     def test_unknown_skills_are_not_loaded(self) -> None:
         self.assertEqual(skill_store.context_for(["made-up-skill"]), "")
 
+    def test_chrome_skill_routes_repetitive_dom_edits_to_page_code(self) -> None:
+        context = skill_store.context_for(["chrome-web-workflows"])
+
+        self.assertIn("browser_evaluate", context)
+        self.assertIn("Do not alternate full snapshots", context)
+
     def test_skill_instructions_can_be_overridden(self) -> None:
         with TemporaryDirectory() as directory:
             store = SkillStore(Path(directory) / "skills.json")

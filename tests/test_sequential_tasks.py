@@ -8,6 +8,7 @@ from backend.sherpa_tasks import (
     SherpaTaskManager,
     is_observation_tool,
     preview_target_for,
+    tool_result_self_verifies,
 )
 
 
@@ -24,7 +25,8 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         second_started = asyncio.Event()
         starts: list[str] = []
 
-        async def run(task, instruction: str) -> None:
+        async def run(task, instruction: str, handoff: str = "") -> None:
+            del handoff
             starts.append(instruction)
             if instruction == "first":
                 first_started.set()
@@ -50,7 +52,8 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         started = asyncio.Event()
         release = asyncio.Event()
 
-        async def run(task, instruction: str) -> None:
+        async def run(task, instruction: str, handoff: str = "") -> None:
+            del instruction, handoff
             started.set()
             await release.wait()
             task.status = "completed"
@@ -61,7 +64,13 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
             submission = SherpaSubmission(id="submission", chat_id="chat", instruction="Open Mail")
             await self.manager._apply_plan(submission, TaskPlan(
                 message="Already working on that.",
-                operations=[TaskOperation(action="reuse", task_id=first.id)],
+                operations=[TaskOperation(
+                    action="reuse",
+                    task_id=first.id,
+                    title="",
+                    instruction="",
+                    key="",
+                )],
             ))
             self.assertEqual(submission.decision, "already_active")
             self.assertEqual(submission.task_id, first.id)
@@ -74,7 +83,8 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         release_first = asyncio.Event()
         starts: list[str] = []
 
-        async def run(task, instruction: str) -> None:
+        async def run(task, instruction: str, handoff: str = "") -> None:
+            del handoff
             starts.append(instruction)
             if instruction == "first":
                 first_started.set()
@@ -96,18 +106,20 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         release = asyncio.Event()
         starts: list[str] = []
 
-        async def run(task, instruction: str) -> None:
-            starts.append(instruction)
-            if instruction == "one":
-                await release.wait()
-            task.status = "completed"
+        async def run(task, instruction: str, handoff: str = "") -> None:
+            del handoff
+            async with self.manager._execution_lease:
+                starts.append(instruction)
+                if instruction == "one":
+                    await release.wait()
+                task.status = "completed"
 
         plan = TaskPlan(
             message="Queued three tasks.",
             operations=[
-                TaskOperation(action="create", title="One", instruction="one"),
-                TaskOperation(action="create", title="Two", instruction="two"),
-                TaskOperation(action="create", title="Three", instruction="three"),
+                TaskOperation(action="create", task_id="", title="One", instruction="one", key="one"),
+                TaskOperation(action="create", task_id="", title="Two", instruction="two", key="two"),
+                TaskOperation(action="create", task_id="", title="Three", instruction="three", key="three"),
             ],
         )
         submission = SherpaSubmission(id="submission", chat_id="chat", instruction="three things")
@@ -129,15 +141,17 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
             message="Queued the workflow.",
             operations=[TaskOperation(
                 action="create",
+                task_id="",
                 title="Share prize details",
                 instruction="Find the email, create a Doc, then send it on WhatsApp.",
                 skill_ids=["workspace-email", "workspace-documents", "native-whatsapp"],
+                key="share-prize",
             )],
         )
         submission = SherpaSubmission(id="submission", chat_id="chat", instruction="share details")
 
-        async def run(task, instruction: str) -> None:
-            del instruction
+        async def run(task, instruction: str, handoff: str = "") -> None:
+            del instruction, handoff
             task.status = "completed"
 
         with patch.object(self.manager, "_run_worker", side_effect=run):
@@ -152,9 +166,11 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
             message="Queued.",
             operations=[TaskOperation(
                 action="create",
+                task_id="",
                 title="Unknown",
                 instruction="Do something.",
                 skill_ids=["not-a-real-skill"],
+                key="unknown",
             )],
         )
         with self.assertRaisesRegex(RuntimeError, "unknown skills"):
@@ -164,6 +180,10 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(is_observation_tool("workspace_sheets_read_range"))
         self.assertTrue(is_observation_tool("workspace_docs_read_doc"))
         self.assertFalse(is_observation_tool("workspace_sheets_update_range"))
+
+    async def test_browser_evaluate_requires_visual_verification(self) -> None:
+        self.assertFalse(is_observation_tool("browser_evaluate"))
+        self.assertFalse(tool_result_self_verifies("browser_evaluate", {}))
 
     async def test_window_preview_requires_verified_ownership(self) -> None:
         self.assertIsNone(preview_target_for("computer_see", {"window_id": 1664}))

@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from typing import Any
 
@@ -9,7 +10,16 @@ from backend.tools.computer_use.runtime import computer_runtime, is_interaction_
 
 
 logger = logging.getLogger("sherpa.computer_use")
-MAX_TOOL_TEXT = 40_000
+MAX_TOOL_TEXT = 20_000
+MAX_BROWSER_EVALUATE = 6_000
+BROWSER_EVALUATE_FORBIDDEN = re.compile(
+    r"\b(?:fetch|XMLHttpRequest|WebSocket|EventSource|eval|Function|import|"
+    r"localStorage|sessionStorage|indexedDB)\b|"
+    r"document\s*\.\s*cookie|navigator\s*\.\s*(?:clipboard|credentials)|"
+    r"window\s*\.\s*(?:open|location)|location\s*\.|history\s*\.|"
+    r"requestSubmit\s*\(|\.submit\s*\(",
+    re.IGNORECASE,
+)
 tool_started_at: dict[str, float] = {}
 
 
@@ -144,13 +154,18 @@ def sanitize_tool_response(response: dict) -> dict:
     if isinstance(content, list):
         text_blocks = []
         omitted_images = 0
+        remaining = MAX_TOOL_TEXT
         for block in content:
             if not isinstance(block, dict):
                 continue
-            if block.get("type") == "text" and isinstance(block.get("text"), str):
-                text_blocks.append(
-                    {"type": "text", "text": block["text"][:MAX_TOOL_TEXT]}
-                )
+            if (
+                remaining > 0
+                and block.get("type") == "text"
+                and isinstance(block.get("text"), str)
+            ):
+                clean_text = block["text"][:remaining]
+                text_blocks.append({"type": "text", "text": clean_text})
+                remaining -= len(clean_text)
             elif block.get("type") in {"image", "audio"}:
                 omitted_images += 1
         safe["content"] = text_blocks
@@ -191,6 +206,21 @@ def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
             if not clean:
                 return "The browser target is empty. Observe the page again and use a fresh reference."
             args["target"] = clean
+    if tool_name == "browser_snapshot" and "depth" not in args:
+        args["depth"] = 12
+    if tool_name == "browser_evaluate":
+        if args.get("filename"):
+            return "Browser code must be supplied inline; loading code from files is disabled."
+        code = args.get("function")
+        if not isinstance(code, str) or not code.strip():
+            return "Browser code is empty."
+        if len(code) > MAX_BROWSER_EVALUATE:
+            return f"Browser code exceeds the {MAX_BROWSER_EVALUATE}-character limit."
+        if BROWSER_EVALUATE_FORBIDDEN.search(code):
+            return (
+                "Browser code may only transform the current page DOM. Network, storage, "
+                "credential, navigation, dynamic-code, and form-submission APIs are disabled."
+            )
     for key in ("app", "app_target"):
         value = args.get(key)
         if not isinstance(value, str) or ":" not in value:

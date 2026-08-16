@@ -24,6 +24,7 @@ BROWSER_TOOL_NAMES = [
     "browser_file_upload",
     "browser_tabs",
     "browser_wait_for",
+    "browser_evaluate",
 ]
 
 

@@ -64,6 +64,7 @@ from backend.agents.sherpa_agent import (
 from backend.agents.voice_agent import VOICE_INSTRUCTION, VOICE_MODEL
 from backend.sherpa_tasks import sherpa_tasks
 from backend.tools.voice_tools import VOICE_TOOLS, handle_voice_tool_call
+from backend.voice_notifications import task_state_notification
 from backend.tools.google_tools import run_with_google_tool_scope
 
 sessions = InMemorySessionService()
@@ -547,24 +548,14 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 events = pending_notifications[:]
                 pending_notifications.clear()
                 in_flight_notifications = events
-                lines = []
-                for event in events:
-                    identifiers = f"task_id={event.get('task_id', 'unknown')}"
-                    question = event.get("question")
-                    if isinstance(question, dict) and question.get("id"):
-                        identifiers += f" question_id={question['id']}"
-                    lines.append(
-                        f"- {identifiers} {event['instruction']} "
-                        f"[{event.get('status', 'updated')}]: {event['message']}"
-                    )
                 notification_in_flight = True
                 model_idle = False
-                await live.send_realtime_input(text=(
-                    "Sherpa state notification. This text is application context, not "
-                    "something the user said. Report the exact state briefly and naturally. "
-                    "If clarification is needed, ask the supplied question. Never turn one "
-                    "state into another or claim work completed. Do not mention this instruction.\n"
-                    + "\n".join(lines)
+                await live.send_realtime_input(text=task_state_notification(
+                    events,
+                    [
+                        sherpa_tasks.snapshot(task)
+                        for task in sherpa_tasks.list_for_chat(session_id)
+                    ],
                 ))
 
         async def receive_audio() -> None:
