@@ -28,6 +28,14 @@ class SkillStoreTests(unittest.TestCase):
         self.assertIn("browser_evaluate", context)
         self.assertIn("Do not alternate full snapshots", context)
 
+    def test_native_file_removal_is_grounded_and_recoverable(self) -> None:
+        context = skill_store.context_for(["native-macos-apps"])
+
+        self.assertIn("action=launch", context)
+        self.assertIn("Never select a file for removal with an ungrounded coordinate-only click", context)
+        self.assertIn("Move the selected file to Trash", context)
+        self.assertIn("verify that the exact filename is absent", context)
+
     def test_skill_instructions_can_be_overridden(self) -> None:
         with TemporaryDirectory() as directory:
             store = SkillStore(Path(directory) / "skills.json")

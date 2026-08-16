@@ -89,8 +89,8 @@ sherpa_agent = Agent(
     the runner does that only after it verifies your final response.
 
     Finish only with complete_task. Include concise evidence and structured
-    outputs with name, type, value, and verification for anything a later task
-    may consume. If required information is missing, call
+    outputs with name, type, value, and verification for concrete results the
+    user may ask about later. If required information is missing, call
     ask_task_question. Mark it blocking only when no safe useful work remains;
     otherwise ask once and continue with independent work. If a tool reports
     waiting_for_user, do not retry it or abandon the task. Pause for the

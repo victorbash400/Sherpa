@@ -46,6 +46,11 @@ class BrowserCodeTests(unittest.TestCase):
         self.assertIsNone(normalize_tool_args("browser_snapshot", args))
         self.assertNotIn("depth", args)
 
+    def test_invalid_app_open_action_points_to_launch(self) -> None:
+        error = normalize_tool_args("computer_app", {"action": "open", "app": "Finder"})
+
+        self.assertIn("action=launch", error or "")
+
     def test_tool_text_is_preserved_across_blocks(self) -> None:
         response = sanitize_tool_response({
             "content": [

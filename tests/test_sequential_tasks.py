@@ -195,6 +195,23 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         result = await self.manager.steer(task.id, "change")
 
         self.assertEqual(result["status"], "not_working")
+        self.assertEqual(result["task_status"], "queued")
+        self.assertIn("update_task", result["guidance"])
+
+    async def test_running_task_cannot_be_updated(self) -> None:
+        task = SherpaTask(
+            id="task",
+            chat_id="chat",
+            instruction="Running",
+            status="running",
+        )
+        self.manager._tasks[task.id] = task
+
+        result = await self.manager.update(task.id, "change")
+
+        self.assertEqual(result["status"], "not_queued")
+        self.assertEqual(result["task_status"], "running")
+        self.assertIn("steer_task", result["guidance"])
 
     async def test_dependency_handoff_includes_structured_outputs(self) -> None:
         dependency = SherpaTask(

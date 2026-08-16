@@ -527,7 +527,16 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         output_transcript_text = ""
 
         await websocket.send_json({"type": "ready"})
-        logger.info("session.ready session=%s model=%s tools=7", session_id, VOICE_MODEL)
+        voice_tool_count = sum(
+            len(tool.function_declarations or [])
+            for tool in VOICE_TOOLS
+        )
+        logger.info(
+            "session.ready session=%s model=%s tools=%d",
+            session_id,
+            VOICE_MODEL,
+            voice_tool_count,
+        )
         for existing_task in sherpa_tasks.list_for_chat(session_id):
             await websocket.send_json({
                 "type": "task_updated",

@@ -421,7 +421,16 @@ class SherpaTaskManager:
         task = self._tasks.get(task_id)
         clean_instruction = " ".join(instruction.split()).strip()
         if not task or task.status != "queued":
-            return {"status": "not_queued", "task_id": task_id}
+            return {
+                "status": "not_queued",
+                "task_id": task_id,
+                "task_status": task.status if task else "not_found",
+                "guidance": (
+                    "Use steer_task for running or blocked work."
+                    if task and task.status in {"running", "blocked"}
+                    else "Only queued tasks can be updated."
+                ),
+            }
         if not clean_instruction:
             return {"status": "invalid", "task_id": task_id}
         task.request = clean_instruction
@@ -443,7 +452,16 @@ class SherpaTaskManager:
         task = self._tasks.get(task_id)
         clean_instruction = " ".join(instruction.split()).strip()
         if not task or task.status not in {"running", "blocked"}:
-            return {"status": "not_working", "task_id": task_id}
+            return {
+                "status": "not_working",
+                "task_id": task_id,
+                "task_status": task.status if task else "not_found",
+                "guidance": (
+                    "Use update_task for queued work."
+                    if task and task.status == "queued"
+                    else "Only running or blocked tasks can be steered."
+                ),
+            }
         if not clean_instruction:
             return {"status": "invalid", "task_id": task_id}
         directive = {

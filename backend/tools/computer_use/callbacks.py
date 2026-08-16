@@ -191,6 +191,8 @@ def is_dialog_timeout(error: Exception) -> bool:
 
 
 def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
+    if tool_name == "computer_app" and str(args.get("action", "")).lower() == "open":
+        return "computer_app does not support action=open. Use action=launch for an installed application."
     if tool_name.startswith("browser_"):
         target = args.get("target")
         if isinstance(target, str):

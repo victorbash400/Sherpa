@@ -42,7 +42,7 @@ def complete_task(
     Args:
         summary: A concise description of the completed outcome.
         evidence: What was observed that proves the requested outcome occurred.
-        outputs: Structured results for later tasks. Each output has a name, type, value, and verification. Return an empty list when no result needs handing forward.
+        outputs: Concrete results the user or a later task may need. Each output has a name, type, value, and verification. Return an empty list only when the summary and evidence contain the complete result.
     """
     tool_context.actions.end_of_agent = True
     return {

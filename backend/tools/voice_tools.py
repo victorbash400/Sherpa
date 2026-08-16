@@ -29,7 +29,7 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="inspect_task",
-            description="Read the current task-board entry for one Sherpa task.",
+            description="Read one task's exact status, verified summary, evidence, and structured outputs. Use before answering what that task found or changed.",
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -44,7 +44,7 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="list_tasks",
-            description="List every task in this conversation with its explicit running, completed, failed, or cancelled status.",
+            description="List every task with exact status and verified results. Use when the user asks what earlier work found, created, changed, or deleted and the task ID is uncertain.",
             behavior=types.Behavior.BLOCKING,
         ),
         types.FunctionDeclaration(
@@ -252,7 +252,7 @@ def task_ledger_response(tasks: list[dict], submissions: list[dict]) -> dict:
     }
     entries = [
         *(f"{submission['instruction']} — received" for submission in submissions),
-        *(f"{task['instruction']} — {task['status']}" for task in tasks),
+        *(task_spoken_result(task) for task in tasks),
     ]
     return {
         "status": "tasks_found" if tasks else "no_tasks",
@@ -261,3 +261,19 @@ def task_ledger_response(tasks: list[dict], submissions: list[dict]) -> dict:
         "spoken_summary": "; ".join(entries) if entries else "There are no tasks recorded in this conversation.",
         "tasks": tasks,
     }
+
+
+def task_spoken_result(task: dict) -> str:
+    status = task["status"]
+    base = f"{task['instruction']} — {status}"
+    if status not in {"completed", "failed", "cancelled"}:
+        return f"{base}: {task['current_step']}"
+    summary = str(task.get("summary") or task.get("current_step") or "").strip()
+    evidence = str(task.get("evidence") or "").strip()
+    outputs = task.get("outputs") or []
+    details = "; ".join(part for part in (
+        summary,
+        f"Evidence: {evidence}" if evidence else "",
+        f"Outputs: {outputs}" if outputs else "",
+    ) if part)
+    return f"{base}: {details}" if details else base
