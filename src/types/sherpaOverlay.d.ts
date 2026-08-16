@@ -53,6 +53,7 @@ declare global {
     };
     sherpaSystem?: {
       openExternal: (url: string) => Promise<boolean>;
+      onWindowFocusChanged: (callback: (focused: boolean) => void) => () => void;
     };
     sherpaPreview?: {
       start: (taskId: string, target: PreviewTarget) => Promise<boolean>;
