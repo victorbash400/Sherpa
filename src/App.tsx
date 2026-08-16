@@ -50,9 +50,13 @@ export function App() {
   const appendVoiceTranscript = useCallback((role: "user" | "assistant", text: string) => {
     chat.appendTranscript(chat.activeChatId, role, text);
   }, [chat.activeChatId, chat.appendTranscript]);
+  const completeVoiceTurn = useCallback(() => {
+    chat.completeVoiceTurn(chat.activeChatId);
+  }, [chat.activeChatId, chat.completeVoiceTurn]);
   const voice = useVoiceSession({
     microphoneMuted,
     onTranscript: appendVoiceTranscript,
+    onTurnComplete: completeVoiceTurn,
     sessionId: chat.activeChatId,
     speakerMuted,
     volume,

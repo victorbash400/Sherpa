@@ -3,6 +3,7 @@ import os
 import asyncio
 import html
 import logging
+import re
 import traceback
 import warnings
 from contextlib import asynccontextmanager, suppress
@@ -104,6 +105,11 @@ LIVE_VOICES = {
 class ChatRequest(BaseModel):
     session_id: str = Field(min_length=1)
     message: str = Field(min_length=1)
+
+
+class ChatTitleRequest(BaseModel):
+    user_message: str = Field(min_length=1, max_length=8_000)
+    assistant_message: str = Field(min_length=1, max_length=8_000)
 
 
 class PermissionRequest(BaseModel):
@@ -336,6 +342,35 @@ async def chat(body: ChatRequest) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+@app.post("/chat/title")
+async def chat_title(body: ChatTitleRequest) -> dict[str, str]:
+    if not permission_store.enabled("google.models"):
+        raise HTTPException(status_code=403, detail="Gemini models are turned off in Sherpa Plugins.")
+    prompt = (
+        "Name this chat in no more than five words. Return only the title, "
+        "without quotes or punctuation.\n\n"
+        f"User: {body.user_message[:1600]}\n"
+        f"Assistant: {body.assistant_message[:1600]}"
+    )
+    response = await genai.Client(
+        vertexai=True,
+        project=os.environ["GOOGLE_CLOUD_PROJECT"],
+        location=os.environ["GOOGLE_CLOUD_LOCATION"],
+    ).aio.models.generate_content(
+        model="gemini-3.7-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            max_output_tokens=128,
+            temperature=0.2,
+            thinking_config=types.ThinkingConfig(thinking_level="low"),
+        ),
+    )
+    words = re.findall(r"[\w’'-]+", (response.text or "").strip(), flags=re.UNICODE)[:5]
+    if not words:
+        raise HTTPException(status_code=502, detail="Gemini returned an empty chat title.")
+    return {"title": " ".join(words)[:60]}
 
 
 async def stream_chat(body: ChatRequest):

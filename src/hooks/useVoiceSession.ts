@@ -58,9 +58,10 @@ interface VoiceSessionOptions {
   volume: number;
   voiceName: string;
   onTranscript: (role: VoiceTranscriptEntry["role"], text: string) => void;
+  onTurnComplete: () => void;
 }
 
-export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, speakerMuted, volume, voiceName }: VoiceSessionOptions) {
+export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete, sessionId, speakerMuted, volume, voiceName }: VoiceSessionOptions) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string>();
@@ -298,6 +299,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
           interruptPlayback();
           setStatus("listening");
         } else if (message.type === "turn_complete") {
+          onTurnComplete();
           turnCompleteRef.current = true;
           if (!sourcesRef.current.size) sendControl("playback_drained");
           setStatus("listening");
@@ -436,7 +438,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, sessionId, spea
       setError(reason instanceof Error ? reason.message : "Sherpa voice failed.");
       setStatus("error");
     }
-  }, [clearPlayback, interruptPlayback, onTranscript, playAudio, sendControl, sessionId, speakerMuted, status, stop, voiceName, volume]);
+  }, [clearPlayback, interruptPlayback, onTranscript, onTurnComplete, playAudio, sendControl, sessionId, speakerMuted, status, stop, voiceName, volume]);
 
   useEffect(() => {
     if (gainRef.current) gainRef.current.gain.value = speakerMuted ? 0 : volume / 100;

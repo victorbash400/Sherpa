@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { applyChatEvent, finishReasoning } from "../chat/chatEvents";
 import { createSherpaChat, loadSherpaChats, saveSherpaChats } from "../chat/chatStorage";
 import { streamChat } from "../chat/chatStream";
+import { generateChatTitle } from "../chat/chatTitle";
 import type { ChatMessage, SherpaChat, VoiceTranscriptEntry } from "../chat/chatTypes";
 
 export function useSherpaChat() {
@@ -13,10 +14,38 @@ export function useSherpaChat() {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string>();
   const controllerRef = useRef<AbortController | undefined>(undefined);
+  const namingChatIdsRef = useRef(new Set<string>());
+  const chatsRef = useRef(chats);
+  chatsRef.current = chats;
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
 
   useEffect(() => saveSherpaChats(chats), [chats]);
   useEffect(() => () => controllerRef.current?.abort(), []);
+
+  const nameChat = useCallback(async (chatId: string, userText: string, assistantText: string) => {
+    const chat = chatsRef.current.find((item) => item.id === chatId);
+    if (
+      !chat
+      || chat.titleStatus !== "pending"
+      || namingChatIdsRef.current.has(chatId)
+      || !userText.trim()
+      || !assistantText.trim()
+    ) return;
+    namingChatIdsRef.current.add(chatId);
+    setChats((current) => current.map((item) => item.id === chatId
+      ? { ...item, titleStatus: "naming" }
+      : item));
+    try {
+      const title = await generateChatTitle(userText, assistantText);
+      setChats((current) => current.map((item) => item.id === chatId
+        ? { ...item, title, titleStatus: "complete", updatedAt: Date.now() }
+        : item));
+    } catch {
+      setChats((current) => current.map((item) => item.id === chatId
+        ? { ...item, titleStatus: "failed" }
+        : item));
+    }
+  }, []);
 
   const updateMessages = useCallback((chatId: string, update: (messages: ChatMessage[]) => ChatMessage[]) => {
     setChats((current) => current.map((chat) => chat.id === chatId ? {
@@ -28,15 +57,43 @@ export function useSherpaChat() {
 
   const appendTranscript = useCallback((chatId: string, role: VoiceTranscriptEntry["role"], text: string) => {
     if (!text) return;
-    setChats((current) => current.map((chat) => {
+    const nextChats = chatsRef.current.map((chat) => {
       if (chat.id !== chatId) return chat;
       const latest = chat.transcript.at(-1);
       const transcript = latest?.role === role
         ? [...chat.transcript.slice(0, -1), { ...latest, text: mergeTranscript(latest.text, text) }]
         : [...chat.transcript, { id: crypto.randomUUID(), role, text }];
-      return { ...chat, transcript, updatedAt: Date.now() };
-    }));
+      return {
+        ...chat,
+        title: chat.transcript.length || role !== "user" ? chat.title : text.slice(0, 42),
+        transcript,
+        updatedAt: Date.now(),
+      };
+    });
+    chatsRef.current = nextChats;
+    setChats(nextChats);
   }, []);
+
+  const completeVoiceTurn = useCallback((chatId: string) => {
+    const transcript = chatsRef.current.find((chat) => chat.id === chatId)?.transcript ?? [];
+    let assistantIndex = -1;
+    for (let index = transcript.length - 1; index >= 0; index -= 1) {
+      if (transcript[index].role === "assistant" && transcript[index].text.trim()) {
+        assistantIndex = index;
+        break;
+      }
+    }
+    if (assistantIndex < 0) return;
+    let user: VoiceTranscriptEntry | undefined;
+    for (let index = assistantIndex - 1; index >= 0; index -= 1) {
+      if (transcript[index].role === "user" && transcript[index].text.trim()) {
+        user = transcript[index];
+        break;
+      }
+    }
+    const assistant = transcript[assistantIndex];
+    if (user && assistant) void nameChat(chatId, user.text, assistant.text);
+  }, [nameChat]);
 
   const newChat = useCallback(() => {
     controllerRef.current?.abort();
@@ -80,13 +137,18 @@ export function useSherpaChat() {
     setError(undefined);
     const controller = new AbortController();
     controllerRef.current = controller;
+    let assistantText = "";
     try {
       await streamChat({
         message,
         sessionId: chatId,
         signal: controller.signal,
-        onEvent: (event) => updateMessages(chatId, (current) => applyChatEvent(current, event)),
+        onEvent: (event) => {
+          if (event.type === "content") assistantText += event.content;
+          updateMessages(chatId, (current) => applyChatEvent(current, event));
+        },
       });
+      await nameChat(chatId, message, assistantText);
     } catch (reason) {
       if (!(reason instanceof DOMException && reason.name === "AbortError")) {
         setError(reason instanceof Error ? reason.message : "Sherpa chat failed");
@@ -96,9 +158,9 @@ export function useSherpaChat() {
       setStreaming(false);
       controllerRef.current = undefined;
     }
-  }, [activeChat, streaming, updateMessages]);
+  }, [activeChat, nameChat, streaming, updateMessages]);
 
-  return { activeChat, activeChatId, appendTranscript, chats, deleteChat, error, newChat, selectChat, send, streaming };
+  return { activeChat, activeChatId, appendTranscript, chats, completeVoiceTurn, deleteChat, error, newChat, selectChat, send, streaming };
 }
 
 function mergeTranscript(current: string, incoming: string) {

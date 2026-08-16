@@ -24,6 +24,7 @@ export type VoiceTranscriptEntry = {
 export type SherpaChat = {
   id: string;
   title: string;
+  titleStatus: "pending" | "naming" | "complete" | "failed";
   messages: ChatMessage[];
   transcript: VoiceTranscriptEntry[];
   createdAt: number;
