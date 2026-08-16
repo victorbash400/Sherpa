@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +18,7 @@ from google.genai import types
 from backend.agents.sherpa_agent import sherpa_app
 from backend.agents.task_planner import TaskPlan, task_planner_app
 from backend.memory_manager import memory_manager
+from backend.logging_config import add_token_usage
 from backend.memory_store import memory_store
 from backend.permission_store import permission_store
 from backend.skill_store import skill_store
@@ -430,6 +432,7 @@ class SherpaTaskManager:
             await asyncio.gather(*workers, return_exceptions=True)
 
     async def _plan(self, chat_id: str, instruction: str) -> TaskPlan:
+        started_at = time.perf_counter()
         planner_session_id = f"{chat_id}:planner:{crypto_id()}"
         ledger = [
             {
@@ -449,6 +452,7 @@ class SherpaTaskManager:
             session_id=planner_session_id,
         )
         response_text = ""
+        token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
         prompt = json.dumps({
             "request": instruction,
             "task_ledger": ledger,
@@ -462,13 +466,25 @@ class SherpaTaskManager:
                 parts=[types.Part.from_text(text=prompt)],
             ),
         ):
+            add_token_usage(token_usage, getattr(event, "usage_metadata", None))
             if event.error_message:
                 raise RuntimeError(event.error_message)
             if event.content:
                 for part in event.content.parts or []:
                     if part.text and not part.thought:
                         response_text = merge_stream_text(response_text, part.text)
-        return TaskPlan.model_validate_json(response_text)
+        plan = TaskPlan.model_validate_json(response_text)
+        logger.info(
+            "planner.done chat=%s duration_ms=%d operations=%d tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d",
+            chat_id,
+            round((time.perf_counter() - started_at) * 1000),
+            len(plan.operations),
+            token_usage["input"],
+            token_usage["output"],
+            token_usage["thinking"],
+            token_usage["total"],
+        )
+        return plan
 
     async def _run_sequential(self, task: SherpaTask) -> None:
         try:
@@ -859,6 +875,14 @@ class SherpaTaskManager:
             "next_step": " ".join(next_step.split()).strip(),
             "created_at": datetime.now(UTC).isoformat(),
         })
+        logger.info(
+            'task.progress task=%s phase=%s progress=%d message="%s" next="%s"',
+            task.id,
+            phase,
+            clean_progress,
+            clean_message[:240],
+            " ".join(next_step.split()).strip()[:240],
+        )
 
 
 sherpa_tasks = SherpaTaskManager()
@@ -950,7 +974,26 @@ def tool_error_message(response: dict | None) -> str:
 
 def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:
     action = str(args.get("action", "")).lower()
-    return (
+    workspace_mutations = {
+        "workspace_calendar_create_event",
+        "workspace_calendar_delete_event",
+        "workspace_calendar_update_event",
+        "workspace_docs_append_text",
+        "workspace_docs_batch_update",
+        "workspace_docs_create_doc",
+        "workspace_drive_create_folder",
+        "workspace_drive_update_file",
+        "workspace_gmail_create_draft",
+        "workspace_gmail_send_draft",
+        "workspace_gmail_send_message",
+        "workspace_sheets_append_rows",
+        "workspace_sheets_batch_update",
+        "workspace_sheets_create_spreadsheet",
+        "workspace_sheets_update_range",
+        "workspace_slides_batch_update",
+        "workspace_slides_create_presentation",
+    }
+    return name in workspace_mutations or (
         name == "computer_app" and action in {"quit", "terminate"}
     ) or (
         name == "computer_window" and action == "close"

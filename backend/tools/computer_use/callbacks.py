@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any
 
 from google.adk.tools import BaseTool, ToolContext
@@ -9,6 +10,7 @@ from backend.tools.computer_use.runtime import computer_runtime, is_interaction_
 
 logger = logging.getLogger("sherpa.computer_use")
 MAX_TOOL_TEXT = 40_000
+tool_started_at: dict[str, float] = {}
 
 
 async def before_computer_tool(
@@ -16,11 +18,14 @@ async def before_computer_tool(
     args: dict[str, Any],
     tool_context: ToolContext,
 ) -> dict[str, str] | None:
+    key = tool_call_key(tool, tool_context)
+    tool_started_at[key] = time.perf_counter()
     logger.info(
-        "tool.started session=%s call=%s name=%s",
+        "tool.start session=%s call=%s name=%s target=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
+        tool_target(args),
     )
     required_permission = tool_permission(tool.name)
     if required_permission and not permission_store.enabled(required_permission):
@@ -54,6 +59,7 @@ async def after_computer_tool(
     tool_response: dict,
 ) -> dict:
     del args
+    duration_ms = tool_duration_ms(tool, tool_context)
     if is_interaction_tool(tool.name):
         computer_runtime.release(tool_call_key(tool, tool_context))
     safe_response = sanitize_tool_response(tool_response)
@@ -63,18 +69,20 @@ async def after_computer_tool(
         or safe_response.get("status") == "failed"
     ):
         logger.warning(
-            "tool.failed session=%s call=%s name=%s error=%s",
+            "tool.failed session=%s call=%s name=%s duration_ms=%d error=%s",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
+            duration_ms,
             response_error(safe_response),
         )
     else:
-        logger.debug(
-            "tool.completed session=%s call=%s name=%s",
+        logger.info(
+            "tool.done session=%s call=%s name=%s duration_ms=%d",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
+            duration_ms,
         )
     return safe_response
 
@@ -86,13 +94,15 @@ async def on_computer_tool_error(
     error: Exception,
 ) -> dict[str, str]:
     del args
+    duration_ms = tool_duration_ms(tool, tool_context)
     if is_interaction_tool(tool.name):
         computer_runtime.release(tool_call_key(tool, tool_context))
     logger.error(
-        "tool.failed session=%s call=%s name=%s error=%s",
+        "tool.failed session=%s call=%s name=%s duration_ms=%d error=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
+        duration_ms,
         error,
     )
     return {
@@ -126,6 +136,17 @@ def sanitize_tool_response(response: dict) -> dict:
 
 def tool_call_key(tool: BaseTool, tool_context: ToolContext) -> str:
     return tool_context.function_call_id or f"{tool_context.session.id}:{tool.name}"
+
+
+def tool_duration_ms(tool: BaseTool, tool_context: ToolContext) -> int:
+    started_at = tool_started_at.pop(tool_call_key(tool, tool_context), None)
+    return round((time.perf_counter() - started_at) * 1000) if started_at else 0
+
+
+def tool_target(args: dict[str, Any]) -> str:
+    safe_keys = ("app", "action", "element", "url", "range", "query", "spreadsheet_id")
+    values = [f"{key}={str(args[key])[:120]}" for key in safe_keys if args.get(key)]
+    return " ".join(values) or "-"
 
 
 def response_error(response: dict) -> str:

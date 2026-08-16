@@ -42,6 +42,11 @@ sherpa_agent = Agent(
     process and window receipt. Never use an accessibility action unless the
     current observation explicitly advertises it for that element.
 
+    A failed interaction invalidates its observation. Observe again before any
+    retry and use only element IDs from that new observation. Never retry a
+    stale element ID or issue another interaction after a "no active snapshot"
+    response without first observing the interface again.
+
     Prefer background element actions. When a fresh element has no advertised
     press action or a background click explicitly reports a custom-drawn or
     non-pressable control, retry that same target once with foreground enabled

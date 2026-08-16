@@ -4,17 +4,14 @@ import asyncio
 import html
 import logging
 import re
-import traceback
-import warnings
+import time
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from urllib.parse import urlparse
 
-warnings.filterwarnings(
-    "ignore",
-    message=r"\[EXPERIMENTAL\] feature FeatureName\.(PLUGGABLE_AUTH|_MCP_GRACEFUL_ERROR_HANDLING|BASE_AUTHENTICATED_TOOL) is enabled\.",
-    category=UserWarning,
-)
+from backend.logging_config import add_token_usage, configure_logging, log_text
+
+configure_logging()
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,11 +33,8 @@ os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "sherpa-20260813")
 os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
 
-logging.basicConfig(
-    level=os.getenv("SHERPA_LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
 logger = logging.getLogger("sherpa.voice")
+chat_logger = logging.getLogger("sherpa.conversation")
 
 from backend.credential_store import load_gemini_api_key
 from backend.credential_store import load_playwright_extension_token
@@ -374,6 +368,7 @@ async def chat_title(body: ChatTitleRequest) -> dict[str, str]:
 
 
 async def stream_chat(body: ChatRequest):
+    started_at = time.perf_counter()
     try:
         if not permission_store.enabled("google.models"):
             yield sse({"type": "error", "error": "Gemini models are turned off in Sherpa Plugins."})
@@ -387,6 +382,8 @@ async def stream_chat(body: ChatRequest):
         config = RunConfig(streaming_mode=StreamingMode.SSE)
         assistant_text = ""
         tool_assisted = False
+        tool_calls = 0
+        token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
         async for event in run_with_google_tool_scope(
             runner,
             body.message,
@@ -395,6 +392,7 @@ async def stream_chat(body: ChatRequest):
             new_message=message,
             run_config=config,
         ):
+            add_token_usage(token_usage, getattr(event, "usage_metadata", None))
             if event.error_message:
                 yield sse({"type": "error", "error": event.error_message})
                 continue
@@ -412,6 +410,7 @@ async def stream_chat(body: ChatRequest):
                 continue
             for call in event.get_function_calls():
                 tool_assisted = True
+                tool_calls += 1
                 yield sse(
                     {
                         "type": "tool_call",
@@ -430,6 +429,18 @@ async def stream_chat(body: ChatRequest):
                     }
                 )
         yield sse({"type": "done"})
+        chat_logger.info(
+            'turn channel=text session=%s duration_ms=%d tools=%d tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d user="%s" assistant="%s"',
+            body.session_id,
+            round((time.perf_counter() - started_at) * 1000),
+            tool_calls,
+            token_usage["input"],
+            token_usage["output"],
+            token_usage["thinking"],
+            token_usage["total"],
+            log_text(body.message),
+            log_text(assistant_text),
+        )
         memory_manager.schedule(
             source_type="chat",
             source_id=body.session_id,
@@ -494,6 +505,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
     )
 
     async with client.aio.live.connect(model=VOICE_MODEL, config=config) as live:
+        live_closed = asyncio.Event()
         model_idle = True
         playback_drained = True
         user_speaking = False
@@ -503,6 +515,8 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         notification_lock = asyncio.Lock()
         voice_user_text: list[str] = []
         voice_assistant_text: list[str] = []
+        turn_user_text: list[str] = []
+        turn_assistant_text: list[str] = []
 
         await websocket.send_json({"type": "ready"})
         logger.info("session.ready session=%s model=%s tools=7", session_id, VOICE_MODEL)
@@ -573,8 +587,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                         break
             except WebSocketDisconnect:
                 logger.info("client.disconnected session=%s", session_id)
-            except Exception:
-                logger.exception("audio.receiver_failed session=%s", session_id)
+            except Exception as error:
+                if live_closed.is_set() or is_expected_live_close(error):
+                    logger.info("session.input_closed session=%s", session_id)
+                else:
+                    logger.exception("audio.receiver_failed session=%s", session_id)
 
         async def send_function_response(
             call_id: str,
@@ -610,12 +627,14 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                             await websocket.send_json({"type": "interrupted"})
                         if content.input_transcription and content.input_transcription.text:
                             voice_user_text.append(content.input_transcription.text)
+                            turn_user_text.append(content.input_transcription.text)
                             await websocket.send_json({
                                 "type": "input_transcript",
                                 "text": content.input_transcription.text,
                             })
                         if content.output_transcription and content.output_transcription.text:
                             voice_assistant_text.append(content.output_transcription.text)
+                            turn_assistant_text.append(content.output_transcription.text)
                             await websocket.send_json({
                                 "type": "output_transcript",
                                 "text": content.output_transcription.text,
@@ -627,21 +646,36 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                                     playback_drained = False
                                     await websocket.send_bytes(part.inline_data.data)
                         if content.turn_complete:
+                            chat_logger.info(
+                                'turn channel=voice session=%s user="%s" assistant="%s"',
+                                session_id,
+                                log_text(" ".join(turn_user_text)),
+                                log_text(" ".join(turn_assistant_text)),
+                            )
+                            turn_user_text.clear()
+                            turn_assistant_text.clear()
                             model_idle = True
                             notification_in_flight = False
                             in_flight_notifications = []
                             await websocket.send_json({"type": "turn_complete"})
                             await maybe_deliver_notification()
             except Exception as error:
-                logger.error(
-                    "model.live_failed session=%s type=%s error=%s\n%s",
-                    session_id, type(error).__name__, error, traceback.format_exc(),
-                )
-                with suppress(RuntimeError, WebSocketDisconnect):
-                    await websocket.send_json({
-                        "type": "error",
-                        "error": f"Voice session failed: {type(error).__name__}: {error}",
-                    })
+                live_closed.set()
+                if is_expected_live_close(error):
+                    logger.info(
+                        "session.ended session=%s reason=provider_duration_limit",
+                        session_id,
+                    )
+                else:
+                    logger.exception(
+                        "model.live_failed session=%s type=%s error=%s",
+                        session_id, type(error).__name__, error,
+                    )
+                    with suppress(RuntimeError, WebSocketDisconnect):
+                        await websocket.send_json({
+                            "type": "error",
+                            "error": f"Voice session failed: {type(error).__name__}: {error}",
+                        })
 
         event_queue = sherpa_tasks.subscribe(session_id)
 
@@ -709,6 +743,11 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
 
 def sse(event: dict[str, object]) -> str:
     return f"data: {json.dumps(event, default=str)}\n\n"
+
+
+def is_expected_live_close(error: Exception) -> bool:
+    message = str(error).lower()
+    return "goaway" in message and "session durat" in message
 
 
 def public_tool_result(result: dict | None) -> dict[str, str]:

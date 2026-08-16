@@ -29,6 +29,9 @@ task_planner = Agent(
     ),
     mode="chat",
     output_schema=TaskPlan,
+    generate_content_config=types.GenerateContentConfig(
+        thinking_config=types.ThinkingConfig(thinking_level="low"),
+    ),
     instruction="""
     You maintain an ordered, strictly sequential task queue. Read the user's new
     request together with every running or queued task before making changes.
