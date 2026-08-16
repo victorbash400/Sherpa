@@ -103,7 +103,14 @@
   color: #343431;
   background: #fff;
   font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  scrollbar-width: thin;
+  scrollbar-color: #c8c8c3 transparent;
 }
+
+.skill-row__editor textarea::-webkit-scrollbar { width: 3px; height: 3px; }
+.skill-row__editor textarea::-webkit-scrollbar-track { background: transparent; }
+.skill-row__editor textarea::-webkit-scrollbar-thumb { border-radius: 3px; background: #c8c8c3; }
+.skill-row__editor textarea::-webkit-scrollbar-corner { background: transparent; }
 
 .skill-row__editor textarea:focus { border-color: #999993; }
 
