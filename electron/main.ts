@@ -43,6 +43,7 @@ function createWindow() {
     maxHeight: 520,
     backgroundColor: "#ffffff",
     titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 12, y: 12 },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -50,6 +51,12 @@ function createWindow() {
     },
   });
   mainWindow = window;
+  const emitFocus = (focused: boolean) => {
+    if (!window.isDestroyed()) window.webContents.send("window:focus-changed", focused);
+  };
+  window.on("focus", () => emitFocus(true));
+  window.on("blur", () => emitFocus(false));
+  window.webContents.on("did-finish-load", () => emitFocus(window.isFocused()));
   window.on("closed", () => {
     stopAllPreviews();
     mainWindow = undefined;
