@@ -220,6 +220,28 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('"type": "google_sheet"', handoff)
         self.assertIn('"value": "https://docs.google.com/spreadsheets/d/example"', handoff)
 
+    async def test_structured_outputs_are_required_only_for_active_dependents(self) -> None:
+        producer = SherpaTask(
+            id="producer",
+            chat_id="chat",
+            instruction="Produce result",
+            expected_outputs=["result"],
+        )
+        self.manager._tasks[producer.id] = producer
+        self.assertFalse(self.manager.requires_handoff(producer))
+
+        consumer = SherpaTask(
+            id="consumer",
+            chat_id="chat",
+            instruction="Consume result",
+            depends_on=[producer.id],
+        )
+        self.manager._tasks[consumer.id] = consumer
+        self.assertTrue(self.manager.requires_handoff(producer))
+
+        consumer.status = "completed"
+        self.assertFalse(self.manager.requires_handoff(producer))
+
     async def test_planner_attaches_multiple_skills_to_one_task(self) -> None:
         plan = TaskPlan(
             message="Queued the workflow.",
@@ -264,6 +286,11 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(is_observation_tool("workspace_sheets_read_range"))
         self.assertTrue(is_observation_tool("workspace_docs_read_doc"))
         self.assertFalse(is_observation_tool("workspace_sheets_update_range"))
+
+    async def test_application_and_window_lists_are_observations(self) -> None:
+        self.assertTrue(is_observation_tool("computer_app", {"action": "list"}))
+        self.assertTrue(is_observation_tool("computer_window", {"action": "list"}))
+        self.assertFalse(is_observation_tool("computer_app", {"action": "quit"}))
 
     async def test_browser_evaluate_requires_visual_verification(self) -> None:
         self.assertFalse(is_observation_tool("browser_evaluate"))

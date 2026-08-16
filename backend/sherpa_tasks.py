@@ -337,6 +337,13 @@ class SherpaTaskManager:
             if submission.chat_id == chat_id and submission.status == "received"
         ]
 
+    def requires_handoff(self, task: SherpaTask) -> bool:
+        return any(
+            task.id in candidate.depends_on
+            and candidate.status in ACTIVE_TASK_STATUSES
+            for candidate in self._tasks.values()
+        )
+
     def submission_snapshot(self, submission: SherpaSubmission) -> dict[str, Any]:
         return {
             "status": submission.status,
@@ -894,11 +901,12 @@ class SherpaTaskManager:
                         if failed:
                             task.tool_failures[response.name] = task.tool_failures.get(response.name, 0) + 1
                     if not failed and not is_control_tool:
-                        if is_observation_tool(response.name):
+                        response_args = tool_call_args.get(response_id, {})
+                        if is_observation_tool(response.name, response_args):
                             last_successful_observation = result_sequence
                         elif tool_result_self_verifies(
                             response.name,
-                            tool_call_args.get(response_id, {}),
+                            response_args,
                         ):
                             last_successful_action = result_sequence
                             last_successful_observation = result_sequence
@@ -947,7 +955,7 @@ class SherpaTaskManager:
                 for output in outputs
             ):
                 raise RuntimeError("Sherpa completed the task with invalid structured outputs.")
-            if task.expected_outputs and not outputs:
+            if self.requires_handoff(task) and task.expected_outputs and not outputs:
                 raise RuntimeError("Sherpa completed the task without its expected structured outputs.")
             task.outputs = [
                 {key: str(output[key]).strip() for key in ("name", "type", "value", "verification")}
@@ -1227,7 +1235,11 @@ def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:
     )
 
 
-def is_observation_tool(name: str) -> bool:
+def is_observation_tool(
+    name: str,
+    args: dict[str, Any] | None = None,
+) -> bool:
+    action = str((args or {}).get("action", "")).lower()
     return name in {
         "computer_see",
         "computer_inspect_ui",
@@ -1244,7 +1256,10 @@ def is_observation_tool(name: str) -> bool:
         "workspace_people_search_contacts",
         "workspace_sheets_read_range",
         "workspace_slides_get_presentation",
-    }
+    } or (
+        name in {"computer_app", "computer_window"}
+        and action == "list"
+    )
 
 
 def overlay_target(
