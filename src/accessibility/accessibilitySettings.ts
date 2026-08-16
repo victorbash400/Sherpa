@@ -22,23 +22,26 @@ export const SPOKEN_LANGUAGES = [
 ] as const;
 
 export type AccessibilitySettings = {
-  enabled: boolean;
+  cameraEnabled: boolean;
   signLanguage: string;
-  signLanguageEnabled: boolean;
   spokenLanguage: string;
 };
 
 export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
-  enabled: false,
+  cameraEnabled: false,
   signLanguage: "asl",
-  signLanguageEnabled: false,
   spokenLanguage: "en",
 };
 
 export function loadAccessibilitySettings(): AccessibilitySettings {
   try {
-    const stored = JSON.parse(localStorage.getItem("sherpa.accessibility") || "null") as Partial<AccessibilitySettings> | null;
-    return stored ? { ...DEFAULT_ACCESSIBILITY_SETTINGS, ...stored } : DEFAULT_ACCESSIBILITY_SETTINGS;
+    const stored = JSON.parse(localStorage.getItem("sherpa.accessibility") || "null") as (Partial<AccessibilitySettings> & { signLanguageEnabled?: boolean }) | null;
+    if (!stored) return DEFAULT_ACCESSIBILITY_SETTINGS;
+    return {
+      cameraEnabled: stored.cameraEnabled ?? stored.signLanguageEnabled ?? false,
+      signLanguage: stored.signLanguage ?? DEFAULT_ACCESSIBILITY_SETTINGS.signLanguage,
+      spokenLanguage: stored.spokenLanguage ?? DEFAULT_ACCESSIBILITY_SETTINGS.spokenLanguage,
+    };
   } catch {
     return DEFAULT_ACCESSIBILITY_SETTINGS;
   }

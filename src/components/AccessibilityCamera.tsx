@@ -33,7 +33,7 @@ export function AccessibilityCamera({ active }: AccessibilityCameraProps) {
   }, [active]);
 
   if (!active) {
-    return <div className="accessibility-camera accessibility-camera--idle"><Camera aria-hidden="true" /><span>Camera preview</span></div>;
+    return <div className="accessibility-camera accessibility-camera--idle"><Camera aria-hidden="true" /><span>Camera off</span></div>;
   }
 
   if (error) return <p className="accessibility-camera__error" role="alert">{error}</p>;

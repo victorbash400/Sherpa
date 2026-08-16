@@ -14,32 +14,30 @@ interface AccessibilityViewProps {
 
 export function AccessibilityView({ active, onChange, settings }: AccessibilityViewProps) {
   const update = (change: Partial<AccessibilitySettings>) => onChange({ ...settings, ...change });
-  const cameraActive = active && settings.enabled && settings.signLanguageEnabled;
+  const cameraActive = active && settings.cameraEnabled;
   return (
     <>
       <h1 className="plugins-view__title">Accessibility</h1>
       <section className="accessibility-view" aria-label="Accessibility">
-        <div className="accessibility-section">
+        <div className="accessibility-settings">
+          <h2>Sign language</h2>
           <div className="accessibility-row">
-            <span><strong>Accessibility</strong><small>Adapt Sherpa for signed and multilingual conversations.</small></span>
-            <AccessibilitySwitch checked={settings.enabled} label="Accessibility" onChange={(enabled) => update({ enabled })} />
+            <span><strong>Signing</strong><small>The sign language you use.</small></span>
+            <AccessibilitySelect label="Sign language" onChange={(signLanguage) => update({ signLanguage })} options={SIGN_LANGUAGES} value={settings.signLanguage} />
           </div>
           <div className="accessibility-row">
-            <span><strong>Sign language</strong><small>Open a camera preview for signed conversations.</small></span>
-            <AccessibilitySwitch checked={settings.signLanguageEnabled} label="Sign language" onChange={(signLanguageEnabled) => update({ signLanguageEnabled })} />
+            <span><strong>Sherpa speaks</strong><small>The language used for spoken replies.</small></span>
+            <AccessibilitySelect label="Spoken language" onChange={(spokenLanguage) => update({ spokenLanguage })} options={SPOKEN_LANGUAGES} value={settings.spokenLanguage} />
           </div>
           <div className="accessibility-row">
-            <span><strong>Conversation</strong><small>Choose the signed input and Sherpa's spoken response.</small></span>
-            <span>
-              <AccessibilitySelect disabled={!settings.enabled} label="Signing" onChange={(signLanguage) => update({ signLanguage })} options={SIGN_LANGUAGES} value={settings.signLanguage} />
-              <AccessibilitySelect disabled={!settings.enabled} label="Sherpa speaks" onChange={(spokenLanguage) => update({ spokenLanguage })} options={SPOKEN_LANGUAGES} value={settings.spokenLanguage} />
-            </span>
+            <span><strong>Camera</strong><small>Show the signing preview.</small></span>
+            <AccessibilitySwitch checked={settings.cameraEnabled} label="Camera" onChange={(cameraEnabled) => update({ cameraEnabled })} />
           </div>
         </div>
-        <div className="accessibility-section">
+        <div className="accessibility-preview">
           <AccessibilityCamera active={cameraActive} />
+          <small>Camera preview</small>
         </div>
-        <p className="accessibility-note">Sign interpretation is not connected yet. This preview only confirms the camera framing.</p>
       </section>
     </>
   );
