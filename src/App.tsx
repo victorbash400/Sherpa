@@ -35,7 +35,6 @@ export function App() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
-  const [windowFocused, setWindowFocused] = useState(true);
   const automaticTaskViewRef = useRef(false);
   const hadActiveTasksRef = useRef(false);
   const chat = useSherpaChat();
@@ -57,10 +56,6 @@ export function App() {
   const voiceActive = voice.status === "connecting" || voice.status === "listening" || voice.status === "speaking";
   const hasActiveTasks = voice.tasks.some((task) => task.status === "running");
   const hasTranscript = chat.activeChat.transcript.some((entry) => entry.text.trim().length > 0);
-
-  useEffect(() => {
-    return window.sherpaSystem?.onWindowFocusChanged(setWindowFocused);
-  }, []);
 
   useEffect(() => {
     if (!hasTranscript && transcriptExpanded) setTranscriptExpanded(false);
@@ -95,7 +90,7 @@ export function App() {
   };
 
   return (
-    <main className="shell" data-sidebar-open={sidebarOpen} data-window-focused={windowFocused}>
+    <main className="shell" data-sidebar-open={sidebarOpen}>
       <SidebarToggle open={sidebarOpen} onToggle={() => setSidebarOpen((current) => !current)} />
       <ControlRail
         activeView={view}

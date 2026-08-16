@@ -51,14 +51,7 @@ function createWindow() {
     },
   });
   mainWindow = window;
-  const emitFocus = (focused: boolean) => {
-    if (window.isDestroyed()) return;
-    if (process.platform === "darwin") window.setWindowButtonVisibility(focused);
-    window.webContents.send("window:focus-changed", focused);
-  };
-  window.on("focus", () => emitFocus(true));
-  window.on("blur", () => emitFocus(false));
-  window.webContents.on("did-finish-load", () => emitFocus(window.isFocused()));
+  if (process.platform === "darwin") window.setWindowButtonVisibility(true);
   window.on("closed", () => {
     stopAllPreviews();
     mainWindow = undefined;
