@@ -64,6 +64,7 @@ class SherpaTask:
     depends_on: list[str] = field(default_factory=list)
     required_inputs: list[str] = field(default_factory=list)
     expected_outputs: list[str] = field(default_factory=list)
+    outputs: list[dict[str, str]] = field(default_factory=list)
     status: str = "queued"
     phase: str = "queued"
     progress: int = 0
@@ -195,9 +196,23 @@ class SherpaTaskManager:
             elif operation.action == "reuse":
                 if not task:
                     raise RuntimeError("The task planner reused an invalid task.")
-            elif operation.action == "steer":
+            elif operation.action == "update":
                 if not task or not operation.instruction:
                     raise RuntimeError("The task planner returned an invalid task update.")
+                result = await self.update(
+                    task.id,
+                    operation.instruction,
+                    title=operation.title,
+                    skill_ids=operation.skill_ids,
+                )
+                if result["status"] != "updated":
+                    raise RuntimeError("The task planner tried to update a task that is already working.")
+                changed = True
+            elif operation.action == "steer":
+                if not task or not operation.instruction:
+                    raise RuntimeError("The task planner returned an invalid task steering operation.")
+                if task.status == "queued":
+                    raise RuntimeError("The task planner must update queued work instead of steering it.")
                 if operation.skill_ids:
                     task.skill_ids = list(operation.skill_ids)
                 await self.steer(task.id, operation.instruction)
@@ -270,7 +285,6 @@ class SherpaTaskManager:
         )
 
     def _validate_plan(self, chat_id: str, plan: TaskPlan) -> None:
-        created = 0
         referenced: set[str] = set()
         available_skills = {skill["id"] for skill in skill_store.catalog()}
         create_keys: set[str] = set()
@@ -281,7 +295,6 @@ class SherpaTaskManager:
                     f"The task planner selected unknown skills: {', '.join(sorted(unknown_skills))}."
                 )
             if operation.action == "create":
-                created += 1
                 if not operation.title or not operation.instruction or not operation.key:
                     raise RuntimeError("The task planner returned an incomplete task.")
                 if operation.key in create_keys:
@@ -298,10 +311,8 @@ class SherpaTaskManager:
             if task.id in referenced:
                 raise RuntimeError("The task planner changed the same task more than once.")
             referenced.add(task.id)
-            if operation.action == "steer" and not operation.instruction:
+            if operation.action in {"update", "steer"} and not operation.instruction:
                 raise RuntimeError("The task planner returned an incomplete task update.")
-        if created > 3:
-            raise RuntimeError("The task planner created too many tasks.")
 
     def get(self, task_id: str) -> SherpaTask | None:
         return self._tasks.get(task_id)
@@ -350,6 +361,7 @@ class SherpaTaskManager:
             "depends_on": list(task.depends_on),
             "required_inputs": list(task.required_inputs),
             "expected_outputs": list(task.expected_outputs),
+            "outputs": [dict(output) for output in task.outputs],
             "status": task.status,
             "phase": task.phase,
             "progress": task.progress,
@@ -391,25 +403,42 @@ class SherpaTaskManager:
         task.worker.cancel()
         return True
 
+    async def update(
+        self,
+        task_id: str,
+        instruction: str,
+        *,
+        title: str = "",
+        skill_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        task = self._tasks.get(task_id)
+        clean_instruction = " ".join(instruction.split()).strip()
+        if not task or task.status != "queued":
+            return {"status": "not_queued", "task_id": task_id}
+        if not clean_instruction:
+            return {"status": "invalid", "task_id": task_id}
+        task.request = clean_instruction
+        if title.strip():
+            task.instruction = " ".join(title.split()).strip()
+        if skill_ids is not None:
+            task.skill_ids = list(skill_ids)
+        self._record_update(
+            task,
+            "queued",
+            task.progress,
+            "Queued task updated",
+            "Waiting for earlier work to finish.",
+        )
+        await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
+        return {"status": "updated", "task_id": task_id}
+
     async def steer(self, task_id: str, instruction: str) -> dict[str, Any]:
         task = self._tasks.get(task_id)
         clean_instruction = " ".join(instruction.split()).strip()
-        if not task or task.status not in ACTIVE_TASK_STATUSES:
-            return {"status": "not_running", "task_id": task_id}
+        if not task or task.status not in {"running", "blocked"}:
+            return {"status": "not_working", "task_id": task_id}
         if not clean_instruction:
             return {"status": "invalid", "task_id": task_id}
-        if task.status == "queued":
-            task.instruction = clean_instruction
-            task.request = clean_instruction
-            self._record_update(
-                task,
-                "queued",
-                task.progress,
-                f"Queued task changed: {clean_instruction}",
-                "Waiting for the active task to finish.",
-            )
-            await self._emit(task, {"type": "task_steering_applied", **self.snapshot(task)})
-            return {"status": "applied", "task_id": task_id}
         directive = {
             "type": "steer",
             "id": f"directive_{crypto_id()}",
@@ -481,6 +510,7 @@ class SherpaTaskManager:
                 "task_id": task.id,
                 "title": task.instruction,
                 "instruction": task.request,
+                "status": task.status,
                 "phase": task.phase,
                 "current_step": task.current_step,
                 "skill_ids": task.skill_ids,
@@ -589,6 +619,8 @@ class SherpaTaskManager:
                 async with self._execution_lease:
                     if task.status not in ACTIVE_TASK_STATUSES:
                         return
+                    if not resume:
+                        next_instruction = task.request
                     task.status = "running"
                     task.phase = "starting"
                     task.current_step = "Starting work"
@@ -627,6 +659,7 @@ class SherpaTaskManager:
             "summary": dependency.summary,
             "evidence": dependency.evidence,
             "expected_outputs": dependency.expected_outputs,
+            "outputs": dependency.outputs,
         } for dependency in dependencies]
         logger.info(
             "task.handoff task=%s dependencies=%s",
@@ -907,6 +940,19 @@ class SherpaTaskManager:
             if not task.summary or not evidence:
                 raise RuntimeError("Sherpa completed the task without sufficient evidence.")
             task.evidence = evidence
+            outputs = completion.get("outputs", [])
+            if not isinstance(outputs, list) or any(
+                not isinstance(output, dict)
+                or any(not str(output.get(key, "")).strip() for key in ("name", "type", "value", "verification"))
+                for output in outputs
+            ):
+                raise RuntimeError("Sherpa completed the task with invalid structured outputs.")
+            if task.expected_outputs and not outputs:
+                raise RuntimeError("Sherpa completed the task without its expected structured outputs.")
+            task.outputs = [
+                {key: str(output[key]).strip() for key in ("name", "type", "value", "verification")}
+                for output in outputs
+            ]
             task.current_step = task.summary
             logger.info(
                 "task.completed task=%s tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d tools=%s failures=%s summary=%s",

@@ -1,9 +1,20 @@
 import unittest
 
+from backend.tools.voice_tools import VOICE_TOOLS
 from backend.voice_notifications import task_state_notification
 
 
 class VoiceNotificationTests(unittest.TestCase):
+    def test_voice_exposes_distinct_update_and_steer_tools(self) -> None:
+        names = {
+            declaration.name
+            for tool in VOICE_TOOLS
+            for declaration in tool.function_declarations or []
+        }
+
+        self.assertIn("update_task", names)
+        self.assertIn("steer_task", names)
+
     def test_completed_event_keeps_downstream_tasks_grounded(self) -> None:
         prompt = task_state_notification(
             [{

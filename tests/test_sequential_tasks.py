@@ -5,6 +5,7 @@ from unittest.mock import patch
 from backend.agents.task_planner import TaskOperation, TaskPlan
 from backend.sherpa_tasks import (
     SherpaSubmission,
+    SherpaTask,
     SherpaTaskManager,
     is_observation_tool,
     preview_target_for,
@@ -135,6 +136,89 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.gather(*(task.worker for task in tasks))
 
         self.assertEqual(starts, ["one", "two", "three"])
+
+    async def test_planner_schema_does_not_cap_operations_or_task_metadata(self) -> None:
+        operations = [
+            TaskOperation(
+                action="create",
+                task_id="",
+                title=f"Task {index}",
+                instruction=f"instruction {index}",
+                key=f"task-{index}",
+                skill_ids=["workspace-spreadsheets"] * 5,
+                required_inputs=[f"input-{item}" for item in range(10)],
+                expected_outputs=[f"output-{item}" for item in range(10)],
+            )
+            for index in range(7)
+        ]
+
+        plan = TaskPlan(message="Queued.", operations=operations)
+
+        self.assertEqual(len(plan.operations), 7)
+        self.assertEqual(len(plan.operations[0].required_inputs), 10)
+
+    async def test_queued_task_update_replaces_plan_before_execution(self) -> None:
+        first_started = asyncio.Event()
+        release_first = asyncio.Event()
+        starts: list[str] = []
+
+        async def run(task, instruction: str, handoff: str = "", **kwargs) -> None:
+            del handoff, kwargs
+            starts.append(instruction)
+            if instruction == "first":
+                first_started.set()
+                await release_first.wait()
+            task.status = "completed"
+
+        with patch.object(self.manager, "_run_with_computer", side_effect=run):
+            first = self.manager._create_task("chat", "First", "first")
+            await first_started.wait()
+            second = self.manager._create_task("chat", "Old title", "old instruction")
+            result = await self.manager.update(
+                second.id,
+                "new instruction",
+                title="New title",
+                skill_ids=["workspace-spreadsheets"],
+            )
+            self.assertEqual(result["status"], "updated")
+            self.assertEqual(second.instruction, "New title")
+            self.assertEqual(second.skill_ids, ["workspace-spreadsheets"])
+            release_first.set()
+            await asyncio.gather(first.worker, second.worker)
+
+        self.assertEqual(starts, ["first", "new instruction"])
+
+    async def test_queued_task_cannot_be_steered(self) -> None:
+        task = SherpaTask(id="task", chat_id="chat", instruction="Queued")
+        self.manager._tasks[task.id] = task
+
+        result = await self.manager.steer(task.id, "change")
+
+        self.assertEqual(result["status"], "not_working")
+
+    async def test_dependency_handoff_includes_structured_outputs(self) -> None:
+        dependency = SherpaTask(
+            id="dependency",
+            chat_id="chat",
+            instruction="Create result",
+            outputs=[{
+                "name": "spreadsheet",
+                "type": "google_sheet",
+                "value": "https://docs.google.com/spreadsheets/d/example",
+                "verification": "Read Sheet1 after writing.",
+            }],
+        )
+        task = SherpaTask(
+            id="consumer",
+            chat_id="chat",
+            instruction="Use result",
+            required_inputs=["spreadsheet"],
+        )
+
+        handoff = self.manager._dependency_handoff(task, [dependency])
+
+        self.assertIn('"type": "google_sheet"', handoff)
+        self.assertIn('"value": "https://docs.google.com/spreadsheets/d/example"', handoff)
 
     async def test_planner_attaches_multiple_skills_to_one_task(self) -> None:
         plan = TaskPlan(

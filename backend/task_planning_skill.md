@@ -15,6 +15,7 @@ Plan the user's outcome, not a list of apps or generic activities.
 2. Order work by information flow: gather prerequisites, decide, create, verify, then distribute or schedule.
 3. For every split, name the predecessor key in `depends_on`, the exact `required_inputs`, and the exact `expected_outputs` handed forward.
 4. Make each instruction operational and concrete: name the app or service, the object to find or create, the comparison or edit to perform, and the evidence required for completion.
+5. Update queued tasks when new information changes their plan. Steer only work that is already running or blocked.
 
 Good: "In Chrome, search Google Maps for small-group restaurants near the user's stated location for August 13. Compare price level, atmosphere, availability evidence, and distance; select one option and return its name, address, price level, booking link, and selection rationale."
 

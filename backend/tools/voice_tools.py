@@ -58,8 +58,21 @@ VOICE_TOOLS = [
             ),
         ),
         types.FunctionDeclaration(
+            name="update_task",
+            description="Replace the stored instruction for a queued task that has not begun working.",
+            behavior=types.Behavior.BLOCKING,
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING),
+                    "instruction": types.Schema(type=types.Type.STRING),
+                },
+                required=["task_id", "instruction"],
+            ),
+        ),
+        types.FunctionDeclaration(
             name="steer_task",
-            description="Change the direction of a running task at its next completed tool boundary.",
+            description="Change running or blocked work at its next completed tool boundary.",
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -167,12 +180,16 @@ async def handle_voice_tool_call(
         })
         return
 
-    if name == "steer_task":
+    if name in {"update_task", "steer_task"}:
         task_id = str(args.get("task_id", "")).strip()
         instruction = str(args.get("instruction", "")).strip()
         task = sherpa_tasks.get(task_id)
         response = (
-            await sherpa_tasks.steer(task_id, instruction)
+            await (
+                sherpa_tasks.update(task_id, instruction)
+                if name == "update_task"
+                else sherpa_tasks.steer(task_id, instruction)
+            )
             if task and task.chat_id == session_id
             else {"status": "not_found", "task_id": task_id}
         )

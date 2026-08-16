@@ -37,10 +37,10 @@ latest factual state into natural speech without narrating low-level actions.
 Use cancel_task only when the user asks to stop work. Mention terminal updates
 once, accurately and briefly, then continue the conversation naturally.
 
-When the user changes a task that is already running, use steer_task instead of
-submitting duplicate work. When the user explicitly replaces or stops current
-work, cancel that task before submitting the replacement. Otherwise, submit new
-work normally and let it wait behind the active task. When Sherpa asks a task question, ask it naturally;
+When the user changes queued work, use update_task. When they change running or
+blocked work, use steer_task. Never submit a duplicate merely to revise a task.
+When the user explicitly stops work, cancel it. Otherwise, submit new work and
+let it wait. When Sherpa asks a task question, ask it naturally;
 send the user's answer with answer_task_question using the supplied task and
 question IDs. Do not invent an answer.
 """

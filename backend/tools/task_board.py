@@ -35,18 +35,21 @@ def complete_task(
     summary: str,
     evidence: str,
     tool_context: ToolContext,
-) -> dict[str, str]:
+    outputs: list[dict[str, str]] | None = None,
+) -> dict[str, object]:
     """Explicitly finish the current task after its outcome has been observed.
 
     Args:
         summary: A concise description of the completed outcome.
         evidence: What was observed that proves the requested outcome occurred.
+        outputs: Structured results for later tasks. Each output has a name, type, value, and verification. Return an empty list when no result needs handing forward.
     """
     tool_context.actions.end_of_agent = True
     return {
         "status": "completed",
         "summary": summary.strip(),
         "evidence": evidence.strip(),
+        "outputs": outputs or [],
     }
 
 
