@@ -23,6 +23,11 @@ import { SidebarToggle } from "./components/SidebarToggle";
 import { SkillsView } from "./components/SkillsView";
 import { useConnectionSections } from "./hooks/useConnectionSections";
 import { useSkills } from "./hooks/useSkills";
+import {
+  loadAccessibilitySettings,
+  saveAccessibilitySettings,
+  type AccessibilitySettings,
+} from "./accessibility/accessibilitySettings";
 import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
@@ -36,6 +41,7 @@ export function App() {
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [windowFocused, setWindowFocused] = useState(true);
+  const [accessibilitySettings, setAccessibilitySettings] = useState(loadAccessibilitySettings);
   const automaticTaskViewRef = useRef(false);
   const hadActiveTasksRef = useRef(false);
   const chat = useSherpaChat();
@@ -92,6 +98,11 @@ export function App() {
     chat.newChat();
     setHistoryOpen(false);
     setView("voice");
+  };
+
+  const updateAccessibilitySettings = (settings: AccessibilitySettings) => {
+    setAccessibilitySettings(settings);
+    saveAccessibilitySettings(settings);
   };
 
   return (
@@ -194,7 +205,11 @@ export function App() {
         <SkillsView error={skills.error} skills={skills.skills} onSave={skills.updateSkill} />
       </div>
       <div hidden={view !== "accessibility"}>
-        <AccessibilityView />
+        <AccessibilityView
+          active={view === "accessibility"}
+          onChange={updateAccessibilitySettings}
+          settings={accessibilitySettings}
+        />
       </div>
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
       <RefreshButton />
