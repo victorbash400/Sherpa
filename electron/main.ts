@@ -52,7 +52,9 @@ function createWindow() {
   });
   mainWindow = window;
   const emitFocus = (focused: boolean) => {
-    if (!window.isDestroyed()) window.webContents.send("window:focus-changed", focused);
+    if (window.isDestroyed()) return;
+    if (process.platform === "darwin") window.setWindowButtonVisibility(focused);
+    window.webContents.send("window:focus-changed", focused);
   };
   window.on("focus", () => emitFocus(true));
   window.on("blur", () => emitFocus(false));
