@@ -97,6 +97,19 @@ async def on_computer_tool_error(
     duration_ms = tool_duration_ms(tool, tool_context)
     if is_interaction_tool(tool.name):
         computer_runtime.release(tool_call_key(tool, tool_context))
+    if tool.name == "computer_dialog" and is_mcp_response_timeout(error):
+        logger.info(
+            "tool.paused session=%s call=%s name=%s duration_ms=%d reason=user_dialog",
+            tool_context.session.id,
+            tool_context.function_call_id,
+            tool.name,
+            duration_ms,
+        )
+        return {
+            "status": "waiting_for_user",
+            "question": "Please finish or dismiss the open macOS dialog, then tell me to continue.",
+            "context": "Sherpa paused without discarding the task or its progress.",
+        }
     logger.error(
         "tool.failed session=%s call=%s name=%s duration_ms=%d error=%s",
         tool_context.session.id,
@@ -147,6 +160,11 @@ def tool_target(args: dict[str, Any]) -> str:
     safe_keys = ("app", "action", "element", "url", "range", "query", "spreadsheet_id")
     values = [f"{key}={str(args[key])[:120]}" for key in safe_keys if args.get(key)]
     return " ".join(values) or "-"
+
+
+def is_mcp_response_timeout(error: Exception) -> bool:
+    message = str(error).lower()
+    return "timed out while waiting for response to clientrequest" in message
 
 
 def response_error(response: dict) -> str:

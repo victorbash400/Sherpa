@@ -488,13 +488,12 @@ class SherpaTaskManager:
 
     async def _run_sequential(self, task: SherpaTask) -> None:
         try:
-            async with self._execution_lease:
-                if task.status != "running":
-                    return
-                task.phase = "starting"
-                task.current_step = "Starting work"
-                await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-                await self._run_worker(task, task.request)
+            if task.status != "running":
+                return
+            task.phase = "starting"
+            task.current_step = "Starting work"
+            await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
+            await self._run_worker(task, task.request)
         except asyncio.CancelledError:
             if task.status != "cancelled":
                 task.status = "cancelled"
@@ -511,13 +510,21 @@ class SherpaTaskManager:
         resume = False
         while task.status == "running":
             try:
-                await self._run_with_computer(
-                    task,
-                    next_instruction,
-                    resume=resume,
-                )
+                async with self._execution_lease:
+                    if task.status != "running":
+                        return
+                    await self._run_with_computer(
+                        task,
+                        next_instruction,
+                        resume=resume,
+                    )
                 return
             except TaskQuestionBoundary as boundary:
+                logger.info(
+                    "task.paused task=%s question=%s",
+                    task.id,
+                    boundary.question["id"],
+                )
                 directives = await self._wait_for_answer(task, boundary.question["id"])
                 next_instruction = await self._directive_prompt(task, directives)
                 resume = True
@@ -687,6 +694,34 @@ class SherpaTaskManager:
                         if next_browser_targets:
                             browser_targets = next_browser_targets
                     response_payload = response.response or {}
+                    waiting_question = tool_waiting_question(response_payload)
+                    if waiting_question:
+                        question = {
+                            "id": f"question_{crypto_id()}",
+                            "question": waiting_question,
+                            "context": str(
+                                response_payload.get("context", "")
+                            ).strip(),
+                            "blocking": True,
+                            "status": "open",
+                            "created_at": datetime.now(UTC).isoformat(),
+                        }
+                        task.questions.append(question)
+                        self._record_update(
+                            task,
+                            "blocked",
+                            task.progress,
+                            waiting_question,
+                            "Waiting for the user's answer.",
+                        )
+                        task.phase = "blocked"
+                        task.current_step = waiting_question
+                        await self._emit(task, {
+                            "type": "task_question",
+                            "question": question,
+                            **self.snapshot(task),
+                        })
+                        raise TaskQuestionBoundary(question)
                     workspace_preview = response_payload.get("preview") if isinstance(response_payload, dict) else None
                     if isinstance(workspace_preview, dict) and workspace_preview.get("kind") == "workspace":
                         task.preview_target = {
@@ -970,6 +1005,15 @@ def tool_error_message(response: dict | None) -> str:
         if text:
             return text[:1000]
     return "The tool reported a failure without an explanation."
+
+
+def tool_waiting_question(response: Any) -> str | None:
+    if not isinstance(response, dict) or response.get("status") != "waiting_for_user":
+        return None
+    question = response.get("question")
+    if isinstance(question, str) and question.strip():
+        return question.strip()[:1000]
+    return "Please complete the open interaction, then tell me to continue."
 
 
 def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:

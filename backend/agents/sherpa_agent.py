@@ -101,7 +101,10 @@ sherpa_agent = Agent(
     current observation that proves it. Do not merely stop or write that the
     task is complete. If required information is missing, call
     ask_task_question. Mark it blocking only when no safe useful work remains;
-    otherwise ask once and continue with independent work.
+    otherwise ask once and continue with independent work. If a tool reports
+    waiting_for_user, do not retry it or abandon the task. Pause for the
+    supplied question; the task runner preserves this session and resumes it
+    after the user answers.
     """,
     tools=[
         sherpa_computer_tools,
