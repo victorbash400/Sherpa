@@ -1,22 +1,32 @@
 .control-rail {
   position: absolute;
-  top: 45px;
-  left: 8px;
+  inset: 0 auto 0 0;
   z-index: 2;
-  width: 34px;
+  width: 50px;
+  box-sizing: border-box;
+  padding: 45px 12px 14px;
   overflow: hidden;
-  transition: width 220ms cubic-bezier(.2, .8, .2, 1);
+  border-right: 1px solid transparent;
+  background: #fff;
+  box-shadow: none;
+  contain: paint;
+  transition: width 220ms cubic-bezier(.2, .8, .2, 1), border-color 180ms ease, background-color 180ms ease;
   -webkit-app-region: no-drag;
 }
 
 .control-rail[data-expanded="true"] {
-  width: 156px;
+  width: 180px;
+  border-right-color: rgb(70 70 67 / 12%);
+  background: #f8f8f6;
+  box-shadow:
+    inset -1px 0 rgb(255 255 255 / 46%),
+    1px 0 0 rgb(255 255 255 / 20%);
 }
 
 .control-rail__title {
   display: block;
   height: 18px;
-  margin-left: 4px;
+  margin-left: 6px;
   color: #1d1d1f;
   font-size: 15px;
   font-weight: 600;
@@ -34,14 +44,13 @@
 
 .control-rail__actions {
   display: grid;
-  gap: 10px;
-  margin-top: 17px;
+  gap: 4px;
+  margin-top: 14px;
 }
 
 .control-rail button,
 .audio-controls button {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
   width: 34px;
   height: 34px;
   padding: 0;
@@ -58,11 +67,13 @@
 
 .control-rail button {
   box-sizing: border-box;
-  padding: 0 4px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  padding: 0 6px;
+  align-items: center;
 }
 
 .control-rail[data-expanded="true"] button {
-  width: 148px;
+  width: 156px;
 }
 
 .control-rail button > svg,
@@ -81,16 +92,41 @@
   transition: opacity 120ms ease;
 }
 
+.control-rail button > span {
+  width: 0;
+  visibility: hidden;
+}
+
 .control-rail[data-expanded="true"] button > span,
 .control-rail[data-expanded="true"] .cursor-dock > span {
   opacity: 1;
+}
+
+.control-rail[data-expanded="true"] button > span {
+  width: auto;
+  visibility: visible;
 }
 
 .control-rail button:hover,
 .audio-controls button:hover,
 .control-rail button[aria-pressed="true"] {
   color: #171717;
-  background: #f3f3f3;
+  background: rgb(118 118 115 / 12%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-rail,
+  .control-rail__title,
+  .control-rail button {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .control-rail[data-expanded="true"] {
+    border-right-color: rgb(70 70 67 / 32%);
+    background: rgb(246 246 243 / 94%);
+  }
 }
 
 .control-rail button:focus-visible,

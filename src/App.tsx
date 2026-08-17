@@ -148,7 +148,7 @@ export function App() {
               hue={selectedVoice.hue}
             />
             <VoiceSessionButton hue={selectedVoice.hue} onStart={() => void voice.start()} onStop={voice.stop} status={voice.status} />
-            <VoiceToolActivity activities={voice.toolActivities} />
+            <VoiceToolActivity activities={voice.toolActivities} context={voice.contextUsage} />
           </section>
           {voice.error ? <p className="voice-error" role="alert">{voice.error}</p> : null}
           <AudioControls

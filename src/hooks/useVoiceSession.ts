@@ -10,6 +10,11 @@ export type VoiceToolActivity = {
   status: "running" | "done" | "error";
   error?: string;
 };
+export type VoiceContextUsage = {
+  tokens: number;
+  limit: number;
+  compacting: boolean;
+};
 export type VoiceTask = {
   id: string;
   chatId: string;
@@ -49,6 +54,8 @@ type TaskPayload = {
   preview_target?: PreviewTarget;
   interaction_mode?: VoiceTask["interactionMode"];
   updates?: Array<{ phase: string; progress: number; message: string; next_step?: string; created_at: string }>;
+  context_tokens?: number;
+  context_token_limit?: number;
 };
 
 interface VoiceSessionOptions {
@@ -66,6 +73,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string>();
   const [toolActivities, setToolActivities] = useState<VoiceToolActivity[]>([]);
+  const [contextUsage, setContextUsage] = useState<VoiceContextUsage>({
+    tokens: 0,
+    limit: 300_000,
+    compacting: false,
+  });
   const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [computerActive, setComputerActive] = useState(false);
   const socketRef = useRef<WebSocket | undefined>(undefined);
@@ -297,6 +309,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           }>;
           preview_target?: PreviewTarget;
           interaction_mode?: VoiceTask["interactionMode"];
+          context_tokens?: number;
+          context_token_limit?: number;
         };
         if (message.type === "interrupted") {
           interruptPlayback();
@@ -333,15 +347,12 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           const toolName = message.name;
           if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
           activityTimerRef.current = undefined;
-          setToolActivities((current) => {
-            if (current.some((activity) => activity.id === toolId)) return current;
-            return [...current, {
+          setToolActivities([{
               id: toolId,
               name: toolName,
               args: message.args || {},
               status: "running",
-            }];
-          });
+          }]);
           if (message.name.startsWith("computer_") || message.name.startsWith("browser_")) {
             if (message.task_id && message.preview_target) {
               const overlayX = message.args?.overlay_x;
@@ -380,6 +391,25 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
               }
               : activity,
           ));
+        } else if (message.type === "context_usage" && typeof message.context_tokens === "number") {
+          setContextUsage((current) => ({
+            tokens: message.context_tokens ?? current.tokens,
+            limit: message.context_token_limit ?? current.limit,
+            compacting: current.compacting,
+          }));
+        } else if (message.type === "compaction_started") {
+          setToolActivities([]);
+          setContextUsage((current) => ({
+            tokens: message.context_tokens ?? current.tokens,
+            limit: message.context_token_limit ?? current.limit,
+            compacting: true,
+          }));
+        } else if (message.type === "compaction_completed" || message.type === "compaction_failed") {
+          setContextUsage((current) => ({
+            tokens: message.context_tokens ?? current.tokens,
+            limit: message.context_token_limit ?? current.limit,
+            compacting: false,
+          }));
         } else if (message.type === "task_started" && message.task_id && message.instruction) {
           runningTaskIdsRef.current.add(message.task_id);
           setTasks((current) => [
@@ -479,6 +509,12 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           ...current.filter((task) => task.chatId !== sessionId),
           ...loadedTasks.map((task) => taskFromMessage(task, sessionId)),
         ]);
+        const activeTask = loadedTasks.find((task) => ["running", "blocked"].includes(task.status || ""));
+        setContextUsage({
+          tokens: activeTask?.context_tokens ?? 0,
+          limit: activeTask?.context_token_limit ?? 300_000,
+          compacting: false,
+        });
       })
       .catch((reason: unknown) => {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
@@ -503,6 +539,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   return {
     audioLevel,
     computerActive,
+    contextUsage,
     error,
     start,
     status,

@@ -2,7 +2,8 @@
   --transcript-hue: 0;
   position: absolute;
   top: calc(50% - 190px);
-  left: 50%;
+  right: 0;
+  left: var(--sidebar-content-left);
   z-index: 3;
   width: min(340px, calc(100% - 190px));
   height: 72px;
@@ -21,8 +22,8 @@
     0 2px 5px rgb(38 38 35 / 7%),
     0 16px 38px hsl(var(--transcript-hue) 24% 30% / 11%);
   backdrop-filter: blur(28px) saturate(175%) contrast(104%) brightness(1.06);
-  transform: translateX(-50%);
-  transition: width 220ms cubic-bezier(.2, .8, .2, 1), height 220ms cubic-bezier(.2, .8, .2, 1), top 220ms cubic-bezier(.2, .8, .2, 1), border-radius 220ms ease;
+  margin: 0 auto;
+  transition: left 220ms cubic-bezier(.2, .8, .2, 1), width 220ms cubic-bezier(.2, .8, .2, 1), height 220ms cubic-bezier(.2, .8, .2, 1), top 220ms cubic-bezier(.2, .8, .2, 1), border-radius 220ms ease;
   -webkit-backdrop-filter: blur(28px) saturate(175%) contrast(104%) brightness(1.06);
   -webkit-app-region: no-drag;
 }

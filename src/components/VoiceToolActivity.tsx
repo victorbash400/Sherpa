@@ -1,18 +1,44 @@
-import type { VoiceToolActivity as Activity } from "../hooks/useVoiceSession";
+import type { CSSProperties } from "react";
+import type { VoiceContextUsage, VoiceToolActivity as Activity } from "../hooks/useVoiceSession";
 import "./VoiceToolActivity.css";
 
-export function VoiceToolActivity({ activities }: { activities: Activity[] }) {
-  if (!activities.length) return null;
+export function VoiceToolActivity({ activities, context }: {
+  activities: Activity[];
+  context: VoiceContextUsage;
+}) {
+  const activity = activities.at(-1);
+  if (!activity && !context.tokens && !context.compacting) return null;
+
+  const ratio = Math.min(1, context.tokens / context.limit);
+  const remaining = Math.max(0, context.limit - context.tokens);
 
   return (
     <div className="voice-tool-activity" aria-live="polite">
-      {activities.map((activity) => (
-        <span data-status={activity.status} key={activity.id}>
-          {activityLabel(activity)}
-        </span>
-      ))}
+      <span className="voice-context-gauge" style={{ "--context-progress": ratio } as CSSProperties}>
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="8" />
+          <circle cx="10" cy="10" r="8" pathLength="1" />
+        </svg>
+      </span>
+      <span className="voice-activity-copy">
+        {context.compacting ? (
+          <strong className="voice-activity-label" data-status="running">
+            <img src="/compress-svgrepo-com%20(1).svg" alt="" />
+            Compacting
+          </strong>
+        ) : activity ? (
+          <strong className="voice-activity-label" data-status={activity.status}>
+            {activityLabel(activity)}
+          </strong>
+        ) : null}
+        <small>{formatTokens(context.tokens)} used · {formatTokens(remaining)} remaining</small>
+      </span>
     </div>
   );
+}
+
+function formatTokens(tokens: number) {
+  return new Intl.NumberFormat("en").format(tokens);
 }
 
 function activityLabel(activity: Activity) {
