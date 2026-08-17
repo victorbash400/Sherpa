@@ -1,0 +1,36 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+overrides:
+  oracle: link:../oracle
+  '@steipete/oracle': link:../oracle
+
+importers:
+
+  .:
+    devDependencies:
+      chrome-devtools-mcp:
+        specifier: 1.6.0
+        version: 1.6.0
+
+packages:
+
+  chrome-devtools-mcp@1.6.0:
+    resolution: {integrity: sha512-VZX6f/OjQSYhy2BGGRs+y3LsrsAQAz/HwZCWKBLVyST/4r/3zjVEjjVW7gMCVbRDuspnVdcp5hQDPrQ5UFrdZw==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=23}
+    hasBin: true
+    peerDependencies:
+      '@blackwell-systems/gcf': ^2.2.2
+      '@toon-format/toon': ^2.2.0
+    peerDependenciesMeta:
+      '@blackwell-systems/gcf':
+        optional: true
+      '@toon-format/toon':
+        optional: true
+
+snapshots:
+
+  chrome-devtools-mcp@1.6.0: {}

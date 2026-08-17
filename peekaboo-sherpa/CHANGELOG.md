@@ -1,0 +1,1230 @@
+# Changelog
+
+## [4.2.1] - Unreleased
+
+## [4.2.0] - 2026-08-16
+
+### Added
+- Add Bridge protocol 1.29 peer-bound signed operation sessions and exact target/result receipts, with bounded rollover, replay protection, and fail-closed recovery for long-running background automation.
+- Make protocol 1.29 browser receipts require a fully resolved explicit DevTools endpoint, and make exact dialog text entry use background Accessibility value mutation while refusing receipt-incapable legacy dialog mutations before dispatch.
+- Add Bridge protocol 1.26 exact browser connection receipts, binding persistent Chrome DevTools MCP sessions to one process generation or validated loopback DevTools browser identity.
+- Add Bridge protocol 1.25 one-shot dialog receipts that uniquely bind an exact process/window, raw dialog or sheet, and semantic AXPress button for background click/dismiss, with read-only targeted listing and canonical postcondition outcomes.
+- Add a background-first native Bridge host runtime for signed macOS apps, with explicit caller allowlists, shared mutation/snapshot state, checked lifecycle, and no Core, provider, browser, daemon, or AppleScript surface.
+- Add capability-gated exact-window background wheel delivery for opaque WKWebView/Tauri scroll targets, preserving the foreground app and physical cursor while refusing hidden, stale, Electron, Chromium, Catalyst, or AX-only routes.
+
+### Changed
+- Build branded release disk images from pinned direct Finder-metadata tooling, preserving the signed and notarized drag-to-Applications layout without GUI automation.
+
+### Fixed
+- Keep Finder layout metadata on the DMG volume instead of the signed app bundle, preserving strict mounted-payload code verification without losing the branded drag-to-Applications layout.
+- Complete the Bridge 1.29 receipt-session handshake before daemon status or stop control, validate explicit move snapshots before focus setup, and preserve actionable quit recovery over generic escalation guidance.
+- Require explicit foreground consent for Space switching and followed window moves across CLI and MCP, and compose their native move/switch receipts without synthesizing success or dispatch counts.
+- Establish and verify a window's destination Space before removing prior memberships, and retain its exact generation-bound identity through Space-aware focus.
+- Let later exact maximize readbacks supersede transient poll errors while preserving cancellation and identity contradictions, and route idempotent no-change receipts by the actual execution host.
+- Return canonical retry-safe pre-dispatch refusals when window owner-generation or bounds-provenance evidence does not match the selected mutation target.
+- Bind protocol 1.29 window and frontmost capture receipts to the exact captured process/window, reject missing or contradictory target metadata, and keep screen/area captures explicitly global.
+- Keep root help and version order-independent across canonical kebab- and camel-case runtime-option aliases while preserving correct missing-value errors.
+- Treat `capture video` as caller-local media ingestion so valid files and typed media failures bypass Screen Recording and ScreenCaptureKit-owner preflight while live capture remains gated.
+- Refuse exact-window and dialog Accessibility reads when macOS cannot arm their per-element messaging deadline, and surface timeout reset failures instead of continuing unbounded.
+- Treat Finder's role-inapplicable `AXWindow` value failure as sparse descriptor data so normal exact-window combined observations retain usable Accessibility elements, while every other hard AX read and genuinely incomplete window remains fail-closed.
+- Refuse exact-window combined observations when Accessibility returns no usable elements, preserving the requested raster and retry-safe `ACCESSIBILITY_INCOMPLETE` semantics across current and legacy Bridge hosts while explicit screenshot-only capture remains successful.
+- Validate request-only `click`, `move`, `type`, and `drag` arguments before runtime-host selection so malformed requests cannot be masked by Bridge availability or trigger unnecessary host startup.
+- Keep concrete interaction snapshots out of ScreenCaptureKit-owner preflight because they cannot refresh or capture, and give omitted/latest snapshot flows an actionable `see --capture-engine classic` recovery.
+- Add Bridge protocol 1.26 explicit-reference-only coordinate receipts for exact-window `see --no-elements`, making the documented background coordinate-click workflow consumable without Accessibility traversal or replacing the prior implicit element snapshot while older hosts fail before receipt allocation.
+- Honor cancellation while draining and reaping MCP ShellTool subprocesses so canceled commands cannot linger behind pipe cleanup. Thanks @SebTardif for #454.
+- Reject unknown and non-object MCP `tools/call` arguments as JSON-RPC invalid params before policy checks or tool dispatch, recursively honoring the closed schemas advertised by `tools/list`.
+- Probe Chrome before reporting browser connection success, reject ambiguous same-channel profiles, preserve structured Bridge failures, never silently rediscover another profile after a session or endpoint is lost, and atomically focus the exact snapshot uid before browser typing or key presses.
+- Stage browser uploads from race-checked, current-user regular files into one private per-session Chrome MCP temporary root, without unrestricted filesystem access, and terminate the exact child before cancellation cleanup.
+- Classify an exact standard window with a live attached sheet as dialog-active during observation, sharing native role evidence with dialog actions while keeping the parent window receipt exact.
+- Report exact ScreenCaptureKit owner PID, process generation, safe build identity, and selected-versus-owner Bridge sockets when available; automatic capture can still use an owner-aware host's classic-only path around an auxiliary legacy owner, while explicit modern and ambiguous legacy ownership remain fail-closed without unsafe process-stop guidance.
+- Centralize canonical application/window outcomes across Foundation, services, Bridge, CLI, and MCP while preserving legacy JSON fields and v4.1.0 public APIs, and keep minimize verification exact when retained AX window IDs disappear transiently.
+
+## [4.1.0] - 2026-08-13
+
+### Highlights
+
+- **Background automation now fails closed end to end.** Input, application, window, and Agent routes revalidate exact process, window, bounds, snapshot, capability, and focused-element receipts; targetless, ambiguous, stale, and foreground-only work refuses before it can fall through to the user's active app.
+- **One canonical action truth crosses process boundaries.** Bridge-carried outcomes, snapshot mutation leases, and the shared Foundation sequence accumulator keep dispatch, retry, evidence, and fresh-observation semantics consistent across CLI, MCP, and Agent surfaces.
+- **Concurrent agents keep separate state.** UI snapshots, latest selection, invalidation, retention, and cleanup are isolated by MCP server or Agent session, while immutable background-only policy and generation-bound tool ownership prevent one run from widening or replacing another's authority.
+- **Observation and capture are richer and faster.** Host-local Vision OCR, exact-window ROI, AX-only inspection independent of capture ownership, owner-affine ScreenCaptureKit plan reuse, bounded one-shot capture, and native app lookup preserve Retina geometry and actionable receipts without persistent streams or multi-second scans.
+- **Native-only deployment and external integration are first-class.** The transactional signed companion installer, unattended Bridge host, restored four-product SwiftPM facade, and native-only release gates support verified embedding without AppleScript or full Agent/Core dependencies.
+- **Long-lived hosts do less work and recover honestly.** Event-driven Bridge listener wakeups, deadline-bounded inventory, strict explicit-socket routing, and exact-window background keyboard delivery remove hidden fallbacks while incomplete evidence remains explicit.
+
+### Added
+
+- Add receipt-pinned exact-window background `type`, `paste`, and `press`, preserving process generation, window bounds, and focused-element identity while refusing ambiguous app/PID targets and unsafe Agent dialog/shared-UI routes.
+- Restore the root SwiftPM facade for external consumers with four lean library products—Foundation, Protocols, AutomationKit, and Bridge—plus a fresh-consumer build contract that prevents manifest and product drift.
+- Add opt-in host-local Vision OCR to CLI/MCP `see`, preserving incomplete AX evidence, exact snapshot receipts, logical bounds, confidence, background-only observation, and fail-before-dispatch compatibility with older Bridge hosts.
+- Stateless exact-window ROI capture for CLI/MCP `see`, with generation-pinned
+  full-window receipts, AX/OCR filtering, snapshot-bound pixel mapping, and
+  fail-closed remote-host validation.
+- Add explicit `app:install-companion` deployment for built or exact signed companion artifacts with crash recovery, signer/TCC/native-only verification, unattended launch, exact GUI Bridge readiness, and fail-closed rollback, while preserving contributor `app:restart` as the Debug/local-signing workflow.
+- Add a fail-closed unattended GUI Bridge-host launch mode for deployment, suppressing all unsolicited app UI and Dock promotion while exposing exact host generation/build readiness evidence.
+
+### Changed
+- Default new agent configurations to GPT-5.6 and Claude Opus 5 while keeping credential-only Anthropic discovery on Opus 4.8 for zero-retention compatibility and preserving explicit model selections.
+- Encode annotated observations directly from their rendered bitmap, removing redundant PNG/TIFF round trips while preserving exact pixels, metadata, and output paths.
+- Reuse two-second, owner-host-local ScreenCaptureKit exact-window screenshot plans without caching pixels, revalidating process generation, window receipt, display topology, and scale around every capture while exposing miss/hit generation diagnostics.
+- Wake Bridge hosts on kernel listener readiness instead of polling `accept` every 25 ms, draining queued clients per notification while preserving bounded, descriptor-safe shutdown.
+- Make Agent sessions immutable background-only by default, centrally refusing foreground/global input, activation, raw press, shared-pointer, persistent clipboard mutation, shared system UI mutations, Space switch/follow, browser setup/fronting, and Shell-tool access before dispatch while retaining Space listing and unfollowed window placement; `--allow-foreground` sets a new session's immutable maximum, must be explicitly repeated on resume, and never exposes the Shell tool, while session output exposes full copyable IDs, tasks, lifecycle meaning, and stored policy.
+
+### Fixed
+- Compose setup, delivery, cleanup, cancellation, and refusal receipts through one Foundation action-sequence owner so foreground focus cannot be erased by a no-dispatch leaf and CLI/MCP target refusals expose complete retry guidance.
+- Make explicit Bridge socket overrides fail closed when unavailable instead of reporting a successful local fallback.
+- Validate `see` selectors, explicit caller-local PIDs, and `scroll` directions before runtime-host and ScreenCaptureKit ownership preflight so request errors cannot be masked by ambient capture state.
+- Consume explicit snapshots for further mutations when a canonical action outcome requires fresh observation or is unavailable, refusing duplicate click/action/set-value/scroll dispatch before it reaches the app while preserving read-only snapshot evidence.
+- Report canonical refused, retry-safe, not-dispatched outcomes for pre-dispatch CLI and MCP action validation without attaching desktop semantics to read-only errors or overwriting dispatched receipts.
+- Preserve integer-valued Agent tool data across Codable and Foundation JSON conversion instead of mistaking numeric `0` and `1` for booleans.
+- Carry verified outcomes for receipt-pinned background window close, minimize, restore, maximize, move, resize, and set-bounds through Bridge protocol 1.23 while older hosts remain conservative.
+- Bind each discovered Agent tool to its exact provider and registry generation, recover unchanged bindings after transient discovery failures while refusing ambiguous or stale ownership, and preserve boolean/integer MCP arguments plus descriptions, enums, array item types, and required fields through shared typed conversion paths.
+- Isolate MCP and Agent UI snapshot histories by server/session, including latest selection, invalidation, capacity, duplicate IDs, and lifecycle cleanup, so concurrent agents cannot replace or evict each other's targets.
+- Validate every registered command signature and default-subcommand target before routing, including positional ordering and semantic-label uniqueness; reject duplicate command, subcommand, option, and flag definitions deterministically instead of trapping or silently selecting one, and keep daemon `--bridge-socket` on the canonical runtime option.
+- Preserve `capture action` command tails after `--` as literal positional input while retaining explicit `--command` compatibility and rejecting mixed forms.
+- Consolidate accessibility observer registration, exact element/process dispatch, stop, and deinitialization cleanup under one instance-owned registry.
+- Preserve middle and right mouse-button identity across clicks, holds, and drags, and prebuild complete input sequences so allocation failures cannot leave a button held down.
+- Refresh AXorcist to refuse element-scoped typing when focus cannot be established, preserve exact PID targets, reject conflicting application/PID selectors, and report point lookup misses as errors.
+- Refresh AXorcist point-to-app resolution to keep exact-app misses fail-closed and replace the former ~5-second all-app Accessibility scan with one native on-screen window snapshot; the source-blind exact-head validator measured 43–67 ms for these lookup cases.
+- Carry canonical desktop-action outcomes through capability-gated Bridge protocol 1.23 requests, preserving exact refused, partial, unverified, and indeterminate failures while older hosts remain conservative after a response is lost.
+- Preserve successful native outcomes for click, type, type sequences, scroll, press, action, and set-value across projected Bridge requests, and expose the validated canonical projection in CLI JSON and human output without changing legacy response payloads.
+- Embed one canonical 40-hex source commit in clean stamped CLI and macOS app builds, expose it through JSON/Bridge identity receipts, and require matching per-case socket/process-generation provenance for background certification while leaving raw unstamped builds explicitly `unknown`.
+- Project canonical desktop-action outcomes into MCP metadata for click, type, scroll, press, action, and set-value successes and failures, preserving exact partial recovery and observation-before-retry semantics without inventing receipts for legacy hosts or collapsing composite setup focus into a no-change leaf.
+- Correct `peekaboo bridge --help` and Bridge docs to describe capability-aware reusable-daemon, Peekaboo.app, on-demand-daemon, and local-fallback routing.
+- Refuse public raw `press` chords before dispatch unless explicit foreground consent is present, keep semantic background alternatives discoverable, and report foreground delivery as unverifiable instead of claiming the intended effect completed.
+- Reject excess positional arguments unless a command declares a variadic tail, while preserving explicit multi-chord `press` sequences.
+- Refresh AXorcist to isolate accessibility traversal state per search and honor prefetched children, preventing long-lived hosts from skipping elements seen by earlier commands.
+- Redraw interactive agent chat after height-only terminal resizes so its main-screen viewport stays aligned.
+- Centralize native input target receipts, lane ownership, routing, outcomes, validation, feedback, and finalization, and require exact process-generation/window/bounds receipts for background scrolls before dispatch.
+- Keep AX-only `see --tree --no-screenshot` independent of capture backends and ScreenCaptureKit ownership while still requiring Accessibility on the selected execution host.
+- Reduce reusable-daemon window-tracker MainActor work by retaining only bounds and owner PID, avoiding unused per-window application and Accessibility metadata on every reconciliation pass.
+- Keep generated CLI help honest about background click receipts, foreground permission requirements, default background aliases, and verification predicates; deduplicate permission runtime flags and translate legacy AppleScript denials into native-host upgrade guidance.
+- Refresh AXorcist to dispatch native accessibility actions once with typed AX errors and route legacy `AXSetValue` requests through the `AXValue` attribute instead of action discovery.
+- Preserve terminal input and rendering across fragmented UTF-8 and bracketed paste, exact literal paste state, display-width-safe Unicode, complete 7-bit/8-bit ANSI string controls and OSC-8 links, styled table truncation, and viewport-bounded Markdown and images; clear removed trailing rows during partial updates, keep stop/restart idempotent, and prevent queued renders from escaping a stopped session.
+- Cancel stale MCP SSE readers and fail pending requests when a stream ends or reconnects, and reject unrepresentable audio abort timeouts instead of trapping.
+- Preserve MCP tool failure status, bounded content, structured values, and allowlisted metadata through Agent generation, persisted sessions, terminal handling, and execution traces instead of reshaping failures as successful results.
+- Make `agent --dry-run` emit a deterministic text/JSON preview with the normalized instruction and explicit zero model/tool/session effects, and reject taskless previews as typed invalid usage before chat/help routing.
+- Reject non-finite, fractional, and overflowing MCP numeric arguments before dispatch, and expose integer-shaped delays, durations, counts, process IDs, window selectors, and Space targets as integers in tool schemas.
+- Reject MCP clipboard `outputPath: "-"` before reading or writing anything, with structured filesystem/text guidance, so arbitrary clipboard bytes can never corrupt the stdio JSON-RPC stream or create a literal `-` file.
+- Report Screen Recording, Accessibility, and Event Synthesizing from one selected-host permission snapshot across CLI and MCP, treating missing Accessibility as required while keeping Event Synthesizing action-specific.
+- Preserve negative numeric options, attached long-option values, and option-looking capture-action tails through Commander parsing, while enforcing genuinely required positionals instead of silently accepting incomplete commands.
+- Reject invalid live/action capture cadence instead of silently clamping or trapping, apply post-motion timing with a monotonic deadline, and report sampled throughput, capture failures, diff-filtered frames, and retained throughput separately from artifact postprocessing.
+- Keep remote `window close` background-only by default, matching local execution, and require explicit foreground consent before routing a close through focus or global-input fallbacks.
+- Serialize ScreenCaptureKit ownership across Peekaboo processes for the lifetime of the first explicit local-modern claimant or real SCK caller, with build-bound process-awareness receipts, owner-affine auto/modern routing, current-policy capability checks for every transported engine, and fail-closed rolling-upgrade detection for old Bridge and long-running local processes; explicit classic remains a process-isolated, in-process-SCK-free escape hatch and refuses false-preflight captures unless protected WindowServer metadata independently proves access.
+- Keep modern capture inside bounded, coordinator-owned `SCScreenshotManager` calls instead of service-lifetime `SCStream` sessions, eliminating persistent stream overlap and rechecking ownership before every new framework dispatch.
+- Require remote hosts to advertise per-request desktop-observation capture-engine support before sending explicit modern/classic selections, and keep those selections out of a reusable daemon's inherited environment so later `auto` requests retain their own backend policy.
+- Keep `see --capture-engine` on the selected Bridge host instead of silently moving capture and TCC ownership into the caller; fail before local fallback when no compatible host is available, with `--no-remote` as the explicit caller-local opt-in.
+- Keep OCR bounds correct for Retina captures, retain AX mutation/coordinate receipts through OCR merges and snapshot/ROI round-trips, use one bounded fast local recognition attempt for automation, and refuse only provenance-bound semantic OCR IDs as element action targets.
+- Report live-capture frame deltas against the previous retained frame, preserve nonzero sub-hundredth percentages in human output, and treat luma geometry changes as 100% full-current-frame motion instead of comparing incompatible pixel coordinates.
+- Avoid rereading freshly captured window images from disk when checking for transparent, black, or blank output.
+- Resolve standalone exact-window AX-only `see` targets from their live owner and bind results to a process-generation/window receipt before publishing actionable element IDs or a snapshot.
+- Retry one passive background observation when its exact capture receipt changes before element detection or output, while leaving mutation-capable observations fail-closed.
+- Keep raw SwiftPM CLI `--version` output stable with explicit `unknown` build placeholders instead of reading the original working copy and wall clock at runtime; stamped debug and release builds retain rich link-time metadata.
+- Require direct accessibility actions and value mutations to resolve through a current or freshly targeted UI snapshot, revalidate exact process/window receipts, and refuse before dispatch instead of falling through to the user's frontmost app.
+- Probe Bridge diagnostic sockets concurrently under a one-second per-host deadline with bounded cancellation while preserving runtime selection and candidate order, so `bridge status --verbose` neither accumulates nor inherits a wedged host's full handshake latency.
+- Keep application inventory responsive when hidden processes stall LaunchServices metadata: reuse one WindowServer snapshot, cap/coalesce generation-scoped reads behind per-process and overall deadlines, return explicit partial warnings instead of guessing hidden state, and keep incomplete/system-helper rows out of bulk quit and agent context.
+- Require exactly one CLI/MCP `click` target shape, make the MCP schema require a fresh exact-window receipt for background coordinates, reject PID-only shapes before dispatch, and keep explicit foreground pointer calls discoverable.
+- Accept pnpm's documented installer-option separator and build Developer ID companion artifacts with manual Xcode signing instead of failing on conflicting automatic provisioning.
+- Require explicit foreground consent before Dock/menu-bar global UI or targetless frontmost application-menu clicks; keep discovery read-only/background and return typed refusals before lookup or dispatch.
+- Preserve semantic AX labels, scalar values, roles, descriptions, enabled/selected state, and bounded value-settable capability through background `see` output, persisted snapshots, and agent summaries instead of reducing controls to generic role names.
+- Restrict background app launch to a generation-pinned already-running no-op on a host that advertises the same contract, preserve exact PID selectors and zero-dispatch readiness failures, pin focus/switch/unhide activation to the selected process generation, reject ambiguous selector combinations, and refuse cold launch, document/URL delivery, new instances, relaunch, and unhide before dispatch unless explicit foreground consent is present.
+- Stop probing, requesting, advertising, or showing AppleScript Automation permission now that application, Dock, and UI operations use native macOS APIs; remove the stale checked-in CLI binary and AppleScript code from shipped executables while retaining legacy wire/error decoding for older Bridge hosts.
+- Return generation-pinned CG window inventory promptly when AX enrichment stalls; detached per-process enrichment now times out without holding the Bridge request or desktop lane after its caller disconnects.
+- Let generation-pinned background PID/window observations use fair process/window read lanes so unrelated app mutations overlap and queued same-process writes run between live frames; keep unresolved or focus-capable capture globally exclusive and fail closed on identity drift.
+- Fail empty live/video sessions with typed `CAPTURE_NO_VALID_FRAMES` errors before contact-sheet work, preserve bounded capture/decode causes without laundering cancellation or I/O errors, bound video sampling, clean incomplete MP4s, and base retry metadata on actual focus/action dispatch.
+- Stop `peekaboo learn` from presenting `shell` as a CLI command: it remains a built-in Agent capability but is not in the MCP catalog and has no `peekaboo shell` CLI root; guard both curated Agent overrides and rendered CLI roots against future drift.
+- Ensure action-command JSON validation failures before dispatch report
+  `effect: refused`, including parser and binding errors.
+- Verify app focus against the exact active Workspace PID and visible frontmost-window PID, retry through native AX activation, and report the verified effect as confirmed instead of claiming success for an unfulfilled request.
+- Report unusably empty incomplete AX-only observations as retry-safe, mutation-free `ACCESSIBILITY_INCOMPLETE` failures while preserving true `TIMEOUT` errors and useful nonempty truncated evidence.
+- Pin the OpenClaw Foundation identity for the release preflight so a bare `SIGN_IDENTITY`
+  exported by the operator's login shell can no longer substitute for the release certificate,
+  and surface any inherited identity instead of signing with it silently.
+- Assert the exact v4 replacement text for every removed root command in the release preflight,
+  derived from `CommanderMigrationAdvisor` so the gate cannot drift from the binary.
+
+## [4.0.0] - 2026-08-10
+
+Peekaboo 4 is a ground-up cleanup of the command surface: fewer commands, one spelling
+per operation, grammars your agent already knows, and honest machine-readable results.
+It is a breaking release — see `docs/v4-migration.md` for the complete old→new table.
+
+### Highlights
+
+- **A smaller, sharper CLI.** 40 root commands became exactly 33, and thousands of lines of
+  duplicate surface are gone. Everything a stock macOS tool already does well (`sleep`,
+  `open`, the `.peekaboo.json` script runner) was removed — Peekaboo now assumes your
+  automation runs in a shell and focuses on what only Peekaboo can do.
+- **One verb per operation.** `press` absorbs `hotkey` with xdotool chord syntax
+  (`press cmd+shift+t`); `drag` absorbs `swipe` with dual-typed `--from`/`--to`
+  (element IDs or coordinates); `see` absorbs `image` and `inspect-ui`
+  (`--no-elements` for fast screenshots, `--tree` for AX text trees); `perform-action`
+  is now simply `action`.
+- **`verify` replaces sleep-polling.** Assert window/element predicates with a timeout
+  and stability sampling; results are satisfied / unsatisfied / unknown — and unknown
+  never implies success.
+- **One flag grammar.** Every duration accepts `500`, `500ms`, or `2s` (bare = ms) and
+  unit-suffixed flag names are gone; coordinates are `--at x,y` with `--global` for
+  screen space; modifiers are comma-separated lists; the focus-flag matrix is identical
+  across all interaction commands.
+- **Quiet visual feedback.** Fourteen animation types became three feedback categories:
+  a natural agent cursor with eased curved motion, a compact input HUD, and thin capture
+  borders. Targeted background input stays overlay-free even when its target is visible
+  or frontmost; only untargeted or explicitly foreground work may show the cursor or HUD.
+  The settings retain a master switch and playback controls around those three categories.
+- **Honest results.** Once an action request has been parsed and classified, its JSON
+  result reports `effect: confirmed | partial | unverifiable | suspected_noop | refused`,
+  and errors carry an actionable `hint`. Argument parse/bind failures happen before that
+  classification and may omit `effect`. "The process exited 0" no longer stands in for
+  "the click landed."
+- **Background-first safety.** Launch, open, observation, capture, and targeted input
+  are background by default; focus stealing, global keys, and physical pointer gestures
+  require explicit foreground consent. Ambiguous or targetless background operations
+  are refused instead of falling through to whatever app happens to be frontmost.
+
+### Added
+
+- `verify` command and `verify_state` stability contracts; `tools describe <name>` for
+  on-demand tool schemas.
+- `app focus`, positional app targets across app subcommands, `app launch --wait-ready`
+  with repeatable `--open` targets; `window restore` (CLI/MCP/Bridge) with
+  exact-window receipts; `window` tool `list` action.
+- Native exact-window background right/double clicks with owner/generation validation;
+  distinct background app instances with WindowServer readiness receipts.
+- Recently-automated app icons beside the Peekaboo menu bar item (with settings toggle).
+### Changed
+
+- Standardize CLI JSON on one result envelope with an action-only effect vocabulary after
+  request parsing/classification, actionable error hints, and nonzero exits for failed
+  actions; pre-dispatch parse/bind failures may omit `effect`.
+- Management commands restructured into real subcommand trees: `clipboard
+  get|set|clear|save|restore`, `menubar list|click`, `config provider …` /
+  `config credential set`, `agent run|resume|sessions|chat`,
+  `permissions request <kind>`.
+- `type` is text-only (plus `--clear`); use `press` for Return/Tab/Escape/Delete.
+- Cross-process coordination for concurrent CLI/agent/GUI/daemon desktop operations
+  with generation-scoped lanes; strict bridge 1.11 capability gating.
+- Clipboard paste is serialized across processes, fails closed without touching the
+  pasteboard when unsafe, and restores partial writes.
+- Swift Subprocess 1.0.0, pnpm 11.21.0; CI on macOS 26 / Xcode 26.6.
+
+### Removed (breaking)
+
+- Commands: `sleep`, `open`, `run` (+ `.peekaboo.json` format), `commander`, root
+  `list`, `image`, `hotkey`, `swipe`, `inspect-ui`, `perform-action`, `capture watch`,
+  `menu click-extra`, `menu list-all`, `agent permission`.
+- Flags: `--coords`/`--global-coords` (→ `--at`/`--global`), `--id`, `--image-path`,
+  `--app-target`, `--timeout-seconds`, `--focus-timeout-seconds`, `--restore-delay-ms`
+  and the whole unit-suffixed family, `type --return/--escape/--delete/--tab`,
+  clipboard `-a/--action` + `load`, agent mode flags, compound
+  `permissions request-*` names.
+- MCP surface: `list` tool, `hotkey`/`swipe` tools, agent shims `list_apps` /
+  `list_screens` / `launch_app`; `perform_action` renamed `action`; ClipboardTool
+  params are snake_case (`file_path`, `data_base64`). MCP keeps screenshot-only
+  `image`, AX-only `inspect_ui`, and `sleep` (MCP clients may lack a shell).
+
+### Fixed
+- Normalize agent failures and `see` success JSON under the shared result envelope,
+  with nonzero terminal failures, specific validation/credential/session/runtime codes,
+  and no duplicate inner `success` field.
+- Add actionable text and JSON migration hints for removed v4 commands and flags,
+  reject ambiguous press input shapes, and align `see`/`type`/`press` help with the
+  accepted grammar.
+- Stop cancelled on-demand daemon idle timers from rescheduling one another,
+  preventing runaway CPU and memory use after repeated Bridge activity.
+- Reject conflicting app/PID and window selectors across interaction CLI and MCP
+  entry points before focus, observation, or mutation.
+- Require explicit `--foreground` for long-press clicks so the shared physical cursor
+  cannot be used through an implicit delivery-mode promotion.
+- Pin background `press` sequences to one process generation, stop before a recycled
+  PID can receive later chords, and report partial delivery as retry-unsafe.
+- Keep direct `action` and `set-value` targets in the background by default, including
+  web-content discovery, unless `--foreground` is explicit.
+- Non-US keyboard layouts preserve requested characters during background typing.
+  Thanks @canvascoding for #330.
+- Phantom-success accessibility actions are rejected; typed `set-value` results are
+  verified against live AX state; app quit/window close verify disappearance before
+  reporting success; minimized windows report from live AX state.
+- Window mutations bind to immutable capture-time bounds, reject recycled
+  CGWindowID/PID generations, and never activate apps or enter full screen from
+  background maximize; background `window restore` verifies the same exact window
+  reappears with original bounds.
+- OpenAI Responses tool errors no longer abort the next agent turn; multi-part native
+  tool responses return all content items; tool summaries regain rich detail in agent
+  chat and the Mac activity feed.
+- ScreenCaptureKit contention routes through a bounded isolated fallback; menu-extra
+  selection failures and failed app quits exit nonzero; Dock removal uses native AX.
+- Return exact window-sized pixels from automatic and modern ScreenCaptureKit capture
+  instead of accepting a display-sized transparent canvas, without continuation-leak
+  diagnostics when a quarantined screenshot callback never arrives.
+
+## [3.10.0] - 2026-08-02
+
+### Added
+- Add reference-bound image-pixel and normalized MCP click coordinates, building on capture context from @scotthuang in #310.
+
+### Fixed
+- Honor cancellation promptly and deterministically in daemon polling and CLI timeout helpers. Thanks @SebTardif for #311.
+- Avoid a Swift 6.3 release-compiler crash by reusing the shared timeout race for provider commands.
+
+### Changed
+- Update Sparkle to 2.9.5, swift-log to 1.15.0, swift-system to 1.8.0, Swiftdansi to 0.3.0 development, and Tachikoma to current main.
+
+## [3.9.10] - 2026-08-02
+
+### Changed
+- Rewrite the README as a concise front door to installation, first capture, automation, and deeper documentation.
+- Reissue the 3.9.9 app and CLI payloads as 3.9.10 after 3.9.9 shipped without the full live install, capture, and automation verification gate.
+
+## [3.9.9] - 2026-08-02
+
+### Changed
+- Refresh Swift package locks, AXorcist, Tachikoma, and the pnpm toolchain to their latest compatible releases.
+- Restructure the Mac app's status bar menu with a live permission status, primary destinations first, one Permissions entry, housekeeping grouped at the bottom, and context menus anchored beneath the status item.
+
+### Fixed
+- Bound Dock helper process waits so wedged `defaults`, `killall`, and `osascript` children fail with a timeout instead of hanging CLI and MCP operations indefinitely. Thanks @SebTardif for #303.
+- Stop element detection before another accessibility-tree collection when cancellation arrives during the sparse-web retry delay. Thanks @SebTardif for #304.
+- OpenAI OAuth (ChatGPT login) sessions with an expired access token but valid refresh token are no longer reported unavailable; vision/`--analyze` now routes through the Codex Responses OAuth transport. Thanks @scotthuang for #293.
+- MCP shell commands now support an opt-in timeout that safely terminates the launch-owned process group and bounds pipe draining without changing the legacy unlimited default. Thanks @SebTardif for #298.
+- Publish the Ollama provider guides referenced throughout the generated documentation instead of emitting broken links.
+- Refresh Screen Recording and Event Synthesizing grants in the Mac app's permissions checklist without requiring an app restart.
+
+## [3.9.8] - 2026-07-23
+
+### Fixed
+- Prevent MCP shell commands from deadlocking when either stdout or stderr exceeds its pipe buffer by draining both streams concurrently. Thanks @SebTardif for #292.
+
+## [3.9.7] - 2026-07-21
+
+### Fixed
+- Restore standalone and npm CLI launches on macOS 15 by bundling every Swift back-deployment compatibility library required by the release binary and rejecting dangling compatibility dependencies during release verification. Thanks @gyfis for #291.
+- Canceling during a ScreenCaptureKit transient-denial retry sleep now stops before a second capture attempt or permission probe. Thanks @SebTardif for #289.
+- Prevent dialog discovery and element traversal from recursing indefinitely when an app reports cyclic accessibility relationships.
+
+## [3.9.6] - 2026-07-19
+
+### Highlights
+- Peekaboo 3.9.6 completes the signing migration: the app, CLI, nested helpers, zip payload, and DMG now use the OpenClaw Foundation Developer ID. macOS treats the changed CLI signer as a new TCC identity, so re-grant Screen Recording, Accessibility, and any Automation access you use after updating.
+
+### Changed
+- Sign and notarize every shipped macOS code object with `Developer ID Application: OpenClaw Foundation (FWJYW4S8P8)` while preserving bundle identifiers and the existing Sparkle EdDSA update key; 3.8+ bridge hosts continue accepting transition-era personal-team clients, while the 3.9.6 CLI requires a 3.8+ host.
+
+### Fixed
+- Reopen permission onboarding once for users whose required grants are missing after the signing migration, with direct guidance to re-grant Screen Recording, Accessibility, and Automation access.
+
+## [3.9.5] - 2026-07-18
+
+### Highlights
+- Browser coordinate automation now fails closed instead of claiming success when Chrome exposes only non-actionable accessibility containers, and exact-window focus/selection keeps multi-window clicks on the intended window.
+
+### Added
+- Add `peekaboo screen list` display enumeration and expose key/frontmost, layer, and accessibility subrole metadata in `window list --json`.
+
+### Changed
+- Refresh `chrome-devtools-mcp` to 1.6.0.
+
+### Fixed
+- Make coordinate clicking fail closed on generic or unverified accessibility press targets, prefer the app's actual key window over helper panels, and require exact-window focus verification before foreground input.
+
+## [3.9.4] - 2026-07-15
+
+### Changed
+- Refresh AXorcist, Commander, Swiftdansi, Tachikoma, and TauTUI, including stricter SwiftPM checkout handling for Tachikoma's Commander dependency plus corrected AXorcist app resolution, attribute serialization, and descendant filtering.
+
+### Fixed
+- Resolve applications by executable name, so `--app <name>` finds an app by the process/binary name shown in `ps`, `pgrep`, and Activity Monitor even when it differs from the app's localized name (e.g. an `openclaw-desktop` binary whose bundle name is "OpenClaw Desktop Test").
+- Keep bridge acceptance and request handling responsive, and retry timed-out snapshot invalidation handshakes once so busy local endpoints are not mistaken for stale sockets.
+
+## [3.9.3] - 2026-07-14
+
+### Fixed
+- Keep swift-log calls usable from nonisolated code when importing AXorcist under current Swift 6 toolchains.
+
+## [3.9.2] - 2026-07-14
+
+### Added
+- GitHub releases now include a signed, notarized Peekaboo DMG with a branded drag-to-Applications layout; release automation builds, verifies, checksums, and uploads it alongside the app zip.
+
+### Fixed
+- AX error descriptions remain available to nonisolated automation classifiers under Swift 6.2 strict concurrency.
+
+## [3.9.1] - 2026-07-14
+
+### Changed
+- `peekaboo inspect-ui` now accepts the standard `--app` target option used by other desktop commands; `--app-target` remains available as a legacy alias.
+- `peekaboo move --smooth` now uses natural eased pointer arcs by default, while `--profile linear` preserves deterministic straight-line travel; explicit `--steps` values are honored and human paths are capped at 96 samples to avoid redundant input events.
+- Pointer-movement feedback now follows the real move with a short fading tail and one coalesced overlay instead of replaying a slow, thick line across the screen after the pointer arrives.
+
+### Fixed
+- Canceling `peekaboo window close` now propagates through disappearance checks and stops before focus, hotkey, or pointer fallbacks. Thanks @SebTardif for #270.
+- Canceling `peekaboo window maximize` now stops frame-settling polls before any additional accessibility reads. Thanks @SebTardif for #271.
+- Default action-first clicks now synthesize a real pointer click for SwiftUI segmented tabs, whose accessibility `AXPress` action can report success without changing the selected tab.
+- Local `see` now confirms snapshot publication before reporting success, preserving its timeout and failure guarantees when a command-level mutation barrier is active.
+- Human pointer paths now use bounded minimum-jerk Bézier motion, land exactly on the requested coordinate, and drive the real drag/swipe event path instead of calculating an organic path and then discarding it for a linear drag.
+
+## [3.9.0] - 2026-07-11
+
+### Added
+- `peekaboo click --long-press` performs a stationary 1.2-second mouse down/hold/up gesture for controls such as SwiftUI `LongPressGesture`; it uses foreground delivery so the press cannot be misrouted to a background window.
+- `peekaboo agent` supports GPT-5.6 (`gpt-5.6`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`) and Claude Sonnet 5 (`claude-sonnet-5`, `sonnet`) alongside Fable 5, with current context/output/sampling limits and matching choices in the Mac app's assistant pickers, Settings, and session view.
+- Bare `peekaboo paste` now pastes the current clipboard into the focused (or targeted background) app instead of erroring; payload flags without a payload still fail validation even when `--restore-delay-ms` explicitly uses its 150ms default, and the current clipboard's contents are never echoed into structured output.
+- `peekaboo list apps` accepts `--include-hidden`/`--include-background` for parity with `app list`, and `list apps`, `list menubar`, and `dock list` JSON now emit snake_case keys (`apps`, `menu_bar_items`, `dock_items`) alongside the legacy keys.
+
+### Changed
+- The Mac app's Settings window was reorganized: the overloaded AI tab split into Agent (enable switch, model, generation, vision) and Providers (API keys, local models, custom providers) and no longer disappears when agent mode is off, Shortcuts and the Sparkle update preferences moved into General, "Show in Dock" became a "Show Peekaboo in" menu-bar/Dock popup, the vision-model checkbox+picker collapsed into one popup with "Same as agent model", and Visualizer animations are grouped by area (Pointer, Keyboard, Screen, Apps & Windows, Extras) with consistent sentence-case names.
+- `peekaboo clean --snapshot` now says when a valid snapshot folder name was not found in the on-disk cache instead of reporting a bare success with zero removals, and `list windows`/`window list` help now explains how the two views differ.
+- Clicks and mouse moves are now visualized by a small animated macOS-style cursor that glides to the target and presses (double-press for double-click, blue-tinted for right-click), replacing the targeting reticle and comet.
+- The accessibility element boxes drawn during `peekaboo see` are off by default now; they were visual clutter on every capture. Re-enable them in Peekaboo.app under Settings › Visualizer › Screen › Element boxes, by setting `visualizer.elementDetectionEnabled` in `~/.peekaboo/config.json`, or per-run with `PEEKABOO_VISUAL_ELEMENT_BOXES=true`. The app toggle and the config file now stay in sync, and a running MCP server picks up the change without a restart.
+
+### Fixed
+- Canceling menu-bar click verification now exits promptly with a real cancellation instead of continuing through fallback poll loops and misreporting a generic verification failure. Thanks @SebTardif for #267.
+- `peekaboo run --json --output <file>` now emits its structured execution report to stdout as well as saving the report file, and menu bar title matching accepts common hyphen variants such as documented `Wi-Fi` against macOS's `WiFi` identifier.
+- Bridge-backed CLI commands now preserve app, window, element, menu, Dock, and snapshot lookup identities in structured errors instead of collapsing them to generic failures. Thanks @SebTardif for #258.
+- Click and type failures now emit `INTERACTION_FAILED` instead of `CAPTURE_FAILED` in structured CLI output. Thanks @SebTardif for #257.
+- The Mac app's status bar menu now follows the system light/dark mode. It previously inherited the menu bar's wallpaper-derived vibrant appearance, which could render a dark menu while the system was in light mode (and vice versa).
+- Resuming an agent session without an explicit model now preserves its credential-free provider-qualified model selection instead of silently switching to the current default and potentially sending saved context to a different provider; ambiguous legacy sessions fail closed and require an explicit override, automatic taskless piped resumes report failed turns with a nonzero exit, and chat headers show a credential-free saved-model label instead of claiming the current default.
+- Agent tool execution now treats provider terminal events and cancellation as hard boundaries: late or truncated tool calls cannot run, canceled or skipped calls emit failed completions, and final `done` / `need_info` reasons remain visible.
+- Agent session lists now use persisted creation and update times for display, ordering, and expiry instead of filesystem timestamps, so atomic saves no longer make old sessions appear new.
+- Multi-step Ollama agent runs now replay assistant tool calls and named results, preserve recursive arguments and array schemas, surface HTTP-200 stream errors, and fail with a resumable saved session instead of claiming success when pending tool work exhausts the step budget.
+- Custom-provider models marked `supportsTools: false` now get actionable agent guidance; `config models-provider` lists configured models offline unless `--discover` is passed, and `--save` preserves existing capabilities, limits, and parameters while keeping newly discovered models tool-disabled until explicitly enabled, including in JSON mode.
+- OpenRouter, Together, and OpenAI-compatible GPT-5.6 routes now preserve the 372K context/128K output capability profile, omit unsupported temperature, and recognize routing suffixes such as `:online`.
+- Adding a macOS application bundle to the Dock now places it with applications instead of mistaking its on-disk directory for a folder.
+- Synchronous default MCP tool-context access now fails fast off the main thread, with an async main-actor accessor for background callers. Thanks @SebTardif for #253.
+- Default `PeekabooMCPServer` startup now throws an actionable configuration error instead of terminating the process when no default tool context was installed. Thanks @SebTardif for #252.
+- `peekaboo agent` with a local Ollama model now actually runs its tools. Ollama's streaming API returns tool calls alongside empty content, and those were being dropped, so models fell back to printing tool-call JSON as text: the agent executed nothing, reported zero tool calls and empty content, and still claimed success. Asking the agent to click a button now clicks it.
+- `peekaboo agent --model <a tool-incapable model>` explains that the agent requires tool calling and points at `image --analyze` / `see --analyze`, instead of claiming the model is "unsupported" and printing an allowlist. Vision models such as `ollama/qwen2.5vl:latest` are real, installed models — they are simply not usable for the agent loop.
+- `peekaboo clean --snapshot` now rejects empty, traversal, nested-path, absolute-path, and symlink snapshot IDs, keeping cleanup confined to one real snapshot folder directly beneath the cache root.
+- Background positional clicks (`click --coords` and background `--double`) no longer land at the target window's top-left corner while reporting success — macOS discards the location of pid-routed mouse events, so coordinate clicks now hit-test the accessibility element at the point and press it, background double-click fails with a clear error pointing to `--foreground`, right-clicks that open a context menu report success promptly instead of timing out after 10 seconds (and no longer stall the bridge for other clients), and `click --foreground` actually focuses the target app before clicking as documented.
+- Invoking `peekaboo daemon start` through `PATH` now relaunches the canonical executable instead of looking for a `peekaboo` file in the current directory, startup errors now distinguish launch failures, early exits, and readiness timeouts, and daemon logs honor `PEEKABOO_CONFIG_DIR`. Thanks @mattash for #231.
+- Daemon startup no longer blocks indefinitely: child cleanup is bounded with a TERM grace period, liveness re-check, and SIGKILL escalation, and startup coordination uses cancellable lock domains so a custom `--bridge-socket` cannot contend with the canonical daemon.
+- Daemon startup coordination and child cleanup are now bounded: startup locks are securely opened, isolate non-default custom sockets while preserving default-daemon promotion, cannot leak into spawned daemons, and honor cancellation and timeouts; child termination uses bounded TERM and SIGKILL phases instead of an unbounded Foundation wait.
+- A transient lock or read failure on the snapshot invalidation watermark no longer hides every cached snapshot. When the latest snapshot really was invalidated by an earlier command, element and query targeting now says so and tells you to re-run `peekaboo see`, instead of the meaningless "Snapshot not found or expired: No snapshot found".
+- `peekaboo window resize`, `move`, and `set-bounds` now report the window's real frame and warn when the app clamps the request (for example a minimum window size); a resize that has no effect at all fails instead of reporting success. `window maximize` reports the settled frame rather than a mid-animation one, and is now idempotent instead of toggling a maximized window back down.
+- `peekaboo list windows` no longer emits the same window twice when an app has two windows with the same title, which also shifted every later `--window-index` and could target the wrong window.
+- The Visualizer's annotated-screenshot setting now persists across launches instead of silently resetting to enabled, and it finally has a toggle in Settings.
+- The CLI no longer routes commands to a bridge host that cannot satisfy the permissions those commands need. A stale Peekaboo.app holding the bridge socket without Screen Recording or Accessibility is now skipped in favor of a permissioned daemon, instead of silently failing every capture and automation call. Screen Recording is only demanded for commands that actually capture, and hosts that do not report their permissions are still accepted.
+- Canceling an app relaunch wait now stops its running-state poll immediately instead of spinning through the remaining timeout budget. Thanks @SebTardif for #230.
+- Snapshot-backed MCP actions now synchronize cached application, window, and process metadata across concurrent observation updates and action reads, preventing data races. Thanks @SebTardif for #228.
+- Adding a path to the Dock now passes the item directly to `defaults` instead of interpolating it through a shell, preventing shell metacharacters in filenames from being executed. Thanks @SebTardif for #224.
+- Concurrent credential and configuration updates now serialize the full load-mutate-persist transaction, preventing distinct updates from overwriting one another. Thanks @SebTardif for #227.
+
+## [3.8.0] - 2026-07-09
+
+### Changed
+- The menu bar icon was redesigned as a crisp template ghost with a camera-lens belly that echoes the app icon, now rendered at proper 1x/2x/3x resolutions; it previously shipped a single blurry 18px bitmap reused for all Retina scales.
+- Peekaboo.app releases now use the OpenClaw Foundation Developer ID identity while retaining the bundle identifier and Sparkle update key; the standalone CLI keeps its legacy signing team so it remains compatible with pre-3.8 GUI bridge hosts, and 3.8 hosts trust both release teams. macOS may ask once to reconfirm protected-data access after the app signing-team migration.
+
+### Fixed
+- The macOS Sessions window and agent popover stay unavailable while Agent mode is disabled, including Dock reopens, global shortcuts, notifications, and windows already open when the setting is turned off.
+- The GUI bridge now enforces both signing Team ID and bundle ID on every request, preventing unrelated same-team processes from borrowing Peekaboo's protected macOS permissions.
+
+## [3.7.1] - 2026-07-05
+
+### Changed
+- The Settings window was modernized around native macOS grouped forms: the AI tab collapses seven redundant provider sections into one clean API Keys list with environment-variable status footnotes, the model pickers now always display the selected model's name (they previously rendered blank or a raw model id when the selection came from `~/.peekaboo/config.json`), the Visualizer tab drops its hand-rolled iOS-style switches for native toggles with inline sliders, Shortcuts is three recorder rows plus a one-line hint instead of a wall of instructions, Permissions gets the standard grouped layout, and About uses native links (and the current year).
+- The macOS app icon now blends Peekaboo's translucent camera-ghost banner identity into a clearer, lens-forward mark that stays legible at small sizes.
+
+### Removed
+- Poltergeist build-watcher integration is gone: the config, wrapper scripts, watchman config, `pnpm run poltergeist:*`/`polter` script aliases, docs page, and leftover rebuild-test comments were removed. Rebuild with `./scripts/build-mac-debug.sh` (Mac app) or `pnpm run build:cli` (CLI) instead.
+
+## [3.7.0] - 2026-07-05
+
+### Added
+- The MCP image tool now supports native `max_dimension` downscaling, with inline `format: "data"` captures capped at 1500 pixels by default to reduce payload and model-context overhead. Thanks @jacobjove for #219.
+
+### Changed
+- The Sessions window was redesigned around native Liquid Glass: the empty-state ghost is now a smooth vector silhouette rendered as a real glass surface that floats over a soft shadow and occasionally glances around, the sidebar swaps its hand-rolled header and search box for the native toolbar search field plus a compose button (⌘N), session rows show tidier metadata with a model badge, and empty search results use the standard "No Results" view. The refreshed ghost (white with a soft gradient in both light and dark mode) also carries over to the status-bar popover and onboarding screens.
+
+### Fixed
+- `peekaboo capture action` now returns within a bounded interval when a child survives termination attempts, preserves graceful TERM handling for timeouts and cancellation, and eventually reaps an abandoned child. Thanks @SebTardif for #215.
+
+## [3.6.0] - 2026-07-04
+
+### Changed
+- Visualizer animations were redesigned around a single "Ghost HUD" design language: one violet accent with red reserved for destructive operations, dark translucent HUD chips, and a shared motion vocabulary. Clicks show a targeting reticle with impact pulses (dashed ring for right-click), typing streams the actual keystrokes into a caption pill instead of a fake QWERTY keyboard, hotkeys press real macOS-style keycaps in sequence, mouse moves and drags trace a glowing comet with press/release rings, scrolls show flowing chevrons with a count tag, screenshots snap viewfinder brackets, and app lifecycle, window operations, menu paths, dialogs, and Space switches render as matching HUD toasts, outlines, and breadcrumbs.
+- Agent-skill documentation now defines Peekaboo as the authority for product and workflow guidance while allowing distributors such as OpenClaw to ship release-pinned snapshots with host-specific overlays.
+
+### Fixed
+- Bridge hosts now always return a non-empty decodable error when error encoding fails, instead of surfacing EOF or a secondary decode failure. Thanks @SebTardif for #211.
+- Snapshot listing and cleanup now propagate lock-open failures instead of treating unavailable storage as an empty snapshot list. Thanks @SebTardif for #212.
+- Visual feedback now uses one explicit Core Graphics/Accessibility-to-AppKit coordinate boundary, fixing mirrored or offset click, scroll, trail, swipe, window, dialog, capture, annotated-screenshot, and element-detection overlays across primary and vertically arranged displays without applying Retina scale twice; refreshed element detections also retire stale sheets on screens with no new elements.
+- The Sessions window no longer opens uninvited: it is suppressed at app launch, excluded from state restoration, no longer pops up when the running app is reopened programmatically, and the missing-API-key nudge shows it once instead of on every launch. Open it via the status-bar menu or ⌘⇧P as before.
+- Automation services now route visual feedback to the visualizer by default; the wiring was never hooked up, so click, type, scroll, hotkey, swipe, mouse-move, window, menu, dialog, dock, Space-switch, and screenshot-flash animations were silently dropped even with Peekaboo.app running.
+- The typing caption shows the typed text verbatim (that is its job); typing into secure text fields is masked as bullets before the event is persisted or displayed by sampling the delivery focus immediately before every text segment (including Tab-to-password sequences and background typing), and `PEEKABOO_VISUALIZER_MASK_TYPED_TEXT=true` masks everything for privacy-sensitive setups.
+- HUD chip shadows and glows no longer clip into hard edges: every overlay window gets a chrome margin so gradients fade out naturally instead of getting cut off at the window border.
+- Rapid agent action streams no longer flood the screen: screenshot flashes, scroll chips, mouse comets, and element sheets are throttled, short cursor hops skip the comet, and single-instance overlays (typing caption, hotkey chip, menu breadcrumb, Space indicator, app toast, element sheets) crossfade into their replacement instead of stacking.
+- Element-detection sheets drop window-sized container rects, cap at 120 highlights per screen, and render in one overlay window per screen instead of one window per element.
+- Debug Mac app builds are now signed with a development identity when one is available, so Screen Recording/Accessibility grants survive rebuilds instead of resetting (and re-prompting) on every build; machines without a certificate keep the unsigned fallback.
+- Visualizer overlays now center on their target instead of pinning to the window's top-leading corner, which had offset click feedback by its padding and clipped or truncated HUD widgets.
+- Mouse-trail and swipe visualizations now convert screen coordinates into window-local space with the correct Y-flip, so the paths render along the cursor's actual travel instead of drawing outside the overlay window.
+
+### Removed
+- The visualizer keyboard-theme setting (`visualizerKeyboardTheme`, config `visualizer.keyboardTheme`) is gone; it only themed the removed QWERTY typing widget and never affected anything else.
+
+## [3.5.4] - 2026-07-03
+
+### Added
+- MiniMax-M3 can now power screenshot analysis and agent runs through the global and China MiniMax routes. Thanks @Tugser for #191.
+- Kimi K2.6 and K2.7 Code can now power screenshot analysis and agent runs through Moonshot's API. Thanks @Tugser for #192.
+
+### Fixed
+- CLI paste now completes and reports clipboard restoration before returning, warning without inviting a retry when delivery succeeded but restoration failed.
+- MCP paste now warns without suggesting a retry when clipboard restoration fails after delivery. Thanks @SebTardif for #210.
+- MCP inline image capture now returns an explicit error when neither capture nor saved-file fallback contains image data, instead of reporting a successful zero-byte PNG. Thanks @SebTardif for #209.
+- Speech recording now cancels and releases its recorder observer on stop and send, including after recorder errors. Thanks @SebTardif for #204.
+- Go-to-Folder navigation now stops before typing or submitting when a required synthetic hotkey fails. Thanks @SebTardif for #206.
+- Daemon launch, socket, and shutdown polling now stop promptly when their parent task is cancelled instead of spinning until the timeout. Thanks @SebTardif for #203.
+- Public CLI, agent, MCP, and API guidance now treats runtime element IDs as opaque strings to copy exactly instead of implying role-specific ID shapes. Thanks @coygeek for #194.
+- Sparkle update checks no longer received a 3.5.3 enclosure before its release assets were public; the validated feed entry was restored after publication. Thanks @bcharleson for #199.
+- JSON-only `peekaboo see` runs without `--path` now keep required screenshots in snapshot storage instead of leaving files on Desktop or exposing their temporary paths. Thanks @coygeek for #196.
+- Watch captures now honor stop requests during transient ScreenCaptureKit retry backoff instead of waiting out the full delay. Thanks @SebTardif for #193.
+- Peekaboo agent skill install and usage guidance now uses the current `skills/peekaboo` path, treats observed element IDs as opaque, and keeps screenshot artifacts in explicit temporary paths. Thanks @coygeek for #197.
+
+## [3.5.3] - 2026-06-13
+
+### Fixed
+- `peekaboo app list` now excludes accessory/background processes by default, while `--include-background` restores them as documented.
+- Menu-extra clicks now reject items parked outside active displays by menu bar managers instead of moving the pointer to offscreen coordinates and reporting false success.
+- Background element/query/coordinate clicks now pin actions to the requested process and exact window, reject mismatched window/PID selectors and unverifiable snapshots, invalidate implicit latest snapshots without deleting history, and no longer require Event Synthesizing when Accessibility completes the click.
+- App launch, open, and inventory commands now use the selected runtime host, fixing sandboxed LaunchServices failures; launch/open preserve `--no-focus` and caller-relative app paths, relaunch preflights and keeps quit/wait/launch in one daemon-held transaction, build-scoped fallback daemons remain reusable and controllable across native/Rosetta execution and executable upgrades, incompatible legacy hosts no longer force sandboxed local fallback, and inventory ignores unrelated input overrides.
+- Agent, MCP, script, CLI, and bridge mutations now advance implicit-snapshot watermarks at host-confirmed completion or observation boundaries, keep durable pending barriers across client timeouts/disconnects without hiding the acting command's own snapshot, carry remote script observation certificates, recover safely from PID reuse, ignore unavailable alternate hosts after protecting the selected/local stores, and preserve explicit snapshot history.
+
+## [3.5.2] - 2026-06-13
+
+### Changed
+- `peekaboo type` and the MCP `type` tool now default to zero-delay linear typing; supplying `--wpm`/`wpm` still opts into human cadence.
+- Hardened the maintainer release workflow around 1Password credential consistency, non-login shells, and neutral-directory npm verification.
+
+### Fixed
+- Synchronized Tachikoma's OpenAI `gpt-5-chat-latest` catalog metadata so configured models apply the correct GPT-5 parameter filtering.
+
+## [3.5.1] - 2026-06-12
+
+### Fixed
+- `peekaboo see` now returns at its configured wall-clock deadline when suspended capture or detection work ignores task cancellation, while preserving explicit command cancellation.
+- Corrected the install guide to clarify that the macOS app and CLI are separate downloads.
+
+## [3.5.0] - 2026-06-12
+
+### Added
+- `peekaboo agent` now supports explicit Claude Fable 5 (`claude-fable-5`) selection with 1M context and 128K max output while keeping Anthropic defaults on Opus 4.8 for zero-retention compatibility.
+
+### Changed
+- Agent runs now honor the saved `agent.temperature` and `agent.maxTokens` values shared by the CLI and macOS Settings UI, clamp them to each provider's capabilities, infer Fable limits through compatible providers, and omit unsupported sampling parameters for GPT-5 and current Anthropic reasoning models.
+- Project, issue, build, release, and app About links now use the canonical `openclaw/Peekaboo` repository.
+
+### Fixed
+- Bridge hosts now use atomic lease-backed socket ownership and bounded nonblocking transport, keep Peekaboo.app and the reusable daemon on distinct paths while preserving the healthy app's TCC-backed fallback, preserve lifecycle settings while migrating legacy daemons, prevent MCP from hosting a bridge listener, safely recover stale sockets, and release abandoned client connections instead of wedging. Thanks @Artifact-LV for #184.
+- Legacy screen and area capture now fails with a permission or native capture error instead of returning wallpaper-only/redacted pixels from background sessions. Thanks @VishalJ99 for #185.
+
+## [3.4.1] - 2026-06-10
+
+### Fixed
+- `peekaboo agent` now resolves saved custom providers, xAI/Grok, Gemini 3.5 Flash, Claude Opus 4.8, and GPT-5.5 model selections before falling back to unavailable built-in defaults. Thanks @udiedrichsen for #182.
+
+## [3.4.0] - 2026-06-07
+
+### Added
+- MCP now exposes the bounded `capture` tool for live/video frame capture, contact sheets, metadata, and optional MP4 output. Thanks @coygeek for #169.
+- Added dedicated CLI wrappers for MCP-only browser/page and accessibility-tree inspection via `peekaboo browser` and `peekaboo inspect-ui`. Thanks @coygeek for #173.
+- Added `peekaboo capture action`, which records adaptive live capture around a child command with pre-roll, post-roll, timeout, artifact validation, and optional MP4 output. Thanks @coygeek for #171.
+
+### Changed
+- Documented background vs. foreground input delivery across the README, automation guide, quickstart, permissions, and interaction command docs.
+- Clarified that `peekaboo tools` lists the MCP/agent tool catalog rather than top-level CLI commands. Thanks @lonexreb for #174.
+
+### Fixed
+- Action-only scroll now reports an empty target as unsupported, and generic process scripts preserve menu, modifier, drag, and type flag aliases. Thanks @coygeek for #178 and #179.
+- Clipboard writes now count companion text toward the large-payload guard and return previews for UTF-8 plain-text representations. Thanks @coygeek for #180.
+- Bridge-backed CLI JSON errors now preserve bridge message/details and map permission failures to permission-specific error codes. Thanks @coygeek for #181.
+
+## [3.3.0] - 2026-06-01
+
+### Added
+- `peekaboo agent` now supports MiniMax China via `minimax-cn/...` models and `MINIMAX_CN_API_KEY`, while preserving the existing international MiniMax endpoint. Thanks @LLuke for #161.
+
+### Changed
+- `peekaboo click`, `type`, `hotkey`, `press`, and `paste` now use background process-targeted delivery by default when a target PID/app/window/snapshot process can be resolved, with `--foreground` for focused foreground input.
+
+### Fixed
+- Background text input now prefers AX text editing for typing, paste, clear, and focused-field key presses so targeted apps stay in the background more reliably.
+- Background text paste no longer snapshots or restores the user clipboard, positional `peekaboo paste "text"` works again, and background `cmd+a` selects focused text fields via AX.
+- `peekaboo open --app Finder ...` now resolves Finder from CoreServices, matching the documented examples.
+- Visualizer settings and capture-engine docs now reference `peekaboo capture live` instead of stale top-level `peekaboo watch`/`peekaboo capture` command forms. Thanks @coygeek for #166 and #167.
+
+## [3.2.3] - 2026-05-24
+
+### Added
+- `peekaboo image --json` now reports capture coordinate diagnostics and warns when window captures look blank or solid.
+
+### Fixed
+- Interaction commands now accept `--snapshot latest` explicitly and window/app capture failures list rejected capture candidates.
+
+## [3.2.2] - 2026-05-22
+
+### Added
+- GameBridge manifests now let `peekaboo see` expose Firestaff/SDL game UI zones from GPU-rendered windows. Thanks @yeager for #152.
+
+### Fixed
+- `peekaboo agent` now accepts OpenRouter model IDs and can use `OPENROUTER_API_KEY` from env or credentials. Thanks @delort for #155.
+
+## [3.2.1] - 2026-05-18
+
+### Fixed
+- `peekaboo click --coords` now treats coordinates as target-window-relative when app/window target flags are supplied, reports resolved target metadata, and requires `--global-coords` for targeted global clicks.
+- `peekaboo-mcp` now shuts down cleanly during restart backoff and repairs executable permissions without shelling out through an install path.
+- `pnpm run peekaboo:dev` no longer depends on a hardcoded local checkout path.
+- `peekaboo agent` now tells models to use the current tool schema instead of stale tool names and arguments. Thanks @vyctorbrzezowski for #139.
+- AX element detection now honors traversal budgets and reports truncation when depth, count, or per-node child limits are reached. Thanks @vyctorbrzezowski for #140.
+- `peekaboo agent` and MCP clients now have an `inspect_ui` tool for AX-only UI text/control inspection without capturing screenshots. Thanks @vyctorbrzezowski for #141.
+- Window-mode capture now falls back to desktop-independent ScreenCaptureKit filters when multi-display setups cannot map a window to an enumerated display. Thanks @lonexreb for #147.
+- `peekaboo agent` guidance now routes AX-only observation through `inspect_ui` consistently while keeping screenshot-backed checks on `see`. Thanks @vyctorbrzezowski for #144.
+- Custom provider docs, CLI help, and macOS settings now prefer `${VAR}` API key references and shell examples that preserve them literally. Thanks @scotthuang for #142.
+- `peekaboo agent` now refreshes desktop context before each model turn and wires opt-in action verification through the configured capture strategy. Thanks @lonexreb for #148.
+- AX traversal budgets now have wider defaults plus CLI, MCP, and environment overrides for complex app trees. Thanks @widdowson for #150 and #151.
+- `peekaboo agent` now keeps OAuth access tokens on Bearer auth paths instead of misclassifying them as API keys, including config-dir overrides and audio transcription. Thanks @Crux0453 for #154.
+
+## [3.2.0] - 2026-05-15
+
+### Added
+- `peekaboo click --focus-background` and the MCP `click` tool now support process-targeted background mouse delivery for apps identified by `--app`, `--pid`, or snapshot metadata.
+- `peekaboo agent` now supports MiniMax M2.7 through Tachikoma's Anthropic-compatible provider path. Thanks @xiaofeiwa for #130.
+- `peekaboo agent` now accepts `ollama/<model>` and `lmstudio/<model>` local model selections, including local-only provider defaults. Thanks @0x5845 for #137.
+
+### Fixed
+- Ollama vision model IDs such as `qwen2.5vl:3b` now stay intact through Tachikoma model parsing instead of falling back to `llama3.3` (#16).
+- `peekaboo agent` now initializes with Gemini-only or MiniMax-only credentials instead of falling back to an unavailable OpenAI/Anthropic default. Thanks @lonexreb for #133.
+- Window captures now retry transient `SCScreenshotManager` failures before reporting a minimized/off-screen/Space hint. Thanks @lonexreb for #135.
+- The macOS app now keeps one status item/controller across app state reconnects and removes the status item on teardown, avoiding duplicate or ghost menu bar icons. Thanks @lonexreb for #134.
+- Release automation now verifies CLI, npm, macOS app, checksum, appcast, and uploaded GitHub assets before publish.
+- `peekaboo type --json` now separates requested text from executed key actions, making escaped special keys such as `\n` visible to agents without losing backwards-compatible `typedText`.
+- `peekaboo permissions status --all-sources` now compares Bridge and local TCC permission state side by side, so daemon grants are no longer confused with CLI grants.
+- `peekaboo mcp serve --transport ...` now rejects invalid transport names instead of silently starting stdio mode.
+- `peekaboo paste --app ...` now fails before mutating the clipboard when the requested app cannot be found.
+- `peekaboo agent` no longer sends stale Anthropic extended-thinking options to Claude Opus 4.7 and now exits with failure when agent execution fails.
+- Command timeout JSON now reports the intended timeout error instead of occasionally surfacing cancellation as an unknown error.
+- Refreshed CLI docs and quickstart examples to use current flags such as `image --path`, `click --coords`, `type --return`, `press --count`, and `scroll --amount`.
+
+### Performance
+- Debug CLI startup no longer spawns `git config` on every launch when build-staleness checking is disabled, cutting startup-heavy command latency by more than 30% in local testing.
+
+## [3.1.2] - 2026-05-11
+
+### Fixed
+- Release automation now writes artifacts under `build/release` so clean release builds no longer embed `-dirty` in CLI version metadata.
+
+## [3.1.1] - 2026-05-11
+
+### Added
+- `peekaboo image --path -` now writes a single captured image to stdout for shell pipelines.
+- The npm package now allows Intel Macs when shipping the universal CLI binary.
+
+### Fixed
+- Agent tool schemas now preserve MCP `anyOf`/`oneOf` parameters so Gemini no longer rejects `peekaboo agent` requests with orphan `required` entries. Thanks @bcharleson for #125.
+- The macOS app release script now fails if the packaged app is missing its main executable and preserves the AppleEvents entitlement when re-signing.
+- `peekaboo see --capture-engine cg` now keeps frontmost/window captures on the CoreGraphics path instead of falling through to `SCScreenshotManager`.
+
+## [3.1.0] - 2026-05-10
+
+### Changed
+- Refreshed the agent model catalog through Tachikoma: defaults now use GPT-5.5, Claude Opus 4.7, Gemini 3.1, latest Mistral, and Grok 4.3, while stale GPT-4.x/GPT-5.1/GPT-5.2, Claude 3.x, and old Grok IDs are rejected.
+- Consolidated MCP installation docs into the main MCP page and removed stale standalone Claude Desktop and MCP best-practices pages from the docs site.
+- Added docs-site agent metadata, social preview assets, and security discovery files, with GitHub links moved to the OpenClaw-owned repository. Thanks @williamclay8 for #115.
+- Release automation now builds and uploads the signed, notarized Peekaboo.app zip by default, updates Sparkle appcast metadata, and accepts one-line App Store Connect API keys for notarization.
+- Refined the macOS Settings window, menu bar popover header, and Playground chrome with denser native layout, clearer controls, and less debug noise.
+- Fixed the macOS app's invisible settings helper window and refreshed the app icon artwork so Dock no longer shows a stray blank window or white icon backing.
+- CLI automation commands now prefer a warm on-demand daemon for bursty use and route desktop observation through the daemon when supported, avoiding repeated process/service startup and large screenshot payloads over the Bridge socket.
+
+### Performance
+- Daemon-backed `peekaboo image`/MCP image calls now write screenshots inside the daemon and return lightweight metadata, making warm screenshot calls substantially faster and preventing large-image Bridge timeouts.
+- Capture engine `auto` now tries CoreGraphics before ScreenCaptureKit for faster repeated screenshot calls while preserving explicit ScreenCaptureKit selection through `--capture-engine modern`.
+
+## [3.0.0] - 2026-05-09
+
+### Highlights
+- Native action-first automation is now the default path for supported UI controls, with synthetic input as a fallback. This makes element clicks, text entry, scrolling, value setting, and accessibility actions more reliable across real macOS apps.
+- Screenshot and UI detection flows now share the desktop observation pipeline across CLI and MCP, including structured diagnostics, timing spans, resolved target metadata, OCR, annotation output, and snapshot registration.
+- Window, app, menu bar, Dock, dialog, Space, clipboard, run, and capture commands now use shared service boundaries and consistent JSON envelopes, making automation output easier to script and debug.
+- Element-targeted interactions now preserve snapshot window context, refresh stale implicit snapshots once, and report target-point diagnostics, so follow-up clicks and gestures keep working after windows move or refresh.
+- Capture and detection performance improved substantially: local read-only commands avoid bridge probes by default, app/window selection has faster paths, ScreenCaptureKit work is gated under concurrency, and `see` avoids redundant AX traversal/probes.
+- CLI usability is better: shell completions, public kebab-case help placeholders, directory-aware output paths, home-directory path expansion, clear validation failures, and stricter unexpected-argument handling.
+- Peekaboo.app release, Sparkle update, Homebrew sync, and generated docs-site automation are now wired into the release flow.
+- Major v3 internals were split into focused files across CLI, Core services, MCP tools, bridge transport, agent runtime, capture, observation, UI automation, and visualizer code so future fixes are smaller and easier to review.
+
+### Added
+- Expanded the repo-local `peekaboo` skill with UIAX/action vs synthetic input testing workflows, Calculator smoke tests, and validation commands.
+- Peekaboo Inspector now surfaces AX descriptions and keyboard shortcuts, making description-only controls easier to inspect and search.
+- `peekaboo see --json` now includes element bounds in each `ui_elements` entry again.
+- Added `DesktopObservationService` and the desktop observation refactor plan as the shared path toward unified screenshot capture, target resolution, timings, and optional AX detection.
+- Added an observation output writer so desktop observation requests can save raw screenshots and report output paths through the shared result.
+- Routed `peekaboo image` screenshot persistence through the shared desktop observation output writer.
+- Routed observation-backed `peekaboo see` captures through shared observation output and AX detection in one request.
+- Honored per-command capture engine preferences in observation-backed `peekaboo image` and `peekaboo see` captures.
+- Enforced the desktop observation detection timeout budget and return the standard detection timeout error.
+- Centralized automatic app-window ranking in desktop observation so screenshot commands prefer normal titled windows over auxiliary capture surfaces.
+- Centralized screen capture scale planning so logical 1x versus native Retina output uses the same tested policy across ScreenCaptureKit and legacy capture paths.
+- Added `AXTraversalPolicy` as the first extracted element-detection policy collaborator.
+- Added `ElementDetectionCache` as the dedicated short-lived AX tree cache used by element detection.
+- Added `ElementClassifier` for tested AX role mapping, actionability policy, and element attribute assembly.
+- Added `AXDescriptorReader` for tested batched accessibility descriptor reads and AX value coercion.
+- Added `ElementDetectionResultBuilder` for tested element grouping and detection metadata assembly.
+- Added `WebFocusFallback` for the Chromium/Tauri sparse accessibility tree recovery path.
+- Added `ElementTypeAdjuster` for tested generic-group text-field recovery policy.
+- Added `MenuBarElementCollector` for application menu-bar detection elements.
+- Added `AXTreeCollector` for isolated accessibility tree traversal and element assembly.
+- Added `ElementDetectionWindowResolver` for application/window fallback selection used by detection.
+- Added `ScreenCapturePlanner` for tested capture frame-source policy and display-local source rectangle planning.
+- Added `ScreenCapturePermissionGate` as the single capture permission enforcement point.
+- Added `ScreenCaptureImageScaler` for shared logical-1x downscaling in capture output paths.
+- Moved legacy area capture behind the legacy capture operator and removed stale facade helpers.
+- Split ScreenCaptureKit and legacy capture operators out of the screen capture facade.
+- Added request-scoped desktop state snapshots for observation target resolution and diagnostics.
+- Exposed structured desktop observation timings and diagnostics in CLI and MCP outputs.
+- `peekaboo image --json` now includes per-capture desktop observation diagnostics, including timing spans, warnings, state snapshots, and resolved target metadata.
+- Moved remaining CLI app-window filtering for image, live capture, and window listing into observation target selection.
+- Routed image/MCP menu bar strip captures through desktop observation target resolution.
+- Added observation-backed menu bar popover window resolution and capture.
+- Centralized CLI/MCP annotated screenshot companion-path planning in the observation output writer.
+- Observation-backed MCP `see` annotations now render through the shared observation output writer, removing the MCP-local AppKit renderer fallback.
+- Observation-backed CLI `see` captures now register raw screenshots and detection snapshots through the shared observation output writer.
+- CLI `see --annotate` now uses the shared observation annotation renderer for observation-backed captures, with the smart label placer moved out of command code.
+- Observation timings now include artifact subspans for raw screenshot writes, annotation rendering, and snapshot registration.
+- Desktop observation JSON diagnostics now include a total `desktop.observe` timing span for end-to-end duration.
+- Added first-class OCR results to desktop observation, with shared OCR-to-element mapping for observation and menu-bar helpers.
+- `peekaboo see --menubar` now tries the desktop observation pipeline for already-open menu bar popovers before falling back to the legacy click-to-open path.
+- `peekaboo see --app menubar` now uses the shared desktop observation menu-bar target instead of command-local area capture.
+- `peekaboo see --mode area` now fails during command binding instead of entering the legacy capture bridge and failing later.
+- `peekaboo see` no longer carries legacy window/frontmost capture fallback code; those targets now fail during observation target mapping if invalid.
+- `peekaboo see --capture-engine`, `peekaboo image --capture-engine`, and `peekaboo see --timeout-seconds` now bind through the Commander CLI path instead of being ignored.
+- `peekaboo image --mode area --region x,y,width,height` now captures explicit desktop regions through desktop observation.
+- `peekaboo image --help` now lists the supported `multi` and `area` capture modes instead of the stale mode set.
+- `peekaboo capture live --region x,y,width,height` now infers area mode, `--mode area` is the canonical name, invalid modes fail clearly, and zero-sized regions are rejected.
+- `peekaboo capture live|video --diff-strategy` now rejects unsupported values instead of silently falling back to `fast`.
+- MCP `capture` now matches the CLI's area-mode parsing, advertises PID targeting, and rejects invalid source/mode/focus/diff inputs instead of silently falling back to defaults.
+- Menu bar popover OCR selection now lives in the shared desktop observation layer, including candidate-window, preferred-area, and AX-menu-frame matching.
+- Menu bar popover click-to-open capture now runs through desktop observation via a typed `openIfNeeded` target option instead of command-local click fallback code.
+- Desktop observation diagnostics now report shared target resolution metadata for menu bar strip and popover captures, including source, bounds, hints, and click-open fallback status.
+- `peekaboo menubar list` now uses the same `data.items/count` JSON envelope and text list formatting as `peekaboo list menubar`.
+- CLI `see` screen capture now uses the shared screen inventory instead of command-local ScreenCaptureKit display enumeration.
+- CLI `see`, `image`, and `list` capture paths now avoid command-local AppKit screen/application queries and use shared services for screen inventory and app identity checks.
+- Screen capture support internals are now split into focused scale, engine fallback, application resolving, and ScreenCaptureKit gate helpers.
+- Screen capture orchestration now keeps public protocol witnesses in `ScreenCaptureService`, with operation gating/metrics and capture execution paths split into focused companions.
+- ScreenCaptureKit capture execution now separates display/area capture, window capture, and shared frame-source support into focused operator companions.
+- Watch capture sessions now separate lifecycle/result assembly from capture-loop cadence/diffing and frame/video persistence helpers.
+- Application window listing now isolates hybrid CGWindowList/AX enumeration policy in a dedicated context object.
+- Capture models now separate image primitives, live session options, frame metadata, and session-result summaries into focused files.
+- UI automation now keeps focus lookup, wait/search logic, typing, pointer/keyboard operations, and search-policy limits in focused service files.
+- Space management now keeps managed-display Space mapping helpers out of the private-CGS service file.
+- Legacy capture now keeps window capture and screen/area capture paths in focused operator companions.
+- Observation label placement now keeps validation, scoring, debug rendering, and text-detection protocol glue in focused companions.
+- Window management now keeps state, geometry, listing, target resolution, title search, and presence polling in focused companions.
+- Dialog service now keeps public operations and button resolution/action helpers out of the construction/error file.
+- Process command models now keep enum cases, interaction parameters, system parameters, and output DTOs in focused files.
+- Capture metadata now includes diagnostics for requested scale, native scale, output scale, final pixel size, selected engine, and fallback reason.
+- ScreenCaptureKit frame-source internals now keep stream handler/session types in a focused companion while the frame source owns request orchestration.
+- MCP image capture now separates tool entrypoint, capture orchestration, and request/format types into focused files.
+- MCP list output now keeps parsing and formatting helpers in a focused companion file.
+- MCP type tooling now keeps request/target types and response/action formatting in focused companions while `TypeTool` owns schema, validation, and execution flow.
+- MCP move tooling now keeps coordinate parsing, target resolution/movement execution, response formatting, and request/result types in focused companions.
+- Gesture service path generation now lives in a focused companion, leaving swipe/drag/move orchestration separate from humanized mouse-path synthesis.
+- Snapshot management now keeps screenshot persistence, element lookup, and the JSON storage actor in focused support files.
+- `peekaboo image` capture orchestration now keeps saved-file/path planning and app-focus policy in focused command-support files.
+- `peekaboo capture live` now keeps scope resolution, option normalization, output rendering, focus policy, and Commander binding in focused command-support files.
+- `peekaboo capture live` now applies the resolution cap consistently to live frames whose source images lack reusable color-space metadata.
+- `peekaboo see --mode screen --json` now emits parseable JSON without human screen-summary lines.
+- Screen capture operations now serialize ScreenCaptureKit permission probing with capture work, `peekaboo capture live` now honors `--capture-engine`, and live area capture defaults to the native `screencapture -R` path so it stays fast during concurrent `see` commands.
+- CLI `see --menubar` popover candidate discovery now uses the shared desktop observation window catalog instead of command-local window-list parsing.
+- Menu-bar click verification now uses the shared desktop observation window catalog instead of command-local CoreGraphics window-list polling.
+- Exact `--window-id` observation metadata now resolves through a dedicated window metadata catalog instead of doing CoreGraphics lookup inside target-resolution orchestration.
+- `peekaboo image` now builds desktop observation requests through a dedicated command-support adapter.
+- `peekaboo image` capture orchestration, output models, filename planning, and focus helpers are now split out of the main command file.
+- `peekaboo see` now builds desktop observation requests through a dedicated command-support adapter.
+- `peekaboo see --mode screen --screen-index <n>` and screen analysis captures now use the shared desktop observation pipeline while all-screen capture keeps the legacy multi-file behavior.
+- MCP `see` request/output and summary support now live outside the primary tool file.
+- `peekaboo see` command support types, output rendering, and screen capture helpers are now split out of the main command file.
+- `peekaboo see` legacy capture/detection fallback is now isolated in a dedicated command-support pipeline.
+- `peekaboo app` launch, quit, and relaunch implementations now live in focused support files, leaving the primary command file as a smaller command shell.
+- `peekaboo menu` list output filtering, typed JSON conversion, and text rendering now share one command-support helper.
+- `peekaboo menu` subcommands now share one error-output mapper for JSON error codes and stderr rendering.
+- `peekaboo menu` click, click-extra, and list implementations now live in focused extension files, leaving the primary command file as registration and shared types.
+- Menu extra handling now keeps public orchestration, open-menu state probing, WindowServer enumeration, AX fallback enumeration, and title cleanup in focused service files.
+- `peekaboo dialog` click, input, file, dismiss, and list implementations now live in focused extension files, leaving the primary command file as registration, bindings, and shared error handling.
+- Dialog service internals now keep active-dialog resolution, dialog classification, and element extraction/typing helpers in focused service files.
+- Dialog resolution now keeps application lookup, file-dialog recursion, visibility assists, and CoreGraphics window fallback in focused companions.
+- Dock service internals now keep item listing/search, actions, visibility defaults commands, and AX lookup support in focused service files; Dock removal also avoids an unused defaults read and passes the app name to AppleScript as an argument.
+- Hotkey service internals now keep key aliasing, chord validation, key-code lookup, and planner test hooks in a focused companion file.
+- Script process execution now keeps capture commands, interaction commands, system commands, and generic parameter parsing in focused service files.
+- Script process execution now keeps window and clipboard script commands in focused companions instead of the mixed system-command file.
+- MCP capture tooling now keeps argument normalization, request construction, path expansion, window resolution, and metadata output in focused companions.
+- MCP dialog tooling now keeps input parsing and response formatting in focused companions while the primary tool owns service dispatch.
+- MCP app tooling now keeps lifecycle, focus/switch, listing, and response formatting in focused companions while the primary action file owns dispatch.
+- MCP drag tooling now keeps request parsing, point resolution, focus handling, and response formatting in focused companions while `DragTool` owns orchestration.
+- MCP observation snapshots now live in a shared snapshot store file instead of being hidden inside `SeeTool`.
+- Application service internals now keep app discovery, lifecycle/Spotlight launch lookup, and window enumeration in focused service files.
+- UI automation orchestration now keeps detection, click, typing, scroll, hotkey, and gesture operations in a focused companion file while the primary service owns initialization and AX wait/search behavior.
+- Visualizer coordination now keeps public animation entry points, input/display overlays, and system/display overlays in focused companion files instead of one large coordinator.
+- Snapshot management now keeps storage paths, latest-snapshot lookup, element conversion, and cleanup helpers in a focused companion file.
+- Agent service orchestration now keeps execution loops, stream delta processing, session lifecycle wrappers, toolset assembly, and MCP-to-agent tool adaptation in focused companion files.
+- Agent tool-call event previews now use a tested redaction helper for sensitive argument fields and inline token patterns before sending UI events.
+- Bridge server request handling now keeps operation handlers and handshake/permission advertisement policy in focused companion files.
+- Bridge server request handling now keeps service-domain handlers in a focused companion file, leaving the primary handler file as routing plus core/capture/automation/window operations.
+- Remote service adapters now live in focused files instead of one aggregate service-provider implementation.
+- Core service registry now keeps agent refresh/model selection and high-level automation helpers in focused companion files.
+- Window tool formatting now keeps base dispatch, window/screen result rendering, and Spaces result rendering in focused files.
+- Menu/dialog tool formatting now keeps menu and dialog result rendering in focused companion files instead of carrying unused system/dock helpers.
+- UI automation tool formatting now keeps pointer and keyboard result rendering in focused companion files.
+- Agent summaries for `move`, `drag`, and `swipe` now include pointer result metadata instead of falling back to an empty completion summary.
+- Agent desktop context gathering now reads focused app/window state, cursor position, and recent apps through shared service boundaries instead of direct `NSWorkspace`/CoreGraphics event/window scans.
+- MCP app cycling and move-center resolution now use injected automation/screen services instead of direct AXorcist/AppKit calls.
+- CLI move/scroll result telemetry now reads the current cursor position through the automation service boundary instead of direct CoreGraphics event calls.
+- Agent runtime visualizer bounds resolution and verification image encoding no longer import AppKit; screen geometry now flows through the shared screen service and PNG encoding uses ImageIO.
+- CLI app quit/relaunch now resolve, terminate, and poll app state through the application service boundary instead of direct `NSWorkspace` process scans.
+- CLI visualizer smoke geometry now uses the injected screen service instead of reading `NSScreen` directly.
+- Application service protocol models no longer import AppKit.
+- Scripted swipe defaults now resolve the primary screen through the screen service instead of reading `NSScreen.main` directly.
+- Window list mapping no longer imports AppKit for CoreGraphics and ScreenCaptureKit-only metadata caching.
+- Space management utilities now isolate private CGS API declarations and public Space models from service orchestration.
+- Agent tool creation now keeps MCP schema conversion and ToolResponse bridging in focused helper files.
+- UI automation protocol definitions now keep mouse profile, element-detection, and operation DTOs in focused model files.
+- Type actions now synthesize `enter`, `forward_delete`, `caps_lock`, `clear`, and `help` with their documented key codes instead of collapsing or rejecting them.
+- Type service internals now keep target resolution, typing cadence, and special-key synthesis in focused helper files.
+- In-memory snapshots now enforce the configured LRU limit immediately after writes and delete pruned artifacts when cleanup is enabled.
+- In-memory snapshot management now keeps lifecycle, screenshot access, pruning, and detection mapping in focused helper files.
+- `peekaboo space` list, switch, and move-window implementations now live in focused extension files, leaving the primary command file as registration, service wiring, and shared response types.
+- `peekaboo dock` launch, right-click, visibility, and list implementations now live in focused extension files, leaving the primary command file as registration, bindings, and shared error handling.
+- `peekaboo daemon` start, stop, status, and run implementations now live in focused extension files, leaving the primary command file as registration and shared daemon status support.
+- `peekaboo click`, `type`, `move`, `scroll`, `drag`, `swipe`, `hotkey`, and `press` now share one interaction observation context for explicit/latest snapshot selection and focus snapshot policy.
+- Element-targeted interaction commands now share one stale-snapshot refresh helper instead of duplicating per-command refresh loops.
+- MCP `window` action handlers now live in a focused companion file, and missing window targets return the direct validation error instead of a generic action failure.
+- MCP `app` action handlers now live in a focused companion file, leaving the primary tool file as request parsing and dispatch.
+- MCP `space` action handlers now live in a focused companion file, leaving the primary tool file as schema, request parsing, and dispatch.
+- Legacy window capture fallbacks now live in focused private-ScreenCaptureKit and system-screencapture operator companions instead of the shared capture support file.
+- Private ScreenCaptureKit window-ID lookup now has explicit controls: compile with `PEEKABOO_DISABLE_PRIVATE_SCK_WINDOW_LOOKUP` or set `PEEKABOO_DISABLE_PRIVATE_SCK_WINDOW_LOOKUP=1`; `PEEKABOO_USE_PRIVATE_SCK_WINDOW_LOOKUP=false` also opts out for one run.
+- `peekaboo click`, `type`, `scroll`, `drag`, and `swipe` now invalidate implicitly reused latest snapshots after successful UI mutations so later commands do not silently target stale UI.
+- `peekaboo hotkey --focus-background` can now send process-targeted hotkeys without activating the target app, with bridge permission support and docs. Thanks @prateek for [#112](https://github.com/steipete/Peekaboo/pull/112)!
+- `peekaboo completions` now emits zsh, bash, and fish completion scripts generated from Commander metadata. Thanks @jkker for [#96](https://github.com/steipete/Peekaboo/pull/96)!
+- Added subprocess/OpenClaw integration docs for local capture workarounds when the bridge host owns macOS permissions. Thanks @hnshah for [#97](https://github.com/steipete/Peekaboo/pull/97)!
+- Added a thin `peekaboo-cli` agent skill that points agents at live CLI help and canonical command docs. Thanks @terryso for [#98](https://github.com/steipete/Peekaboo/pull/98)!
+- Release automation now dispatches the centralized Homebrew tap updater and waits for the matching tap workflow run. Thanks @dinakars777 for [#110](https://github.com/steipete/Peekaboo/pull/110)!
+
+### Changed
+- The docs site now publishes generated documentation pages at the site root and writes the sitemap from the generated page set.
+
+### Fixed
+- Commander-backed CLI commands without positional arguments now reject unexpected trailing tokens instead of silently ignoring them.
+- Snapshot-backed UIAX actions now preserve app/window context when rehydrating snapshots, so `actionOnly` element clicks resolve in the captured app instead of the frontmost app.
+- `peekaboo click` now accepts the shared `--input-strategy` runtime override so action-only and synth-only paths can be tested directly.
+- `peekaboo click --input-strategy actionOnly` now focuses editable text controls via `AXFocused` when they do not expose `AXPress`, matching Computer Use-style element targeting more closely.
+- `peekaboo click --right` now falls back to a synthetic right-click when `AXShowMenu` cannot complete on the target element.
+- `peekaboo clean --dry-run` now previews the documented default cleanup scope instead of requiring an explicit cleanup target.
+- `peekaboo run` scripts now create parent directories for legacy `see` step output paths before writing screenshots.
+- `peekaboo dialog file` now has `--timeout-seconds` and returns a `TIMEOUT` JSON error instead of hanging indefinitely on wedged save/open panels.
+- `peekaboo dialog list` now has `--timeout-seconds` and returns structured JSON instead of hanging or crashing when Accessibility stalls while searching for dialogs.
+- `peekaboo list windows --pid` now works without also requiring `--app`, matching the command help and `window list --pid`.
+- `peekaboo app hide <app>` and `peekaboo app unhide <app>` now accept the positional app form shown by the CLI examples, while keeping `--app`.
+- Snapshot-backed interactions now tolerate tiny macOS window-size jitter instead of failing as stale when a window drifts by only a few pixels between `see` and the follow-up action.
+- `peekaboo set-value` now reports unsupported direct value writes as `INVALID_INPUT` with the target element named instead of surfacing an internal Swift error.
+- `peekaboo config add-provider --dry-run` and `remove-provider --dry-run` now preserve the config file when invoked through the Commander CLI path.
+- `peekaboo config add` now exits nonzero when credential validation fails or times out, matching its JSON `success: false` response.
+- Explicit stale snapshots now report the JSON error code `SNAPSHOT_STALE` instead of falling through to `UNKNOWN_ERROR`.
+- Bridge transport timeouts now report the JSON error code `TIMEOUT` instead of `INTERNAL_SWIFT_ERROR`.
+- `peekaboo see --json` now emits a single structured error response for capture and detection failures instead of occasionally printing two JSON objects.
+- `peekaboo type --text`, `peekaboo press --key`, and `peekaboo set-value --value` now work as aliases for their positional arguments.
+- Peekaboo.app no longer crashes at launch on macOS 26 when the hidden Settings helper window is created.
+- `peekaboo hotkey` now accepts plus-separated shortcuts such as `cmd+s`, matching common CLI shorthand and the help text while still supporting comma and space separators.
+- `peekaboo type` is more reliable in VM and headless launch paths because printable ASCII input now uses physical key events instead of Unicode-only events.
+- SwiftPM debug builds now skip SwiftUI preview macros when building from Command Line Tools without full Xcode preview plugin support.
+- AutomationKit no longer exposes AXorcist action-input, synthetic-input, automation-element, or window-handle implementation types through public Peekaboo service APIs.
+- Legacy window capture now uses the private ScreenCaptureKit window-ID lookup behind `/usr/sbin/screencapture -l` before falling back to the system `screencapture` binary and public ScreenCaptureKit enumeration.
+- `peekaboo image --path .` and MCP image captures with directory-like paths now save a generated filename inside the directory instead of creating hidden `..png` artifacts.
+- `peekaboo see --path .` now uses the same directory-aware output policy for observation and legacy screen companion paths.
+- `peekaboo capture live --path ~/...`, `peekaboo capture ... --video-out ~/...`, `peekaboo capture video --path ~/...`, `peekaboo capture video ~/...`, and MCP `capture` path inputs now expand home-directory paths consistently with the rest of the CLI.
+- `peekaboo clipboard`, `peekaboo paste`, and MCP clipboard/paste file paths now expand `~/...` before reading or writing files.
+- `peekaboo run` script/output paths and `peekaboo agent --audio-file ~/...` now expand home-directory paths before file IO.
+- `.peekaboo.json` script `see` screenshot paths and clipboard file/output paths now expand `~/...` during process execution.
+- AI image-file analysis now expands only leading home-directory tildes instead of rewriting literal `~` characters inside filenames.
+- The shared file image writer now expands `~/...` before saving screenshots/images.
+- ScreenCaptureKit area captures now use single-shot capture so source rectangles such as the menu-bar strip save the requested region instead of a full-display frame.
+- CLI bundle metadata and the bundled Homebrew formula now advertise the macOS 15 minimum that v3.0.0-beta2+ already requires.
+- The bundled Homebrew formula now matches the published v3.0.0-beta4 CLI artifact checksum.
+- `peekaboo agent permission ...` now resolves the documented permission subcommands instead of treating `permission` as an agent task.
+- `peekaboo move --on` now targets UI elements correctly.
+- `peekaboo window` subcommands now accept `--window-id` without requiring a redundant app target.
+- `peekaboo press --hold` now honors the requested hold duration.
+- `peekaboo app launch --no-focus` now also suppresses activation when launching without `--open` targets.
+- `peekaboo clipboard` now accepts the action positionally, so `peekaboo clipboard get --json` matches the documented CLI shape while `--action` remains available as an alias.
+- CLI help now uses public kebab-case placeholders from argument and option spellings, e.g. `<script-path>`, `--file-path <file-path>`, and `--action <action>` instead of internal Swift binding names.
+- Agent tool formatting now routes Dock, shell/wait, and clipboard tools through their dedicated formatters instead of the generic menu/dialog formatter.
+- CLI command utilities were split into focused error-handling, output-formatting, service-bridge, cursor-movement, and menu-bar output files.
+- `peekaboo agent` command code was split into focused terminal, session, execution, and model parsing extensions to keep the command shell smaller.
+- `peekaboo agent` output formatting helpers now live outside the event delegate so streaming and tool event handling stay focused.
+- Core configuration loading now keeps parsing, credentials, typed accessors, persistence/default templates, and custom-provider management in focused companion files.
+- Bridge client adapters now keep status, capture, interaction, window/app, menu/dock/dialog, snapshot, and socket transport code in focused files.
+- Bridge protocol models now keep operation policy, payload DTOs, and request/response envelopes in focused files.
+- Dialog service no longer carries stale duplicate file-dialog navigation, filename, save-verification, and key-mapping helpers in its main implementation file.
+- File-dialog handling now keeps orchestration, navigation/focus, filename entry, and save verification in focused service files.
+- `peekaboo config` custom-provider management commands now live in a focused companion file instead of the add-provider implementation file.
+- `peekaboo list screens` implementation and screen payload models now live outside the primary list command file.
+- `peekaboo list apps` and `peekaboo list windows` now live in focused companion files instead of the primary list command shell.
+- `peekaboo clipboard` Commander binding and JSON payload types now live outside the action implementation file.
+- `peekaboo bridge status` diagnostics and JSON report models now live outside the command UI file.
+- Commander runtime help rendering and theming now live outside the command resolution router.
+- `peekaboo capture live` orchestration and the hidden `capture watch` alias now live outside the root capture command file.
+- `peekaboo capture video` now lives in its own command file, leaving live capture and the watch alias in the primary capture command file.
+- `peekaboo agent permission` status and request flows now live in focused companion files instead of one oversized command implementation.
+- `peekaboo agent permission ...` now resolves as nested permission subcommands before the agent free-form task argument.
+- Interactive agent chat UI, input components, and event translation now live in focused companion files instead of one oversized TUI implementation.
+- `peekaboo clipboard get --json` now includes the exact clipboard text/base64 payload, and `--output -` no longer mixes raw clipboard output with JSON.
+- `peekaboo capture video --sample-fps` now reports the effective video sampling options in JSON metadata.
+- JSON output is more consistent across the CLI: `tools`, `list permissions`, config commands, and Commander parse errors now emit parseable structured envelopes with `debug_logs` where applicable.
+- `peekaboo list apps`, `list screens`, and `list windows --json` now emit the same standard top-level `success/data/debug_logs` envelope as sibling CLI commands.
+- `peekaboo see --json` now leaves `screenshot_annotated` empty when no annotated image was created instead of aliasing the raw screenshot path.
+- The experimental `peekaboo commander` diagnostics command is registered again and emits standard JSON diagnostics with `--json`.
+- MCP `image` now returns a structured tool error when Screen Recording permission is missing instead of surfacing an internal server error.
+- `peekaboo see --mode screen --annotate` now consistently skips annotation generation instead of reporting or attempting a disabled full-screen annotation.
+- MCP `image` and `see` now route app/PID/frontmost targets through the desktop observation resolver, so multi-window apps use the same visible-window selection as the CLI.
+- MCP `image` saved screenshots now use the shared desktop observation output writer instead of tool-local image persistence.
+- MCP `analyze` now honors configured AI providers and per-call `provider_config` model overrides instead of hardcoding the default OpenAI model.
+- `peekaboo see --annotate` now aligns labels using captured window bounds instead of guessing from the first detected element.
+- Window capture on macOS 26 now resolves native Retina scale from the backing display before falling back to ScreenCaptureKit display ratios.
+- `peekaboo image --app ... --window-title/--window-index` now captures the resolved window by stable window ID, avoiding mismatches between listed window indexes and ScreenCaptureKit window ordering.
+- `peekaboo image --app ...` now prefers titled app windows over untitled helper windows, avoiding blank or auxiliary-window captures in multi-window Chromium-style apps.
+- `peekaboo image --window-title ... --window-index ...` now applies title-over-index precedence when building the observation request, and `image`/`see` now map explicit `PID:<pid>` app identifiers to PID observation targets like MCP.
+- `peekaboo capture live --window-title/--window-index` now resolves explicit app-window selections to stable window IDs before the watch capture loop starts.
+- MCP `capture` now honors `window_title`, resolves explicit title/index window selections to stable window IDs, and rejects ambiguous `window_index` without an app or PID.
+- Element-targeted CLI and MCP interaction commands now apply title-over-index precedence when both window selectors are provided.
+- Window management commands now use one resolver for listing, refetching, and mutating windows, so `--pid` targets and title/index precedence stay consistent across close/minimize/maximize/move/resize/focus.
+- `peekaboo capture live --window-index ...` now selects window mode during auto-mode resolution instead of falling through to a frontmost capture.
+- `peekaboo image --app ...` now reports `WINDOW_NOT_FOUND` when all known app windows are hidden or non-shareable instead of falling back to a generic app capture.
+- `peekaboo image --window-id ...` now reports the resolved window identity instead of leaking ScreenCaptureKit's internal helper-window ordering into `window_index`.
+- Direct element detection callers now use a real racing timeout instead of creating an unobserved timeout task.
+- Element-targeted actions now fail with snapshot window identity when a cached target window disappeared or changed size, instead of silently clicking stale coordinates.
+- Element-targeted move, drag, swipe, click output, and scroll targeting now share the same moved-window point adjustment as click/type execution.
+- Snapshot storage now preserves typed detection window context, including bundle ID, PID, window ID, and bounds, so observation-backed actions can adjust moved-window targets reliably.
+- App launch/switch, window mutation, hotkey, press, and paste commands now invalidate the implicit latest snapshot after UI changes so follow-up actions do not reuse stale UI.
+- `peekaboo click --on/--id`, `click <query>`, `move --on/--id`, `move --to <query>`, `scroll --on`, `drag --from/--to`, and `swipe --from/--to` now refresh the implicit observation snapshot once when cached element targets are missing, avoiding stale latest-snapshot timeouts without overriding explicit `--snapshot`.
+- `peekaboo scroll --smooth --json` now reports the actual smooth scroll tick count used by the automation service (`amount * 10`) instead of the stale `amount * 3` estimate.
+- `peekaboo scroll --on --json` now reports the moved-window-adjusted target point, matching the point used by the automation service.
+- `peekaboo window focus --snapshot` can now focus the window captured by a snapshot, and explicit snapshots are preserved when focus changes invalidate implicit latest state.
+- `peekaboo window focus --snapshot` now refreshes reported window details from the snapshot's stored window identity instead of warning about a missing command-line target.
+- Element-targeted `click`, `move`, `scroll`, `drag`, and `swipe` JSON results now include target-point diagnostics showing the original snapshot point, resolved point, snapshot ID, and moved-window adjustment.
+- Archived stale runtime/visualizer refactor notes behind the current refactor index and documented element target-point diagnostics in the command guides.
+- Removed the obsolete command-local `ScreenCaptureBridge` shim from `peekaboo see`; fallback capture paths now call the typed capture service directly.
+- Split interaction target-point resolution into a focused command support file.
+- Split `ClickCommand` focus verification and output models into focused support files.
+- Split shared `peekaboo window` target, display-name, action-result, and snapshot-invalidation helpers into a focused support file.
+- Split watch-capture frame diffing, luma scaling, bounding-box extraction, and SSIM calculation into a pure `WatchFrameDiffer`.
+- Split watch-capture PNG writing, contact sheet generation, image loading, resizing, and change highlighting into `WatchCaptureArtifactWriter`.
+- Split watch-capture output directory creation, managed autoclean, and metadata JSON writing into `WatchCaptureSessionStore`.
+- Split watch-capture region validation and visible-screen clamping into `WatchCaptureRegionValidator`.
+- Split watch-capture result metadata, stats, options snapshots, and no-motion warnings into `WatchCaptureResultBuilder`.
+- Split watch-capture live/video frame acquisition, region-target capture, and resolution capping into `WatchCaptureFrameProvider`.
+- Split watch-capture active/idle hysteresis policy into `WatchCaptureActivityPolicy` and removed the unused private motion-interval accumulator.
+- Split `WindowManagementService` target resolution, title search, and close-presence polling into focused extension files.
+- Split `peekaboo window` response models and Commander binding/conformance wiring into a focused command binding file.
+- Split `peekaboo window close`, `minimize`, and `maximize` implementations into a focused state-action file.
+- Split `peekaboo window move`, `resize`, and `set-bounds` implementations into a focused geometry-action file.
+- Split `peekaboo window focus` and `list` implementations into focused command files, leaving the main window command as a thin shell.
+- Split interaction snapshot invalidation into a focused shared helper, keeping observation resolution separate from mutation cleanup.
+- Split observation label placement geometry and candidate generation into a focused helper, keeping label scoring/orchestration smaller.
+- Split desktop observation target diagnostics and timing trace recording out of `DesktopObservationService`.
+- Split `peekaboo move` result and movement-resolution types into a focused types file.
+- Split `peekaboo move` Commander wiring and cursor movement parameter policy into focused support files.
+- Split drag destination-app/Dock AX lookup into a focused CLI helper, removed stale platform imports from `swipe`, and made `move --center` use the shared screen service instead of querying AppKit in the command shell.
+- Made `peekaboo image --app` skip auto-focus when a renderable target window is already visible, fixing SwiftPM GUI app captures that timed out during activation and shaving app capture wall time in live TextEdit/Chrome checks.
+- Shared MCP `image`/`see` target parsing so `screen:N`, `frontmost`, `menubar`, `PID:1234:2`, `App:2`, and `App:Title` map through the same observation resolver; MCP `image` also now accepts `scale: native`/`retina: true` for native pixel captures.
+- Split `peekaboo type` text escape processing and result DTOs into focused support files.
+- Shared drag/swipe element-or-coordinate point resolution through the common interaction target resolver and split gesture result DTOs into focused support files.
+- Split `peekaboo click` validation/helpers and Commander wiring into focused support files.
+- Routed `peekaboo click` coordinate focus verification through the application service boundary instead of command-local `NSWorkspace` frontmost-app reads.
+- Routed `peekaboo app switch --to` activation and `--cycle` input through shared service boundaries instead of command-local `NSWorkspace`/`CGEvent` calls.
+- Routed `peekaboo menu click/list` frontmost-app fallback through the application service boundary instead of command-local `NSWorkspace` reads.
+- Removed stale `AppKit` imports from command utility, menubar, open, and space command files where only Foundation/CoreGraphics APIs are used.
+- Removed the stale `AppKit` dependency from the menu-bar popover detector helper.
+- Routed smart capture frontmost-app and screen-bounds lookups through shared application and screen service boundaries.
+- Split smart capture image decoding, thumbnail resizing, and perceptual hashing into a focused image processor helper.
+- Fixed smart capture region screenshots to clamp to the display containing the action target instead of always using the primary display.
+- Split observation target menu-bar resolution and window-selection scoring into focused resolver extension files.
+- Split desktop observation target, request, and result DTOs into focused model files.
+- Split `DesktopObservationService` capture, detection/OCR, and output-writing plumbing into focused extension files.
+- Split frontmost-application capture lookup behind the shared capture application resolver so `ScreenCaptureService` no longer owns AppKit app identity conversion.
+- Removed stale `AXorcist` imports from CLI command files by routing app hide/unhide and accessibility permission prompting through shared services.
+- Routed menu-bar popover target resolution through the shared observation window catalog instead of a resolver-local CoreGraphics window-list query.
+- Routed drag `--to-app` destination lookup through application, window, and Dock services instead of direct CLI AX/AppKit queries.
+- `peekaboo window focus --help` no longer advertises stale Space flag names or the interaction-only `--no-auto-focus` flag.
+- Split exact CoreGraphics window-ID metadata lookup out of `WindowManagementService` so the window service stays closer to orchestration.
+- `ElementDetectionService` now returns detection results without writing snapshots itself; snapshot persistence is owned by the automation/observation orchestration layers.
+- `peekaboo image --capture-engine` is now wired into Commander metadata, so the documented capture-engine selector is accepted by live CLI parsing.
+- Concurrent ScreenCaptureKit screenshot requests now queue through an in-process and cross-process capture gate instead of racing into continuation leaks or transient TCC-denied failures.
+- Concurrent `peekaboo see` calls now queue the local screenshot/detection pipeline across processes, avoiding ReplayKit/ScreenCaptureKit continuation hangs under parallel usage.
+- Bridge-sourced permission checks now explain when Screen Recording is missing on the selected host app and document the `--no-remote --capture-engine cg` subprocess workaround.
+- Peekaboo.app now signs with the AppleEvents automation entitlement so macOS can prompt for Automation permission.
+- OpenAI GPT-5 / Responses API paths now resolve OAuth credentials through Tachikoma instead of requiring `OPENAI_API_KEY`, while docs clarify the remaining OpenAI scope limitation.
+- Custom OpenAI-compatible and Anthropic-compatible AI providers now forward configured proxy headers during generation and streaming.
+- `see --analyze` / image analysis now convert GLM vision model 0-1000 normalized bounding boxes into screenshot pixel coordinates before returning results.
+- `image --analyze` now honors configured custom AI providers such as `local-proxy/model` instead of falling back to built-in defaults. Thanks @381181295 for [#99](https://github.com/steipete/Peekaboo/pull/99)!
+- Browser focus verification now tolerates stale AX handles by re-resolving windows after activation and checking the topmost renderable CG window. Thanks @ZVNC28 for [#103](https://github.com/steipete/Peekaboo/pull/103)!
+- `peekaboo image --app` and `peekaboo see --app/--pid/--window-id` now share the desktop observation target resolver, so helper/offscreen windows are ranked consistently across capture and detection.
+- ScreenCaptureKit screenshot calls now fail with a bounded timeout if the underlying framework leaks a continuation, instead of hanging the CLI indefinitely.
+- `peekaboo image` and `peekaboo see` now share the same desktop-observation process gate, while ScreenCaptureKit callers avoid redundant outer timeouts, preventing transient TCC failures and continuation-misuse warnings under concurrent CLI use.
+
+### Performance
+- Menu bar listing is faster by avoiding redundant accessibility work.
+- Exact window-ID metadata refreshes now use a CoreGraphics lookup before falling back to all-app AX enumeration, making already-known window focus/list refreshes substantially faster.
+- Dialog discovery and visualizer dispatch now fail fast when their target UI is unavailable instead of waiting through slow default paths.
+- `peekaboo tools` and read-only `peekaboo list` inventory commands now default to local execution instead of probing bridge sockets first, shaving roughly 30-35ms from warm catalog/window-list calls when no bridge is in use. Pass `--bridge-socket` to target a bridge explicitly.
+- `peekaboo image --app` avoids redundant application/window-count lookups during screenshot setup and skips auto-focus work when the target app is already frontmost.
+- `peekaboo image --app` now uses a CoreGraphics-only window selection fast path before falling back to full AX-enriched window enumeration, reducing warm Playground screenshot capture from about 350ms to 290ms.
+- `peekaboo image` now defaults to local capture instead of probing bridge sockets first, reducing default warm app screenshot calls from about 330ms to 290ms when no bridge is in use. Pass `--bridge-socket` to target a bridge explicitly.
+- `peekaboo see` now defaults to local execution instead of probing bridge sockets first, cutting warm Playground screenshot-plus-AX calls from about 844ms to 759ms when no bridge is in use. Pass `--bridge-socket` to target a bridge explicitly.
+- `peekaboo image` skips a redundant CLI-side screen-recording preflight and relies on the capture service's permission check, shaving about 8ms from warm one-shot app screenshots.
+- `peekaboo see --app` avoids re-focusing the target window when Accessibility already reports the captured window as focused.
+- `peekaboo see` avoids recursive AX child-text lookups for elements whose labels cannot use them, reducing Playground element detection from about 201ms to 134ms in local testing.
+- `peekaboo see` batches per-element Accessibility descriptor reads and avoids action/editability probes when the role already determines behavior, reducing local Playground element detection from about 205ms to 176ms.
+- `peekaboo see` limits expensive AX action and keyboard-shortcut probes to roles that can use them, reducing Playground element detection from about 286ms to roughly 180-190ms in local testing.
+- `peekaboo see` skips a redundant CLI-side screen-recording preflight and relies on the capture service's permission check, shaving a fixed TCC probe from screenshot-plus-AX runs.
+- `peekaboo see` now keeps AX traversal scoped to the captured window and skips web-content focus probing once a rich native AX tree is already visible, avoiding sibling-window elements and cutting native Playground detection from about 220ms to 130ms.
+- `peekaboo see --app Playground` now runs through the observation facade in about 0.50s locally, with capture and AX detection spans reported separately.
+
+### Community
+- Added PeekabooWin to the README community projects list. Thanks @FelixKruger!
+
+## [3.0.0-beta4] - 2026-04-28
+
+### Added
+- Root SwiftPM package to expose PeekabooBridge and automation modules for host apps.
+
+### Changed
+- Bumped submodule dependencies to tagged releases (AXorcist v0.1.2, Commander v0.2.2, Swiftdansi 0.2.1, Tachikoma v0.2.0, TauTUI v0.1.6).
+- Version metadata updated to 3.0.0-beta4 for CLI/macOS app artifacts.
+
+### Fixed
+- Test runs now stay hermetic after MCP Swift SDK 0.11 updates by pinning the latest Tachikoma bridge/resource conversions and preventing provider test helpers from consuming live API keys.
+- macOS settings now surface Google/Gemini and Grok providers with canonical provider hydration and manual key overrides.
+- MCP `list` / `see` text output now surfaces hidden apps, bundle paths, and richer element metadata; thanks @metahacker for [#93](https://github.com/steipete/Peekaboo/pull/93).
+- MCP tool descriptions and server-status output now share centralized version/banner metadata; thanks @0xble for [#85](https://github.com/steipete/Peekaboo/pull/85).
+- Agent tool responses now handle current MCP resource/resource-link content shapes; thanks @huntharo for [#95](https://github.com/steipete/Peekaboo/pull/95).
+- CLI credential writes now honor Peekaboo’s config/profile directory consistently; thanks @0xble for [#82](https://github.com/steipete/Peekaboo/pull/82).
+- macOS settings hydration no longer persists config-backed values while loading; thanks @0xble for [#86](https://github.com/steipete/Peekaboo/pull/86).
+- CLI agent runtime now prefers local execution by default; thanks @0xble for [#83](https://github.com/steipete/Peekaboo/pull/83).
+- Remote `peekaboo see` element detection now uses the command timeout instead of the bridge client's shorter socket default; thanks @0xble for [#89](https://github.com/steipete/Peekaboo/pull/89).
+- Screen recording permission checks are more reliable, and MCP Swift SDK compatibility is restored; thanks @romanr for [#94](https://github.com/steipete/Peekaboo/pull/94).
+- Coordinate clicks now fail fast when the requested target app is not actually frontmost after focus; thanks @shawny011717 for [#91](https://github.com/steipete/Peekaboo/pull/91).
+- Permissions docs now point to the real `peekaboo permissions status|grant` commands; thanks @Undertone0809 for [#68](https://github.com/steipete/Peekaboo/pull/68).
+
+## [3.0.0-beta3] - 2025-12-29
+
+### Highlights
+- Headless daemon + window tracking: `peekaboo daemon start|stop|status`, MCP auto-daemon mode, in-memory snapshots, and move-aware click/type adjustments.
+- Menu bar automation overhaul: CGWindow + AX fallback for menu extras (including Trimmy), `menubar click --verify` + `menu click-extra --verify` with popover/focus/OCR checks, and `see --menubar` popover capture via window list + OCR.
+- Screen/area capture pipeline now uses a persistent ScreenCaptureKit fast stream (frame-age + wait timing logs) with single-shot fallback for windows.
+
+### Added
+- `peekaboo clipboard --verify` reads back clipboard writes; text writes now publish both `public.plain-text` and `.string` across CLI, MCP tools, paste, and scripts.
+- `peekaboo dock launch --verify`, `peekaboo window focus --verify`, and `peekaboo app switch --verify` add lightweight post-action checks.
+- `peekaboo app list` now supports `--include-hidden` and `--include-background`.
+- Release artifacts now ship a universal macOS CLI binary (arm64 + x86_64).
+
+### Changed
+- AX element detection now caches per-window traversals for ~1.5s to reduce repeated `see` thrash; window list mapping is now centralized and cached to cut CG/SC re-queries.
+- Menu bar popover selection now prefers owner-name matches and X-position hints; owner-PID filtering relaxes when app hints do not match any candidate.
+- Menu bar screenshot captures now use the real menu bar height derived from each screen’s visible frame.
+- `peekaboo see --menubar` now attempts an OCR area fallback after auto-clicking a menu extra even when open-menu AX state is missing.
+
+### Fixed
+- Menu bar extras now combine CGWindow data with AX fallbacks to surface third-party items like Trimmy, and clicks target the owning window for reliability.
+- Menu bar extras now hydrate missing owner PIDs from running app metadata to improve open-menu detection.
+- Menu bar open-menu probing now returns AX menu frames over the bridge to support popover captures.
+- Menu bar verification now detects focused-window changes when a menu bar app opens a settings window.
+- Menu bar click verification now detects popovers in both top-left and bottom-left coordinate systems.
+- Menu bar click verification now requires OCR text to include the target title/owner name when falling back to OCR (set `PEEKABOO_MENUBAR_OCR_VERIFY=0` to disable).
+- Menu bar popover OCR area/frame fallbacks now validate against app hints before accepting a capture.
+
+## [3.0.0-beta2] - 2025-12-19
+
+### Highlights
+- **Socket-based Peekaboo Bridge**: privileged automation runs in a long-lived **bridge host** (Peekaboo.app, or another signed host like Clawdbot.app) and the CLI connects over a UNIX socket (replacing the v3.0.0-beta1 XPC helper model).
+- **Snapshots replace sessions**: snapshots live in memory by default, are scoped **per target bundle ID**, and are reused automatically for follow-up actions (agent-friendly; fewer IDs to plumb around).
+- **MCP server-only**: Peekaboo still runs as an MCP server for Claude Desktop/Cursor/etc, but no longer hosts/manages external MCP servers.
+- **Reliability upgrades for “single action” automation**: hard wall-clock timeouts and bounded AX traversal to prevent hangs.
+- **Visualizer extracted + stabilized**: overlay UI lives in `PeekabooVisualizer`, with improved preview timings and less clipping.
+
+### Breaking
+- Removed the v3.0.0-beta1 XPC helper pathway; remote execution now uses the **Peekaboo Bridge** socket host model.
+- Renamed automation “sessions” → “snapshots” across CLI output, cache/paths, and APIs.
+- Removed external MCP client support (`peekaboo mcp add/list/test/call/enable/disable` removed); `peekaboo mcp` now defaults to `serve`, and `mcpClients` configuration is no longer supported.
+- CLI builds now target **macOS 15+**.
+
+### Added
+- `peekaboo paste`: set clipboard content, paste (Cmd+V), then restore the prior clipboard (text, files/images, base64 payloads).
+- Deterministic window targeting via `--window-id` to avoid title/index ambiguity.
+- `peekaboo bridge status` diagnostics for host selection/handshake/security; plus runtime controls `--bridge-socket` and `--no-remote`.
+- Bridge security: caller validation via **code signature TeamID allowlist** (and optional bundle allowlist), with a **debug-only** same-UID escape hatch (`PEEKABOO_ALLOW_UNSIGNED_SOCKET_CLIENTS=1`).
+- `peekaboo hotkey` accepts the key combo as a positional argument (in addition to `--keys`) for quick one-liners like `peekaboo hotkey "cmd,shift,t"`.
+- `peekaboo learn` renders its guide as ANSI-styled markdown on rich terminals, while still emitting plain markdown when piped.
+- Agent providers now include `gemini-3-flash`, expanding the out-of-the-box model catalog for `peekaboo agent`.
+- Agent streaming loop now injects `DESKTOP_STATE` (focused app/window title, cursor position, and clipboard preview when the `clipboard` tool is enabled) as untrusted, delimited context to improve situational awareness.
+- Peekaboo’s macOS app now surfaces About/Updates inside Settings (Sparkle update checks when signed/bundled).
+
+### Changed
+- Bridge host discovery order is now: **Peekaboo.app → Clawdbot.app → local in-process** (no auto-launch).
+- Capture defaults favor the classic engine for speed/reliability, with explicit capture-engine flags when you need SCKit behavior.
+- Agent defaults now prefer Claude Opus 4.5 when available, with improved streaming output for supported providers.
+- OpenAI model aliases now map to the latest GPT-5.1 variants for `peekaboo agent`.
+
+### Fixed
+- ScreenCaptureKit window capture no longer returns black frames for GPU-rendered windows (notably iOS Simulator), and display-bound crops now use display-local `sourceRect` coordinates on secondary monitors.
+- `peekaboo see` is now bounded for “single action” use (10s wall-clock timeout without `--analyze`), and timeouts surface as `TIMEOUT` exit codes instead of silent hangs.
+- Dialog file automation is more reliable: can force “Show Details” (`--ensure-expanded`) and verifies the saved path when possible.
+- `peekaboo dialog` subcommands now expose the full interaction targeting + focus options (Commander parity).
+- App resolution now prioritizes exact name matches over bundleID-contains matches, preventing `--app Safari` from accidentally matching helper processes with “Safari” in their bundle ID.
+- UI element detection enforces conservative traversal limits (depth/node/child caps) plus a detection deadline, making runaway AX trees safe.
+- Listing apps via a bridge no longer risks timing out: window counts now use CGWindowList instead of per-app AX enumeration.
+- Visualizer previews now respect their full duration before fading out; overlays no longer disappear in ~0.3s regardless of requested timing.
+- `peekaboo image`: infer output encoding from `--path` extension when `--format` is omitted, and reject conflicting `--format` vs `--path` extension values.
+- `peekaboo image --analyze`: Ollama vision models are now supported.
+- `peekaboo click --coords` no longer crashes on invalid input; invalid coordinates now fail with a structured validation error.
+- Auto-focus no longer no-ops when a snapshot is missing a `windowID`, preventing follow-up actions from landing in the wrong frontmost app.
+- `peekaboo window list` no longer returns duplicate entries for the same window.
+- `peekaboo capture live` avoids window-index mismatches that could attach to the wrong window when multiple candidates are present.
+- Bridge hosts that reject the CLI now reply with a structured `unauthorizedClient` error response instead of closing the socket (EOF), and the CLI error message includes actionable guidance for older hosts.
+
+## [3.0.0-beta1] - 2025-11-25
+
+### Added
+- Tool allow/deny filters now log when a tool is hidden, including whether the rule came from environment variables or config, and tests cover the messaging.
+- `peekaboo image --retina` captures at native HiDPI scale (2x on Retina) with scale-aware bounds in the capture pipeline, plus docs and tests to lock in the behavior.
+- Peekaboo now inherits Tachikoma’s Azure OpenAI provider and refreshed model catalog (GPT‑5.1 family as default, updated Grok/Gemini 2.5 IDs), and the `tk-config` helper is exposed through the provider config flow for easier credential setup.
+- Full GUI automation commands—`see`, `click`, `type`, `press`, `scroll`, `hotkey`, and `swipe`—now ship in the CLI with multi-screen capture so you can identify elements on any display and act on them without leaving the terminal.
+- Natural-language AI agent flows (`peekaboo agent "…"` or simply `peekaboo "…"`) let you describe multi-step tasks in prose; the agent chains native tools, emits verbose traces, and supports low-level hotkeys when you need to fall back to precise control.
+- Dedicated window management, multi-screen, and Spaces commands (`window`, `space`) give you scripted control over closing, moving, resizing, and re-homing macOS apps, including presets like left/right halves and cross-display moves.
+- Menu tooling now enumerates every application menu plus system menu extras, enabling zero-click discovery of keyboard shortcuts and scripted menu activation via `menu list`, `menu list-all`, `menu click`, and `menu click-extra`.
+- Automation snapshots remember the most recent `see` run automatically, but you can also pin explicit snapshot IDs and run `.peekaboo.json` scripts via `peekaboo run` to reproduce complex workflows with one command.
+- Rounded out the CLI command surface so every capture, interaction, and maintenance workflow is first-class: `image`, `list`, `tools`, `config`, `permissions`, `learn`, `run`, `sleep`, and `clean` cover capture/config glue, while `window`, `app`, `dock`, `dialog`, `space`, `menu`, and `menubar` provide window, app, and UI chrome management alongside the previously mentioned automation commands.
+- `peekaboo see --json` now includes `description`, `role_description`, and `help` fields for every `ui_elements[]` entry so toolbar icons (like the Wingman extension) and other AX-only descriptions can be located without blind coordinate clicks.
+- GPT-5.1, GPT-5.1 Mini, and GPT-5.1 Nano are now fully supported across the CLI, macOS app, and MCP bridge. `peekaboo agent` defaults to `gpt-5.1`, the app’s AI settings expose the new variants, and all MCP tool banners reflect the upgraded default.
+
+### Integrations
+- Peekaboo runs as both an MCP server and client: it still exposes its native tools to Claude/Cursor, but v3 now ships the Chrome DevTools MCP by default and lets you add or toggle external MCP servers (`peekaboo mcp list/add/test/enable/disable`), so the agent can mix native Mac automation with remote browser, GitHub, or filesystem tools in a single session.
+
+### Developer Workflow
+- Added `pnpm` shortcuts for common Swift workflows (`pnpm build`, `pnpm build:cli:release`, `pnpm build:polter`, `pnpm test`, `pnpm test:automation`, `pnpm test:all`, `pnpm lint`, `pnpm format`) so command names match what ships in release docs and both humans and agents rely on the same entry points.
+- Automation test suites now launch the freshly built `.build/debug/peekaboo` binary via `CLITestEnvironment.peekabooBinaryURL()` and suppress negative parsing noise, making CI logs far easier to scan.
+- Documented the safe vs. automation tagging convention and the new command shorthands inside `docs/swift-testing-playbook.md`, so contributors know exactly which suites to run before tagging.
+- `AudioInputService` now relies on Swift observation (`@Observable`) plus structured `Task.sleep` polling instead of Combine timers, keeping v3’s audio capture aligned with Swift 6.2’s concurrency expectations.
+- CLI `tools` output now uses `OrderedDictionary`, guaranteeing the same ordering every time you list tools or dump JSON so copy/paste instructions in the README stay accurate.
+- Removed the Gemini CLI reusable workflow from CI to eliminate an external check that was blocking pull requests when no Gemini credentials are configured.
+
+### Changed
+- Provider configuration now prefers environment overrides while still loading stored credentials, matching the latest Tachikoma behavior and keeping CI/config files in sync.
+- Commands invoked without arguments (for example `peekaboo agent` or `peekaboo see`) now print their detailed help, including argument/flag tables and curated usage examples, so it is obvious why input is required.
+- CLI help output now hides compatibility aliases such as `--jsonOutput` while still documenting the primary short/long names (`-j`, `--json`), matching the new alias metadata exported by the Commander submodule.
+
+### Fixed
+- `peekaboo capture video` positional input now binds correctly through Commander, preventing “missing input” runtime errors; binder and parsing tests cover the regression.
+- Menubar automation uses a bundled LSUIElement helper before CGS fallbacks, improving detection of menu extras on macOS 26+.
+- Agent MCP tools (see/click/drag/type/scroll) default to the latest `see` session when none is pinned, so follow-up actions work without re-running `see`.
+- MCP Responses image payloads are normalized (URL/base64) to align with the schema; manual testing guidance updated.
+- Restored Playground target build on macOS 15 so local examples compile again.
+- `peekaboo capture video --sample-fps` now reports frame timestamps from the video timeline (not session wall-clock), fixing bunched `t=XXms` outputs and aligning `metadata.json`; regression test added.
+- `peekaboo capture video` now advertises and binds its required input video file in Commander help/registry, preventing missing-input crashes; binder and program-resolution tests cover the regression.
+- Anthropic OAuth token exchange now uses standards-compliant form encoding, fixing 400 responses during `peekaboo config login anthropic`; regression test added.
+- `peekaboo see --analyze` now honors `aiProviders.providers` when choosing the default model instead of always defaulting to OpenAI; coverage added for configured defaults.
+- Added more coverage to ensure AI provider precedence honors provider lists, Anthropic-only keys, and empty/default fallbacks.
+- Visualizer “Peekaboo.app is not running” notice now only appears with verbose logging, keeping default runs quieter.
+- Visualizer console output is now suppressed unless verbose-level logging is explicitly requested (or forced via `PEEKABOO_VISUALIZER_STDOUT`), preventing non-verbose runs from emitting visualizer chatter.
+
+## [2.0.3] - 2025-07-03
+
+### Fixed
+- Fixed `--version` output to include "Peekaboo" prefix for Homebrew formula compatibility
+- Now outputs "Peekaboo 2.0.3" instead of just "2.0.3"
+
+## [2.0.2] - 2025-07-03
+
+### Fixed
+- Actually fixed compatibility with macOS Sequoia 26 by ensuring LC_UUID load command is generated during linking
+- The v2.0.1 fix was incomplete - the binary was still missing LC_UUID
+- Verified both x86_64 and arm64 architectures now contain proper LC_UUID load commands
+
+## [2.0.1] - 2025-07-03
+
+### Fixed
+- Fixed compatibility with macOS Sequoia 26 (pre-release) by preserving LC_UUID load command during binary stripping
+
+## [2.0.0] - 2025-07-03
+
+### 🎉 Major Features
+
+#### Standalone AI Analysis in CLI
+- **Added native AI analysis capability directly to Swift CLI** - analyze images without the MCP server
+- Support for multiple AI providers: OpenAI GPT-4 Vision and local Ollama models
+- Automatic provider selection and fallback mechanisms
+- Perfect for automation, scripts, and CI/CD pipelines
+- Example: `peekaboo analyze screenshot.png "What error is shown?"`
+
+#### Configuration File System
+- **Added comprehensive JSONC (JSON with Comments) configuration file support**
+- Location: `~/.config/peekaboo/config.json`
+- Features:
+  - Persistent settings across terminal sessions
+  - Environment variable expansion using `${VAR_NAME}` syntax
+  - Comments support for better documentation
+  - Tilde expansion for home directory paths
+- New `config` subcommand with init, show, edit, and validate operations
+- Configuration precedence: CLI args > env vars > config file > defaults
+
+### 🚀 Improvements
+
+#### Enhanced CLI Experience
+- **Completely redesigned help system following Unix conventions**
+  - Examples shown first for better discoverability
+  - Clear SYNOPSIS sections
+  - Common workflows documented
+  - Exit status codes for scripting
+- **Added standalone CLI build script** (`scripts/build-cli-standalone.sh`)
+  - Build without npm/Node.js dependencies
+  - System-wide installation support with `--install` flag
+
+#### Code Quality
+- Added comprehensive test coverage for AI analysis functionality
+- Fixed all SwiftLint violations
+- Improved error handling and user feedback
+- Better code organization and maintainability
+
+### 📝 Documentation
+
+- Added configuration file documentation to README
+- Expanded CLI usage examples
+- Documented AI analysis capabilities
+- Added example scripts and automation workflows
+- Removed outdated tool-description.md
+
+### 🔧 Technical Changes
+
+- Migrated from direct environment variable usage to ConfigurationManager
+- Implemented proper JSONC parser with comment stripping
+- Added thread-safe configuration loading
+- Improved Swift-TypeScript interoperability
+
+### 💥 Breaking Changes
+
+- Version bump to 2.0 reflects the significant expansion from MCP-only to dual CLI/MCP tool
+- Configuration file takes precedence over some environment variables (but maintains backward compatibility)
+
+### 🐛 Bug Fixes
+
+- Fixed ArgumentParser command structure for proper subcommand execution
+- Resolved configuration loading race conditions
+- Fixed help text display issues
+
+### ⬆️ Dependencies
+
+- Swift ArgumentParser 1.5.1
+- Maintained all existing npm dependencies
+
+## [1.1.0] - Previous Release
+
+- Initial MCP server implementation
+- Basic screenshot capture functionality
+- Window and application listing
+- Integration with Claude Desktop and Cursor IDE

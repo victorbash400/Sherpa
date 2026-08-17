@@ -7,10 +7,10 @@ export function VoiceToolActivity({ activities, context }: {
   context: VoiceContextUsage;
 }) {
   const activity = activities.at(-1);
-  if (!activity && !context.tokens && !context.compacting) return null;
+  if (!activity && context.tokens === null && !context.compacting) return null;
 
-  const ratio = Math.min(1, context.tokens / context.limit);
-  const remaining = Math.max(0, context.limit - context.tokens);
+  const ratio = context.tokens === null ? 0 : Math.min(1, context.tokens / context.limit);
+  const remaining = context.tokens === null ? null : Math.max(0, context.limit - context.tokens);
 
   return (
     <div className="voice-tool-activity" aria-live="polite">
@@ -31,13 +31,16 @@ export function VoiceToolActivity({ activities, context }: {
             {activityLabel(activity)}
           </strong>
         ) : null}
-        <small>{formatTokens(context.tokens)} used · {formatTokens(remaining)} remaining</small>
+        <small>{context.tokens === null
+          ? "Measuring next context"
+          : `${formatTokens(context.tokens)} context · ${formatTokens(remaining)} remaining`}</small>
       </span>
     </div>
   );
 }
 
-function formatTokens(tokens: number) {
+function formatTokens(tokens: number | null) {
+  if (tokens === null) return "—";
   return new Intl.NumberFormat("en").format(tokens);
 }
 

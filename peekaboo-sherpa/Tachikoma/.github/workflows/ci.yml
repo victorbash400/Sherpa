@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TACHIKOMA_DISABLE_API_TESTS: "true"
+  TACHIKOMA_TEST_MODE: mock
+
+jobs:
+  test:
+    name: Swift (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS 15
+            os: macos-15
+          - name: Ubuntu 24.04
+            os: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select Xcode 26.1
+        if: runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.1'
+
+      - name: Install Swift 6.2.1
+        if: runner.os == 'Linux'
+        uses: SwiftyLab/setup-swift@v1
+        with:
+          swift-version: '6.2.1'
+
+      - name: Cache Swift Package Manager
+        uses: actions/cache@v6
+        with:
+          path: |
+            .build
+            ~/.cache/org.swift.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Verify locked dependencies
+        run: |
+          swift package resolve
+          git diff --exit-code -- Package.resolved
+
+      - name: Build release products
+        run: swift build -c release --verbose
+
+      - name: Run hermetic tests (macOS)
+        if: runner.os == 'macOS'
+        run: swift test --parallel
+
+      - name: Run hermetic tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          # Linux URLProtocol cannot host the mocked provider E2E/audio suites.
+          swift test --no-parallel \
+            --skip OpenAIAudioProviderTests \
+            --skip ProviderEndToEndTests
+
+  package:
+    name: Package contract
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Select Xcode 26.1
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.1'
+
+      - name: Validate package metadata and dependency graph
+        run: |
+          package_dump="$(swift package dump-package)"
+          jq -e '.swiftLanguageVersions[] | select(. == "6")' <<< "$package_dump" >/dev/null
+          if jq -e 'any(.dependencies[]; .. | .identity? == "commander")' <<< "$package_dump" >/dev/null; then
+            echo "::error::The root package must not depend on Commander."
+            exit 1
+          fi
+          swift package describe --type json | jq -e '.name == "Tachikoma"' >/dev/null
+          swift package show-dependencies --format json | jq -e '.name == "Tachikoma"' >/dev/null
+
+  style:
+    name: Swift style
+    runs-on: macos-15
+    env:
+      SWIFTFORMAT_VERSION: 0.62.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install linters
+        run: brew install mint swiftlint
+
+      - name: SwiftLint
+        run: swiftlint lint --config .swiftlint.yml --strict
+
+      - name: SwiftFormat
+        run: mint run "nicklockwood/SwiftFormat@${SWIFTFORMAT_VERSION}" swiftformat --lint .

@@ -1032,8 +1032,9 @@ class SherpaTaskManager:
             ]
             task.current_step = task.summary
             logger.info(
-                "task.completed task=%s tokens_in=%d tokens_out=%d tokens_thinking=%d tokens_total=%d tools=%s failures=%s summary=%s",
+                "task.completed task=%s context_tokens=%d cumulative_input_tokens=%d cumulative_output_tokens=%d cumulative_thinking_tokens=%d cumulative_total_tokens=%d tools=%s failures=%s summary=%s",
                 task.id,
+                task.context_tokens,
                 token_usage["input"],
                 token_usage["output"],
                 token_usage["thinking"],

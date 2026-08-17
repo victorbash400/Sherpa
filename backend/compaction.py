@@ -84,14 +84,7 @@ class SherpaSessionService(InMemorySessionService):
     async def append_event(self, session: Session, event: Event) -> Event:
         appended = await super().append_event(session=session, event=event)
         if event.actions and event.actions.compaction:
-            from google.adk.apps.compaction import _estimate_prompt_token_count
-
-            tokens = _estimate_prompt_token_count(
-                events=session.events,
-                current_branch=None,
-                agent_name="",
-            ) or 0
-            await compaction_events.completed(session.id, tokens)
+            await compaction_events.completed(session.id, -1)
         return appended
 
 

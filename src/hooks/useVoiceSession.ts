@@ -11,7 +11,7 @@ export type VoiceToolActivity = {
   error?: string;
 };
 export type VoiceContextUsage = {
-  tokens: number;
+  tokens: number | null;
   limit: number;
   compacting: boolean;
 };
@@ -74,7 +74,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const [error, setError] = useState<string>();
   const [toolActivities, setToolActivities] = useState<VoiceToolActivity[]>([]);
   const [contextUsage, setContextUsage] = useState<VoiceContextUsage>({
-    tokens: 0,
+    tokens: null,
     limit: 300_000,
     compacting: false,
   });
@@ -406,7 +406,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           }));
         } else if (message.type === "compaction_completed" || message.type === "compaction_failed") {
           setContextUsage((current) => ({
-            tokens: message.context_tokens ?? current.tokens,
+            tokens: message.type === "compaction_completed" ? null : current.tokens,
             limit: message.context_token_limit ?? current.limit,
             compacting: false,
           }));
@@ -511,7 +511,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
         ]);
         const activeTask = loadedTasks.find((task) => ["running", "blocked"].includes(task.status || ""));
         setContextUsage({
-          tokens: activeTask?.context_tokens ?? 0,
+          tokens: activeTask?.context_tokens || null,
           limit: activeTask?.context_token_limit ?? 300_000,
           compacting: false,
         });

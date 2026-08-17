@@ -1,0 +1,117 @@
+---
+title: Automation
+summary: 'Overview of Peekaboo UI automation targets, input primitives, app surfaces, recipes, and resilience tips.'
+description: How to drive macOS UI with Peekaboo — click, type, press, scroll, drag, menus, dialogs, windows, Spaces.
+read_when:
+  - 'deciding which UI automation command or targeting mode to use'
+  - 'documenting agent, MCP, or CLI behavior that mutates macOS UI'
+---
+
+# Automation
+
+Peekaboo's automation surface is small but covers the whole macOS UI graph. Each command is documented separately under `commands/`; this page is the map.
+
+## Targeting model
+
+Every input command accepts one of three target shapes:
+
+- **Element ID** — `--on <id>` from a fresh `peekaboo see` capture; preferred when available. Treat IDs as opaque strings and copy the exact value returned by the capture.
+- **Label / role / app** — positional query text such as `peekaboo click "Send" --app Mail`; resolved via the AX tree.
+- **Coordinates** — `--at 480,120`; target-relative when paired with `--app`, `--pid`, or `--window-*`, global otherwise. Add `--global` to force screen coordinates with a target.
+
+Prefer IDs when you can capture them, labels when you can't, and coordinates only as a last resort. The agent and MCP tooling default to the first two.
+
+Process and window selectors are fail-closed. Choose either `--app` or `--pid`, never both. Choose at most one of `--window-id`, `--window-title`, or `--window-index`; title and index require an app or PID owner. The same rules apply to MCP's `app`, `pid`, `window_id`, `window_title`, and `window_index` fields.
+
+## Delivery modes
+
+Peekaboo has two input delivery modes:
+
+- **Background** (default when a target process is known) uses exact semantic or typed delivery without activating the app. `type` and `paste` require `--app`, `--pid`, or supported snapshot process metadata. Public raw `press` refuses in background because a process receipt cannot certify chord intent or effect. Background click can retain its exact window/element target.
+- **Foreground** focuses the target first, then sends normal/global input to the active key window or mouse focus. Add `--foreground` when an app ignores background input, when a text field only accepts key-window input, or when you want focus/Space switching to be part of the action.
+
+Focus flags tune foreground focus behavior but do not silently change delivery mode. Add `--foreground` explicitly. `--no-auto-focus` also does not discard a background keyboard PID. Background element/query/coordinate clicks complete through Accessibility alone. Keyboard input and foreground synthetic pointer input require Event Synthesizing for the sender shown by `peekaboo permissions status`; request it with `peekaboo permissions request event-synthesizing`.
+
+All CLI timing flags use the same grammar: bare numbers are milliseconds, and `ms`/`s` suffixes are accepted (`500`, `500ms`, `2s`, `1.5s`).
+
+Pointer delivery is deliberately stricter. A targeted `scroll --on <id>` stays in the background and prefers the element's Accessibility scroll action. Opaque groups in a visible WebKit-linked app may use exact PID/window-routed wheel events from a fresh pixel snapshot; that route is retry-unsafe because macOS does not acknowledge the receiver's effect. It never falls back to the shared cursor. Targetless, smooth, or delayed wheel input requires `--foreground`. `move`, `drag`, and `click --long-press` manipulate shared physical pointer state, so they also require explicit `--foreground` consent. Their Space/focus modifiers are only valid with that foreground mode; there is no misleading `--no-auto-focus` escape hatch.
+
+Application menu list/click, dialog list, dialog button click, normal dialog dismissal, window close, and exact minimized-window restore also default to background Accessibility actions. Restore changes only the retained window's `AXMinimized` state. Dialog list never focuses. Dialog keyboard/file flows, forced Escape dismissal, coordinate fallback, and window-close Cmd-W fallback require an explicit `--foreground` (or `foreground: true` in MCP) so these global actions cannot interrupt an unrelated foreground app by accident.
+
+Observation follows the same background-first rule. `see` and `capture` do not focus targeted apps by default. Web-content focus recovery is opt-in with `see --web-focus` or MCP `web_focus: true`; live-capture foreground focus remains explicit.
+
+Examples:
+
+```bash
+# Background: use semantic controls without activating Safari
+peekaboo click "Address and search bar" --app Safari
+peekaboo type "github.com/openclaw/Peekaboo" --app Safari
+
+# Foreground: raw chords require explicit consent
+peekaboo press cmd+l --app Safari --foreground --space-switch
+peekaboo type "github.com/openclaw/Peekaboo" --app Safari --foreground && peekaboo press Return --app Safari --foreground
+```
+
+## Input primitives
+
+| Command | Use it for |
+| --- | --- |
+| [click](commands/click.md) | mouse clicks, double/triple, right/middle, hold |
+| [type](commands/type.md) | typing strings into targeted fields |
+| [press](commands/press.md) | explicit-foreground individual keys and xdotool-style raw chords |
+| [scroll](commands/scroll.md) | background AX/exact-window scrolling on a target, or explicit foreground wheel input |
+| [drag](commands/drag.md) | press, move, release — files, sliders, selections |
+| [move](commands/move.md) | warp the mouse without clicking |
+| [set-value](commands/set-value.md) | write to text fields without typing |
+| [action](commands/action.md) | trigger any AX action (`AXPress`, `AXShowMenu`, …) |
+
+For UX parity with humans (jitter, easing, dwell), see [human-mouse-move.md](human-mouse-move.md) and the input profiles in the command docs.
+
+## Surfaces
+
+| Surface | Command | Notes |
+| --- | --- | --- |
+| App lifecycle and opening files/URLs | [app](commands/app.md) | launch, quit, focus, hide, `launch --open` |
+| Windows | [window](commands/window.md) | move, resize, focus, minimize, fullscreen |
+| Spaces & Stage Manager | [space](commands/space.md) | enumerate and switch Spaces |
+| Menus | [menu](commands/menu.md) | walk app menus by path |
+| Menu bar / status items | [menubar.md](commands/menubar.md) | extra-fiddly popovers |
+| Dialogs | [dialog](commands/dialog.md) | sheets, alerts, save panels |
+| Dock | [dock](commands/dock.md) | inspect/click dock items |
+| Clipboard | [clipboard](commands/clipboard.md) | read/write pasteboard contents |
+| Visual feedback | [visualizer](visualizer.md) | overlay so a human can follow what the agent is doing |
+
+## Recipe: click a button by label
+
+```bash
+# 1. Inspect first to find a stable label.
+peekaboo see --app Safari --annotate --path /tmp/safari.png
+
+# 2. Click it.
+peekaboo click "Reload" --app Safari
+```
+
+## Recipe: a small flow
+
+```bash
+peekaboo window focus --app "Notes"
+peekaboo press cmd+n --foreground
+peekaboo type "Standup notes\n\n- Shipped Peekaboo docs\n- Reviewed PR #42\n"
+peekaboo press cmd+s --foreground
+```
+
+Three primitives, four lines. The agent does the same thing under the hood — it just plans the sequence for you.
+
+## Resilience tips
+
+- Always run [`peekaboo see`](commands/see.md) when an element is unreachable. The AX tree refreshes after focus changes; capture again if a click fails.
+- Use [focus](focus.md) and [application-resolving](application-resolving.md) for tricky cases (multiple windows, helper apps, processes that hide on activation).
+- Use `/bin/sleep` between shell-composed actions when a target genuinely needs settling time.
+- Prefer background click, semantic text/value actions, menus, and targeted background scrolling for routine app-specific input.
+- Add `--foreground` only when an app needs a focused key window, Space switch, or foreground mouse event.
+
+## Going further
+
+- [Agent overview](commands/agent.md) — let Peekaboo plan input sequences from a goal.
+- [MCP](MCP.md) — expose all of the above to Codex, Claude Code, and Cursor.
+- [Architecture](ARCHITECTURE.md) — how the input pipeline routes through Bridge and Daemon.

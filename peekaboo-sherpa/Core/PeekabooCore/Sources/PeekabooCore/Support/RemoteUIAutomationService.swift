@@ -1,0 +1,627 @@
+import CoreGraphics
+import Foundation
+import PeekabooAgentRuntime
+import PeekabooAutomation
+import PeekabooBridge
+import PeekabooFoundation
+
+@MainActor
+public class RemoteUIAutomationService: DetectElementsRequestTimeoutAdjusting, TargetedHotkeyServiceProtocol,
+    TargetedTypeServiceProtocol,
+    ExactWindowTargetedClickServiceProtocol,
+    TargetedFocusedElementServiceProtocol,
+    ExactWindowTargetedKeyboardServiceProtocol,
+    UIAutomationObservationActionResultProviding
+{
+    let client: PeekabooBridgeClient
+    public let supportsTargetedHotkeys: Bool
+    public let supportsProcessGenerationPinnedHotkeys: Bool
+    public let targetedHotkeyUnavailableReason: String?
+    public let targetedHotkeyRequiresEventSynthesizingPermission: Bool
+    public let supportsTargetedTypeActions: Bool
+    public let supportsProcessGenerationPinnedTypeActions: Bool
+    public let targetedTypeUnavailableReason: String?
+    public let targetedTypeRequiresEventSynthesizingPermission: Bool
+    public let supportsTargetedClicks: Bool
+    public let supportsProcessGenerationPinnedClicks: Bool
+    public let targetedClickUnavailableReason: String?
+    public let targetedClickRequiresEventSynthesizingPermission: Bool
+    public let supportsExactWindowTargetedClicks: Bool
+    public let supportsTargetedScroll: Bool
+    public let supportsInspectAccessibilityTree: Bool
+    public let inspectAccessibilityTreeUnavailableReason: String?
+    public let supportsExactWindowTargetedKeyboard: Bool
+    public let exactWindowTargetedKeyboardUnavailableReason: String?
+
+    public init(
+        client: PeekabooBridgeClient,
+        supportsTargetedHotkeys: Bool = false,
+        supportsProcessGenerationPinnedHotkeys: Bool = false,
+        targetedHotkeyUnavailableReason: String? = nil,
+        targetedHotkeyRequiresEventSynthesizingPermission: Bool = false,
+        supportsTargetedTypeActions: Bool = false,
+        supportsProcessGenerationPinnedTypeActions: Bool = false,
+        targetedTypeUnavailableReason: String? = nil,
+        targetedTypeRequiresEventSynthesizingPermission: Bool = false,
+        supportsTargetedClicks: Bool = false,
+        supportsProcessGenerationPinnedClicks: Bool = false,
+        targetedClickUnavailableReason: String? = nil,
+        targetedClickRequiresEventSynthesizingPermission: Bool = false,
+        supportsExactWindowTargetedClicks: Bool = false,
+        supportsTargetedScroll: Bool = false,
+        supportsInspectAccessibilityTree: Bool = false,
+        inspectAccessibilityTreeUnavailableReason: String? = nil,
+        supportsExactWindowTargetedKeyboard: Bool = false,
+        exactWindowTargetedKeyboardUnavailableReason: String? = nil)
+    {
+        self.client = client
+        self.supportsTargetedHotkeys = supportsTargetedHotkeys
+        self.supportsProcessGenerationPinnedHotkeys = supportsProcessGenerationPinnedHotkeys
+        self.targetedHotkeyUnavailableReason = targetedHotkeyUnavailableReason
+        self.targetedHotkeyRequiresEventSynthesizingPermission = targetedHotkeyRequiresEventSynthesizingPermission
+        self.supportsTargetedTypeActions = supportsTargetedTypeActions
+        self.supportsProcessGenerationPinnedTypeActions = supportsProcessGenerationPinnedTypeActions
+        self.targetedTypeUnavailableReason = targetedTypeUnavailableReason
+        self.targetedTypeRequiresEventSynthesizingPermission = targetedTypeRequiresEventSynthesizingPermission
+        self.supportsTargetedClicks = supportsTargetedClicks
+        self.supportsProcessGenerationPinnedClicks = supportsProcessGenerationPinnedClicks
+        self.targetedClickUnavailableReason = targetedClickUnavailableReason
+        self.targetedClickRequiresEventSynthesizingPermission = targetedClickRequiresEventSynthesizingPermission
+        self.supportsExactWindowTargetedClicks = supportsExactWindowTargetedClicks
+        self.supportsTargetedScroll = supportsTargetedScroll
+        self.supportsInspectAccessibilityTree = supportsInspectAccessibilityTree
+        self.inspectAccessibilityTreeUnavailableReason = inspectAccessibilityTreeUnavailableReason
+        self.supportsExactWindowTargetedKeyboard = supportsExactWindowTargetedKeyboard
+        self.exactWindowTargetedKeyboardUnavailableReason = exactWindowTargetedKeyboardUnavailableReason
+    }
+
+    public func detectElements(
+        in imageData: Data,
+        snapshotId: String?,
+        windowContext: WindowContext?) async throws -> ElementDetectionResult
+    {
+        try await self.detectElementsActionResult(
+            in: imageData,
+            snapshotId: snapshotId,
+            windowContext: windowContext,
+            requestTimeoutSec: 30).payload
+    }
+
+    public func detectElements(
+        in imageData: Data,
+        snapshotId: String?,
+        windowContext: WindowContext?,
+        requestTimeoutSec: TimeInterval) async throws -> ElementDetectionResult
+    {
+        try await self.detectElementsActionResult(
+            in: imageData,
+            snapshotId: snapshotId,
+            windowContext: windowContext,
+            requestTimeoutSec: requestTimeoutSec).payload
+    }
+
+    public func detectElementsActionResult(
+        in imageData: Data,
+        snapshotId: String?,
+        windowContext: WindowContext?,
+        requestTimeoutSec: TimeInterval?) async throws -> UIAutomationActionResult<ElementDetectionResult>
+    {
+        try await self.client.detectElementsWithOutcome(
+            in: imageData,
+            snapshotId: snapshotId,
+            windowContext: windowContext,
+            requestTimeoutSec: requestTimeoutSec)
+    }
+
+    public func inspectAccessibilityTree(windowContext: WindowContext?) async throws -> ElementDetectionResult {
+        try await self.inspectAccessibilityTreeActionResult(windowContext: windowContext).payload
+    }
+
+    public func inspectAccessibilityTreeActionResult(
+        windowContext: WindowContext?) async throws -> UIAutomationActionResult<ElementDetectionResult>
+    {
+        guard self.supportsInspectAccessibilityTree else {
+            throw Self.inspectAccessibilityTreeUnavailableError(reason: self.inspectAccessibilityTreeUnavailableReason)
+        }
+
+        do {
+            return try await self.client.inspectAccessibilityTreeWithOutcome(
+                windowContext: windowContext,
+                requestTimeoutSec: Self.inspectAccessibilityTreeRequestTimeoutSeconds(
+                    accessibilityTimeoutSeconds: windowContext?.accessibilityTimeoutSeconds))
+        } catch let error as PeekabooBridgeErrorEnvelope
+            where error.standardizedErrorCode == .accessibilityIncomplete
+        {
+            throw PeekabooError.accessibilityIncomplete(error.message)
+        }
+    }
+
+    nonisolated static func inspectAccessibilityTreeRequestTimeoutSeconds(
+        accessibilityTimeoutSeconds: TimeInterval?) -> TimeInterval
+    {
+        let defaultTimeout: TimeInterval = 30
+        let completionGrace: TimeInterval = 5
+        guard let accessibilityTimeoutSeconds,
+              accessibilityTimeoutSeconds.isFinite,
+              accessibilityTimeoutSeconds > 0
+        else {
+            return defaultTimeout
+        }
+        return max(defaultTimeout, accessibilityTimeoutSeconds + completionGrace)
+    }
+
+    public func click(target: ClickTarget, clickType: ClickType, snapshotId: String?) async throws {
+        do {
+            try await self.client.click(target: target, clickType: clickType, snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func click(
+        target: ClickTarget,
+        clickType: ClickType,
+        snapshotId: String?,
+        targetProcessIdentifier: pid_t) async throws
+    {
+        guard self.supportsTargetedClicks else {
+            throw Self.targetedClickUnavailableError(
+                reason: self.targetedClickUnavailableReason,
+                requiresEventSynthesizingPermission: self.targetedClickRequiresEventSynthesizingPermission)
+        }
+
+        // No Event Synthesizing preflight: current hosts deliver every targeted click (coordinates
+        // included) through accessibility, so a coordinate click on an Accessibility-only host must
+        // reach the server rather than being rejected here. Variants the host genuinely cannot
+        // deliver (e.g. background double-click) are rejected authoritatively by the server.
+        do {
+            try await self.client.click(
+                target: target,
+                clickType: clickType,
+                snapshotId: snapshotId,
+                targetProcessIdentifier: targetProcessIdentifier)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func click(
+        target: ClickTarget,
+        clickType: ClickType,
+        snapshotId: String?,
+        expectedProcessIdentity: ApplicationProcessIdentity) async throws
+    {
+        guard self.supportsProcessGenerationPinnedClicks else {
+            throw PeekabooError.serviceUnavailable(
+                "Remote bridge host does not support process-generation-pinned background clicks; update the host")
+        }
+        do {
+            try await self.client.click(
+                target: target,
+                clickType: clickType,
+                snapshotId: snapshotId,
+                expectedProcessIdentity: expectedProcessIdentity)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func click(
+        target: ClickTarget,
+        clickType: ClickType,
+        snapshotId: String?,
+        expectedWindowIdentity: WindowMutationIdentity,
+        expectedWindowBounds: CGRect) async throws
+    {
+        guard self.supportsExactWindowTargetedClicks else {
+            throw PeekabooError.serviceUnavailable(
+                "Remote bridge host does not support exact-window background clicks")
+        }
+        guard self.supportsTargetedClicks else {
+            throw Self.targetedClickUnavailableError(
+                reason: self.targetedClickUnavailableReason,
+                requiresEventSynthesizingPermission: self.targetedClickRequiresEventSynthesizingPermission)
+        }
+
+        // See the process-targeted overload: no Event Synthesizing preflight, the server decides.
+        do {
+            try await self.client.click(
+                target: target,
+                clickType: clickType,
+                snapshotId: snapshotId,
+                expectedWindowIdentity: expectedWindowIdentity,
+                expectedWindowBounds: expectedWindowBounds)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func type(
+        text: String,
+        target: String?,
+        clearExisting: Bool,
+        typingDelay: Int,
+        snapshotId: String?) async throws
+    {
+        do {
+            try await self.client.type(
+                text: text,
+                target: target,
+                clearExisting: clearExisting,
+                typingDelay: typingDelay,
+                snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func typeActions(
+        _ actions: [TypeAction],
+        cadence: TypingCadence,
+        snapshotId: String?) async throws -> TypeResult
+    {
+        do {
+            return try await self.client.typeActions(actions, cadence: cadence, snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func typeActions(
+        _ actions: [TypeAction],
+        cadence: TypingCadence,
+        snapshotId: String?,
+        expectedProcessIdentity: ApplicationProcessIdentity) async throws -> TypeResult
+    {
+        guard self.supportsProcessGenerationPinnedTypeActions else {
+            throw PeekabooError.serviceUnavailable(
+                "Remote bridge host does not support process-generation-pinned background typing; update the host")
+        }
+        do {
+            return try await self.client.typeActions(
+                actions,
+                cadence: cadence,
+                snapshotId: snapshotId,
+                expectedProcessIdentity: expectedProcessIdentity)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func typeActions(
+        _ actions: [TypeAction],
+        cadence: TypingCadence,
+        snapshotId: String?,
+        targetProcessIdentifier: pid_t) async throws -> TypeResult
+    {
+        guard self.supportsTargetedTypeActions else {
+            throw Self.targetedTypeUnavailableError(
+                reason: self.targetedTypeUnavailableReason,
+                requiresEventSynthesizingPermission: self.targetedTypeRequiresEventSynthesizingPermission)
+        }
+
+        do {
+            return try await self.client.typeActions(
+                actions,
+                cadence: cadence,
+                snapshotId: snapshotId,
+                targetProcessIdentifier: targetProcessIdentifier)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func scroll(_ request: ScrollRequest) async throws {
+        if !request.foreground, !self.supportsTargetedScroll {
+            throw PeekabooError.serviceUnavailable(
+                "Remote bridge host does not support background-safe targeted scroll; relaunch or update Peekaboo.")
+        }
+        do {
+            try await self.client.scroll(request)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: request.snapshotId)
+        }
+    }
+
+    public func hotkey(keys: String, holdDuration: Int) async throws {
+        try await self.client.hotkey(keys: keys, holdDuration: holdDuration)
+    }
+
+    public func hotkey(keys: String, holdDuration: Int, targetProcessIdentifier: pid_t) async throws {
+        guard self.supportsTargetedHotkeys else {
+            throw Self.targetedHotkeyUnavailableError(
+                reason: self.targetedHotkeyUnavailableReason,
+                requiresEventSynthesizingPermission: self.targetedHotkeyRequiresEventSynthesizingPermission)
+        }
+
+        do {
+            try await self.client.hotkey(
+                keys: keys,
+                holdDuration: holdDuration,
+                targetProcessIdentifier: targetProcessIdentifier)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            switch envelope.code {
+            case .permissionDenied:
+                throw Self.permissionDeniedError(for: envelope)
+            case .invalidRequest:
+                throw PeekabooError.invalidInput(envelope.message)
+            case .operationNotSupported:
+                throw PeekabooError.serviceUnavailable(envelope.message)
+            default:
+                throw envelope
+            }
+        }
+    }
+
+    public func hotkey(
+        keys: String,
+        holdDuration: Int,
+        expectedProcessIdentity: ApplicationProcessIdentity) async throws
+    {
+        guard self.supportsProcessGenerationPinnedHotkeys else {
+            throw PeekabooError.serviceUnavailable(
+                "Remote bridge host does not support process-generation-pinned background hotkeys; " +
+                    "use --no-remote or update the host")
+        }
+
+        do {
+            try await self.client.hotkey(
+                keys: keys,
+                holdDuration: holdDuration,
+                expectedProcessIdentity: expectedProcessIdentity)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            switch envelope.code {
+            case .permissionDenied:
+                throw Self.permissionDeniedError(for: envelope)
+            case .invalidRequest:
+                throw PeekabooError.invalidInput(envelope.message)
+            case .operationNotSupported:
+                throw PeekabooError.serviceUnavailable(envelope.message)
+            default:
+                throw envelope
+            }
+        }
+    }
+
+    static func automationError(
+        for envelope: PeekabooBridgeErrorEnvelope,
+        snapshotId: String?) -> any Error
+    {
+        if let failure = envelope.desktopActionFailure {
+            return failure
+        }
+
+        switch envelope.kind {
+        case .elementNotFound:
+            return PeekabooError.elementNotFound(envelope.context ?? envelope.message)
+        case .snapshotNotFound:
+            return PeekabooError.snapshotNotFound(envelope.context ?? snapshotId ?? envelope.message)
+        case .snapshotStale:
+            return PeekabooError.snapshotStale(envelope.context ?? envelope.message)
+        case .appNotFound, .windowNotFound, .menuNotFound, .menuItemNotFound,
+             .dockNotFound, .dockListNotFound, .dockItemNotFound, .positionNotFound:
+            break
+        case nil:
+            break
+        }
+
+        return switch envelope.code {
+        case .permissionDenied:
+            self.permissionDeniedError(for: envelope)
+        case .invalidRequest:
+            PeekabooError.invalidInput(envelope.message)
+        case .operationNotSupported:
+            PeekabooError.serviceUnavailable(envelope.message)
+        default:
+            envelope
+        }
+    }
+
+    private static func targetedHotkeyUnavailableError(
+        reason: String?,
+        requiresEventSynthesizingPermission: Bool) -> PeekabooError
+    {
+        if requiresEventSynthesizingPermission {
+            return .permissionDeniedEventSynthesizing
+        }
+
+        return .serviceUnavailable(
+            reason ?? "Remote bridge host does not support background hotkeys; use --no-remote or update the host")
+    }
+
+    private static func targetedTypeUnavailableError(
+        reason: String?,
+        requiresEventSynthesizingPermission: Bool) -> PeekabooError
+    {
+        if requiresEventSynthesizingPermission {
+            return .permissionDeniedEventSynthesizing
+        }
+
+        return .serviceUnavailable(
+            reason ?? "Remote bridge host does not support background typing; use --no-remote or update the host")
+    }
+
+    private static func targetedClickUnavailableError(
+        reason: String?,
+        requiresEventSynthesizingPermission: Bool) -> PeekabooError
+    {
+        if requiresEventSynthesizingPermission {
+            return .permissionDeniedEventSynthesizing
+        }
+
+        return .serviceUnavailable(
+            reason ?? "Remote bridge host does not support background clicks; use --no-remote or update the host")
+    }
+
+    private static func inspectAccessibilityTreeUnavailableError(reason: String?) -> PeekabooError {
+        .serviceUnavailable(
+            reason ?? "Remote bridge host does not support inspect_ui; use `see`, --no-remote, or update the host")
+    }
+
+    private static func permissionDeniedError(for envelope: PeekabooBridgeErrorEnvelope) -> PeekabooError {
+        switch envelope.permission {
+        case .postEvent:
+            .permissionDeniedEventSynthesizing
+        case .accessibility:
+            .permissionDeniedAccessibility
+        case .screenRecording:
+            .permissionDeniedScreenRecording
+        case .appleScript, .none:
+            .permissionDeniedEventSynthesizing
+        }
+    }
+
+    public func swipe(
+        from: CGPoint,
+        to: CGPoint,
+        duration: Int,
+        steps: Int,
+        profile: MouseMovementProfile) async throws
+    {
+        try await self.client.swipe(from: from, to: to, duration: duration, steps: steps, profile: profile)
+    }
+
+    public func hasAccessibilityPermission() async -> Bool {
+        do {
+            let status = try await self.client.permissionsStatus()
+            return status.accessibility
+        } catch {
+            return false
+        }
+    }
+
+    public func waitForElement(
+        target: ClickTarget,
+        timeout: TimeInterval,
+        snapshotId: String?) async throws -> WaitForElementResult
+    {
+        do {
+            return try await self.client.waitForElement(target: target, timeout: timeout, snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func drag(_ request: DragOperationRequest) async throws {
+        _ = try await self.dragWithOutcome(request)
+    }
+
+    public func moveMouse(to: CGPoint, duration: Int, steps: Int, profile: MouseMovementProfile) async throws {
+        _ = try await self.moveMouseWithOutcome(to: to, duration: duration, steps: steps, profile: profile)
+    }
+
+    public func getFocusedElement() -> UIFocusInfo? {
+        // Not yet implemented over XPC; fall back to nil to avoid blocking callers.
+        nil
+    }
+
+    public func getFocusedElement(targetProcessIdentifier: pid_t) async -> UIFocusInfo? {
+        try? await self.client.getFocusedElement(targetProcessIdentifier: targetProcessIdentifier)
+    }
+
+    public func typeActions(
+        _ actions: [TypeAction],
+        cadence: TypingCadence,
+        snapshotId: String?,
+        expectedWindowIdentity: WindowMutationIdentity,
+        expectedWindowBounds: CGRect) async throws -> TypeResult
+    {
+        guard self.supportsExactWindowTargetedKeyboard else {
+            throw PeekabooError.serviceUnavailable(
+                self.exactWindowTargetedKeyboardUnavailableReason ??
+                    "Atomic exact-window background typing is unavailable")
+        }
+        return try await self.client.typeActions(
+            actions,
+            cadence: cadence,
+            snapshotId: snapshotId,
+            expectedWindowIdentity: expectedWindowIdentity,
+            expectedWindowBounds: expectedWindowBounds)
+    }
+
+    public func hotkey(
+        keys: String,
+        holdDuration: Int,
+        expectedWindowIdentity: WindowMutationIdentity,
+        expectedWindowBounds: CGRect) async throws
+    {
+        guard self.supportsExactWindowTargetedKeyboard else {
+            throw PeekabooError.serviceUnavailable(
+                self.exactWindowTargetedKeyboardUnavailableReason ??
+                    "Atomic exact-window background hotkeys are unavailable")
+        }
+        try await self.client.hotkey(
+            keys: keys,
+            holdDuration: holdDuration,
+            expectedWindowIdentity: expectedWindowIdentity,
+            expectedWindowBounds: expectedWindowBounds)
+    }
+
+    public func typeActions(
+        _ actions: [TypeAction],
+        cadence: TypingCadence,
+        snapshotId: String?,
+        target: ExactWindowKeyboardTarget) async throws -> TypeResult
+    {
+        guard self.supportsExactWindowTargetedKeyboard else {
+            throw PeekabooError.serviceUnavailable(
+                self.exactWindowTargetedKeyboardUnavailableReason ??
+                    "Atomic exact-window background typing is unavailable")
+        }
+        return try await self.client.typeActions(
+            actions,
+            cadence: cadence,
+            snapshotId: snapshotId,
+            target: target)
+    }
+
+    public func hotkey(
+        keys: String,
+        holdDuration: Int,
+        target: ExactWindowKeyboardTarget) async throws
+    {
+        guard self.supportsExactWindowTargetedKeyboard else {
+            throw PeekabooError.serviceUnavailable(
+                self.exactWindowTargetedKeyboardUnavailableReason ??
+                    "Atomic exact-window background hotkeys are unavailable")
+        }
+        try await self.client.hotkey(
+            keys: keys,
+            holdDuration: holdDuration,
+            target: target)
+    }
+
+    public func findElement(matching criteria: UIElementSearchCriteria, in appName: String?) async throws
+        -> DetectedElement
+    {
+        // Currently unsupported over XPC; this path is rarely used by CLI.
+        throw PeekabooError.operationError(message: "findElement is not available over XPC yet")
+    }
+}
+
+@MainActor
+public final class RemoteElementActionUIAutomationService: RemoteUIAutomationService,
+ElementActionAutomationServiceProtocol {
+    public func setValue(target: String, value: UIElementValue, snapshotId: String?) async throws
+        -> ElementActionResult
+    {
+        do {
+            return try await self.client.setValue(target: target, value: value, snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+
+    public func performAction(target: String, actionName: String, snapshotId: String?) async throws
+        -> ElementActionResult
+    {
+        do {
+            return try await self.client.performAction(
+                target: target,
+                actionName: actionName,
+                snapshotId: snapshotId)
+        } catch let envelope as PeekabooBridgeErrorEnvelope {
+            throw Self.automationError(for: envelope, snapshotId: snapshotId)
+        }
+    }
+}
