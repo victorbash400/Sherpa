@@ -226,6 +226,7 @@ public struct ClickTool: MCPTool {
                 windowTitle: snapshot.windowTitle,
                 elementRole: element.humanRole,
                 elementLabel: element.displayLabel,
+                elementIsActionable: element.isActionable,
                 targetProcessIdentifier: snapshot.applicationProcessId,
                 targetWindowID: snapshot.windowID,
                 expectedWindowIdentity: snapshot.windowMutationIdentity,
@@ -242,6 +243,7 @@ public struct ClickTool: MCPTool {
                 windowTitle: snapshot.windowTitle,
                 elementRole: element.humanRole,
                 elementLabel: element.displayLabel,
+                elementIsActionable: element.isActionable,
                 targetProcessIdentifier: snapshot.applicationProcessId,
                 targetWindowID: snapshot.windowID,
                 expectedWindowIdentity: snapshot.windowMutationIdentity,
@@ -260,6 +262,12 @@ public struct ClickTool: MCPTool {
         let target = resolution.automationTarget
         let snapshotId = resolution.snapshotId
         if deliveryMode == .background {
+            if case .elementId = target, resolution.elementIsActionable == false {
+                throw ClickToolError(
+                    "The inspected element does not advertise a background Accessibility action. " +
+                        "Use foreground=true once for this fresh target instead of waiting for an Accessibility scan.",
+                    refusalReason: .runtimeIncompatible)
+            }
             guard let targetProcessIdentity else {
                 throw ClickToolError(
                     "Background click requires a capture-owned snapshot with an exact target process.",
@@ -805,6 +813,7 @@ private struct ClickResolution {
     let windowTitle: String?
     let elementRole: String?
     let elementLabel: String?
+    let elementIsActionable: Bool?
     let targetProcessIdentifier: Int32?
     let targetWindowID: Int?
     let expectedWindowIdentity: WindowMutationIdentity?
@@ -822,6 +831,7 @@ private struct ClickResolution {
         windowTitle: String? = nil,
         elementRole: String? = nil,
         elementLabel: String? = nil,
+        elementIsActionable: Bool? = nil,
         targetProcessIdentifier: Int32? = nil,
         targetWindowID: Int? = nil,
         expectedWindowIdentity: WindowMutationIdentity? = nil,
@@ -838,6 +848,7 @@ private struct ClickResolution {
         self.windowTitle = windowTitle
         self.elementRole = elementRole
         self.elementLabel = elementLabel
+        self.elementIsActionable = elementIsActionable
         self.targetProcessIdentifier = targetProcessIdentifier
         self.targetWindowID = targetWindowID
         self.expectedWindowIdentity = expectedWindowIdentity

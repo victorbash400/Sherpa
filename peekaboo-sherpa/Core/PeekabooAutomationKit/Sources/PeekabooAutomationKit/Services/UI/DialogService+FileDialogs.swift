@@ -167,6 +167,33 @@ extension DialogService {
                         completed,
                         expectedPath: expectedPath,
                         details: &details)
+                } else {
+                    failureStage = "verify the file dialog closed"
+                    let presence = self.dialogPresence(target: retainedTarget, retainedDialog: dialog)
+                    guard presence == .absent else {
+                        guard let fallbackOutcome = actionSequence.successResolution().outcome ?? clickResult.outcome
+                        else {
+                            throw DesktopActionFailure.indeterminate(
+                                delivery: Self.foregroundKeyboardDelivery,
+                                evidence: .completionUnknown,
+                                unitCount: .one,
+                                message: "The file-dialog confirmation returned without completion evidence.",
+                                hint: "Observe the originating application before deciding whether to retry.")
+                        }
+                        guard let failure = Self.fileDialogClosureFailure(
+                            presence: presence,
+                            fallbackOutcome: fallbackOutcome)
+                        else {
+                            throw DesktopActionFailure.indeterminate(
+                                delivery: Self.foregroundKeyboardDelivery,
+                                evidence: .completionUnknown,
+                                unitCount: .one,
+                                message: "The file-dialog confirmation returned contradictory completion evidence.",
+                                hint: "Observe the originating application before deciding whether to retry.")
+                        }
+                        throw failure
+                    }
+                    details["dialog_closed"] = "true"
                 }
 
                 let result = DialogActionResult(
@@ -197,6 +224,26 @@ extension DialogService {
                     after: actionSequence,
                     target: failureTarget)
             }
+        }
+    }
+
+    static func fileDialogClosureFailure(
+        presence: DialogPresence,
+        fallbackOutcome: DesktopActionOutcome) -> DesktopActionFailure?
+    {
+        switch presence {
+        case .absent:
+            nil
+        case .present:
+            DesktopActionFailure(
+                outcome: fallbackOutcome,
+                message: "The file-dialog confirmation was dispatched, but the same dialog remained open.",
+                hint: "Observe the originating application before deciding whether to retry.")
+        case .unreadable:
+            DesktopActionFailure(
+                outcome: fallbackOutcome,
+                message: "The file-dialog confirmation was dispatched, but dialog closure could not be verified.",
+                hint: "Observe the originating application before deciding whether to retry.")
         }
     }
 

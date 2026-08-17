@@ -6,6 +6,23 @@ import Testing
 @MainActor
 struct DialogFileExpansionTargetTests {
     @Test
+    func `Open panel confirmation succeeds only after the retained dialog disappears`() {
+        let fallback = DesktopActionOutcome.suspectedNoop(
+            delivery: DialogService.foregroundKeyboardDelivery,
+            unitCount: .one)
+
+        #expect(DialogService.fileDialogClosureFailure(
+            presence: .absent,
+            fallbackOutcome: fallback) == nil)
+        #expect(DialogService.fileDialogClosureFailure(
+            presence: .present,
+            fallbackOutcome: fallback)?.message.contains("remained open") == true)
+        #expect(DialogService.fileDialogClosureFailure(
+            presence: .unreadable,
+            fallbackOutcome: fallback)?.message.contains("could not be verified") == true)
+    }
+
+    @Test
     func `Verified expansion refreshes bounds for the same window generation`() throws {
         let retained = try Self.target(bounds: CGRect(x: 10, y: 20, width: 300, height: 200))
         let expanded = try Self.target(bounds: CGRect(x: 10, y: 20, width: 600, height: 500))
