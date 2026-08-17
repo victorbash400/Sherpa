@@ -55,6 +55,28 @@ class BrowserCodeTests(unittest.TestCase):
 
         self.assertIn("action=launch", error or "")
 
+    def test_inspect_ui_preserves_embedded_app_window_target(self) -> None:
+        args = {"app_target": "System Settings:Appearance"}
+
+        self.assertIsNone(normalize_tool_args("computer_inspect_ui", args))
+        self.assertEqual(args, {"app_target": "System Settings:Appearance"})
+
+    def test_inspect_ui_preserves_embedded_pid_window_target(self) -> None:
+        args = {"app_target": "PID:78612:Appearance"}
+
+        self.assertIsNone(normalize_tool_args("computer_inspect_ui", args))
+        self.assertEqual(args, {"app_target": "PID:78612:Appearance"})
+
+    def test_tools_with_separate_window_title_still_split_app_selector(self) -> None:
+        args = {"app": "TextEdit:Notes", "text": "Hello"}
+
+        self.assertIsNone(normalize_tool_args("computer_type", args))
+        self.assertEqual(args, {
+            "app": "TextEdit",
+            "window_title": "Notes",
+            "text": "Hello",
+        })
+
     def test_tool_text_is_preserved_across_blocks(self) -> None:
         response = sanitize_tool_response({
             "content": [
@@ -85,6 +107,25 @@ class BrowserCodeTests(unittest.TestCase):
 
         self.assertEqual(response["content"], [])
         self.assertEqual(response["media_omitted"], 1)
+
+    def test_action_tools_preserve_only_canonical_confirmation_receipt(self) -> None:
+        response = sanitize_tool_response({
+            "content": [{"type": "text", "text": "clicked"}],
+            "_meta": {
+                "effect": "confirmed",
+                "mutation_dispatched": True,
+                "requires_fresh_observation": False,
+                "retry_safe": False,
+                "provider_debug": "omit",
+            },
+        }, "computer_click")
+
+        self.assertEqual(response["metadata"], {
+            "effect": "confirmed",
+            "mutation_dispatched": True,
+            "requires_fresh_observation": False,
+            "retry_safe": False,
+        })
 
 
 if __name__ == "__main__":

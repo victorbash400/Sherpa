@@ -12,6 +12,7 @@ from backend.sherpa_tasks import (
     tool_result_outcome,
     tool_result_status,
     preview_target_for,
+    tool_result_dispatched_mutation,
     tool_result_self_verifies,
 )
 
@@ -330,9 +331,40 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(is_observation_tool("computer_window", {"action": "list"}))
         self.assertFalse(is_observation_tool("computer_app", {"action": "quit"}))
 
-    async def test_browser_evaluate_requires_visual_verification(self) -> None:
-        self.assertFalse(is_observation_tool("browser_evaluate"))
+    async def test_read_only_browser_evaluate_counts_as_observation(self) -> None:
+        self.assertTrue(is_observation_tool("browser_evaluate"))
         self.assertFalse(tool_result_self_verifies("browser_evaluate", {}))
+
+    async def test_confirmed_computer_receipt_self_verifies(self) -> None:
+        response = {
+            "metadata": {
+                "effect": "confirmed",
+                "mutation_dispatched": True,
+                "requires_fresh_observation": False,
+            },
+        }
+
+        self.assertTrue(tool_result_self_verifies(
+            "computer_click",
+            {"on": "B1"},
+            response,
+        ))
+
+    async def test_unverified_computer_receipt_requires_observation(self) -> None:
+        response = {
+            "metadata": {
+                "effect": "unverifiable",
+                "mutation_dispatched": True,
+                "requires_fresh_observation": True,
+            },
+        }
+
+        self.assertFalse(tool_result_self_verifies(
+            "computer_click",
+            {"on": "B1"},
+            response,
+        ))
+        self.assertTrue(tool_result_dispatched_mutation(response))
 
     async def test_local_artifact_inspection_counts_as_verification(self) -> None:
         self.assertTrue(is_observation_tool("inspect_local_artifacts"))

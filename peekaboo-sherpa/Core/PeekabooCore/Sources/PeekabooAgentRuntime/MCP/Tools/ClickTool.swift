@@ -335,16 +335,21 @@ public struct ClickTool: MCPTool {
                     expectedProcessIdentity: targetProcessIdentity)
             }
         } else {
+            // Foreground is the explicit synthetic-input fallback. The target was
+            // already resolved from the fresh snapshot above, so dispatch the
+            // resolved point instead of allowing action-first automation to try
+            // the same Accessibility action again.
+            let foregroundTarget = ClickTarget.coordinates(resolution.location)
             if let outcomeAutomation = self.context.automation as? any UIAutomationActionOutcomeProviding {
                 return try await outcomeAutomation.clickWithOutcome(
-                    target: target,
+                    target: foregroundTarget,
                     clickType: intent.automationType,
-                    snapshotId: snapshotId).outcome
+                    snapshotId: nil).outcome
             }
             try await self.context.automation.click(
-                target: target,
+                target: foregroundTarget,
                 clickType: intent.automationType,
-                snapshotId: snapshotId)
+                snapshotId: nil)
         }
         return nil
     }

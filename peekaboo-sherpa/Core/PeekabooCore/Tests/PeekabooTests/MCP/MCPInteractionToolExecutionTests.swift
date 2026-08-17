@@ -100,6 +100,45 @@ extension MCPToolExecutionTests {
     }
 
     @Test
+    func `foreground element click dispatches its resolved point synthetically`() async throws {
+        let automation = await MainActor.run { MockAutomationService(accessibilityGranted: true) }
+        let context = await MCPToolTestHelpers.makeLegacyContext(automation: automation)
+        let snapshot = await UISnapshotManager.shared.createSnapshot()
+        let snapshotId = await snapshot.id
+        await snapshot.setUIElements([
+            UIElement(
+                id: "B1",
+                elementId: "B1",
+                role: "button",
+                title: "Light",
+                label: "Light",
+                value: nil,
+                description: nil,
+                help: nil,
+                roleDescription: "button",
+                identifier: nil,
+                frame: CGRect(x: 1307, y: 412, width: 74, height: 66),
+                isActionable: true),
+        ])
+
+        let response = try await ClickTool(context: context).execute(arguments: ToolArguments(raw: [
+            "on": "B1",
+            "snapshot": snapshotId,
+            "foreground": true,
+        ]))
+
+        #expect(response.isError == false)
+        #expect(await MainActor.run { automation.targetedClickCalls.isEmpty })
+        let call = try #require(await MainActor.run { automation.clickCalls.first })
+        #expect(call.snapshotId == nil)
+        if case let .coordinates(point) = call.target {
+            #expect(point == CGPoint(x: 1344, y: 445))
+        } else {
+            Issue.record("Expected a foreground element click to dispatch resolved coordinates")
+        }
+    }
+
+    @Test
     func `Click tool forwards latest snapshot id when snapshot argument is omitted`() async throws {
         let automation = await MainActor.run { MockAutomationService(accessibilityGranted: true) }
         let context = await MCPToolTestHelpers.makeLegacyContext(automation: automation)

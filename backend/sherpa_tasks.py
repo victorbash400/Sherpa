@@ -987,17 +987,18 @@ class SherpaTaskManager:
                         task.tool_counts[response.name] = task.tool_counts.get(response.name, 0) + 1
                         if failed:
                             task.tool_failures[response.name] = task.tool_failures.get(response.name, 0) + 1
-                    if not failed and not is_control_tool:
+                    if not is_control_tool:
                         response_args = tool_call_args.get(response_id, {})
-                        if is_observation_tool(response.name, response_args):
+                        if not failed and is_observation_tool(response.name, response_args):
                             last_successful_observation = result_sequence
-                        elif tool_result_self_verifies(
+                        elif not failed and tool_result_self_verifies(
                             response.name,
                             response_args,
+                            response.response,
                         ):
                             last_successful_action = result_sequence
                             last_successful_observation = result_sequence
-                        else:
+                        elif not failed or tool_result_dispatched_mutation(response.response):
                             last_successful_action = result_sequence
                     await self._emit(task, {
                         "type": "tool_response",
@@ -1333,7 +1334,28 @@ def tool_waiting_question(response: Any) -> str | None:
     return "Please complete the open interaction, then tell me to continue."
 
 
-def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:
+def tool_result_metadata(response: Any) -> dict[str, Any]:
+    if not isinstance(response, dict):
+        return {}
+    metadata = response.get("metadata")
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def tool_result_dispatched_mutation(response: Any) -> bool:
+    return tool_result_metadata(response).get("mutation_dispatched") is True
+
+
+def tool_result_self_verifies(
+    name: str,
+    args: dict[str, Any],
+    response: Any = None,
+) -> bool:
+    metadata = tool_result_metadata(response)
+    if (
+        metadata.get("effect") == "confirmed"
+        and metadata.get("requires_fresh_observation") is False
+    ):
+        return True
     action = str(args.get("action", "")).lower()
     workspace_mutations = {
         "workspace_calendar_create_event",
@@ -1375,6 +1397,7 @@ def is_observation_tool(
         "computer_see",
         "computer_inspect_ui",
         "computer_surfaces",
+        "browser_evaluate",
         "browser_snapshot",
         "browser_find",
         "workspace_calendar_list_events",

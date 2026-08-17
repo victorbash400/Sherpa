@@ -163,13 +163,32 @@ def sanitize_tool_response(response: dict, tool_name: str = "") -> dict:
         safe["content"] = text_blocks
         if omitted_images:
             safe["media_omitted"] = omitted_images
-    if preserve_metadata:
-        metadata = safe.pop("_meta", None) or safe.pop("meta", None)
-        if metadata is not None:
+    metadata = safe.pop("_meta", None) or safe.pop("meta", None)
+    if isinstance(metadata, dict):
+        if preserve_metadata:
             safe["metadata"] = metadata
-    else:
-        safe.pop("_meta", None)
-        safe.pop("meta", None)
+        elif tool_name.startswith("computer_"):
+            receipt_keys = {
+                "dispatch_state",
+                "effect",
+                "escalation",
+                "evidence",
+                "mutation_dispatched",
+                "requires_fresh_observation",
+                "retry_safe",
+                "retry_safety",
+                "route",
+                "state",
+                "target_identity",
+                "target_receipt",
+            }
+            receipt = {
+                key: value
+                for key, value in metadata.items()
+                if key in receipt_keys
+            }
+            if receipt:
+                safe["metadata"] = receipt
     return safe
 
 
@@ -249,14 +268,18 @@ def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
                 "Browser code may only transform the current page DOM. Network, storage, "
                 "credential, navigation, dynamic-code, and form-submission APIs are disabled."
             )
-    for key in ("app", "app_target"):
-        value = args.get(key)
-        if not isinstance(value, str) or ":" not in value:
-            continue
-        app_name, window_title = value.split(":", 1)
-        if app_name.strip() and window_title.strip():
-            args[key] = app_name.strip()
-            args.setdefault("window_title", window_title.strip())
+    separate_window_title_tools = {
+        "computer_dialog",
+        "computer_press",
+        "computer_type",
+    }
+    if tool_name in separate_window_title_tools:
+        value = args.get("app")
+        if isinstance(value, str) and ":" in value:
+            app_name, window_title = value.split(":", 1)
+            if app_name.strip() and window_title.strip():
+                args["app"] = app_name.strip()
+                args.setdefault("window_title", window_title.strip())
     return None
 
 
