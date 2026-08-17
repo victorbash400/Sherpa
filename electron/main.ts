@@ -10,14 +10,20 @@ const dockIconPath = app.isPackaged
   : path.join(app.getAppPath(), "public/sherpa-dock-icon.png");
 let mainWindow: BrowserWindow | undefined;
 let overlayWindow: BrowserWindow | undefined;
+let petWindow: BrowserWindow | undefined;
+let petWorking = false;
+let petTranscript: PetTranscriptPayload = { entries: [], hue: 0, status: "idle" };
 let overlayReady = false;
 let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
-const previewProcesses = new Map<string, ChildProcessWithoutNullStreams>();
-const previewTargets = new Map<string, string>();
-const previewRestarts = new Map<string, ReturnType<typeof setTimeout>>();
-const stoppingPreviews = new Set<ChildProcessWithoutNullStreams>();
-const previewStopTimers = new Map<ChildProcessWithoutNullStreams, ReturnType<typeof setTimeout>>();
+let previewProcess: ChildProcessWithoutNullStreams | undefined;
+let previewTaskId: string | undefined;
+let previewTarget: string | undefined;
+let previewBuffer = Buffer.alloc(0);
+let previewStopping = false;
+let previewTerminateTimer: ReturnType<typeof setTimeout> | undefined;
+let previewKillTimer: ReturnType<typeof setTimeout> | undefined;
+let pendingPreview: { taskId: string; target: PreviewTarget; targetKey: string } | undefined;
 
 type OverlayPayload = {
   id: string;
@@ -33,6 +39,15 @@ type PreviewTarget = {
   window_id?: number;
   window_title?: string;
 };
+
+type PetTranscriptPayload = {
+  entries: Array<{ id: string; role: "user" | "assistant"; text: string }>;
+  hue: number;
+  status: string;
+};
+
+const PET_WIDTH = 340;
+const PET_HEIGHT = 360;
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -59,14 +74,17 @@ function createWindow() {
   };
   window.on("focus", () => emitFocus(true));
   window.on("blur", () => emitFocus(false));
+  window.on("minimize", sendPetActivity);
+  window.on("restore", sendPetActivity);
   window.webContents.on("did-finish-load", () => emitFocus(window.isFocused()));
   window.on("closed", () => {
-    stopAllPreviews();
+    stopPreviewProcess();
+    closePetWindow();
     mainWindow = undefined;
     if (process.platform !== "darwin") app.quit();
   });
-  window.webContents.on("render-process-gone", stopAllPreviews);
-  window.webContents.on("will-navigate", stopAllPreviews);
+  window.webContents.on("render-process-gone", stopPreviewProcess);
+  window.webContents.on("will-navigate", stopPreviewProcess);
 
   if (!app.isPackaged) {
     void window.loadURL("http://localhost:5173");
@@ -124,6 +142,75 @@ function createOverlayWindow() {
   } else {
     void overlayWindow.loadFile(path.join(currentDirectory, "../dist/overlay.html"));
   }
+}
+
+function createPetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) return petWindow;
+  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const window = new BrowserWindow({
+    width: PET_WIDTH,
+    height: PET_HEIGHT,
+    x: workArea.x + workArea.width - PET_WIDTH - 20,
+    y: workArea.y + workArea.height - PET_HEIGHT - 10,
+    transparent: true,
+    frame: false,
+    focusable: false,
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: preloadPath,
+    },
+  });
+  petWindow = window;
+  window.setAlwaysOnTop(true, "floating");
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  window.setFullScreenable(false);
+  window.webContents.on("did-finish-load", () => {
+    window.showInactive();
+    sendPetActivity();
+  });
+  window.on("closed", () => {
+    if (petWindow === window) petWindow = undefined;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("pet:state", false);
+  });
+  window.webContents.on("did-fail-load", (_, code, description) => {
+    console.error("Sherpa pet failed to load", { code, description });
+  });
+  if (!app.isPackaged) void window.loadURL("http://localhost:5173/pet.html");
+  else void window.loadFile(path.join(currentDirectory, "../dist/pet.html"));
+  return window;
+}
+
+function sendPetActivity() {
+  if (!petWindow || petWindow.isDestroyed()) return;
+  petWindow.webContents.send("pet:activity", petActivity());
+}
+
+function petActivity() {
+  return {
+    working: petWorking,
+    minimized: Boolean(mainWindow?.isMinimized()),
+    transcript: petTranscript,
+  };
+}
+
+function closePetWindow() {
+  if (petWindow && !petWindow.isDestroyed()) petWindow.close();
+}
+
+function clampPetPosition(x: number, y: number) {
+  const current = petWindow?.getBounds() || { x, y, width: PET_WIDTH, height: PET_HEIGHT };
+  const { workArea } = screen.getDisplayMatching({ ...current, x, y });
+  return {
+    x: Math.max(workArea.x, Math.min(workArea.x + workArea.width - current.width, Math.round(x))),
+    y: Math.max(workArea.y, Math.min(workArea.y + workArea.height - current.height, Math.round(y))),
+  };
 }
 
 function overlayPoint(args: Record<string, unknown>) {
@@ -224,94 +311,166 @@ function configureSystemEvents() {
   });
 }
 
+function configurePetEvents() {
+  ipcMain.handle("pet:wake", (event) => {
+    if (event.sender !== mainWindow?.webContents) return false;
+    createPetWindow();
+    mainWindow.webContents.send("pet:state", true);
+    return true;
+  });
+  ipcMain.on("pet:sleep", (event) => {
+    if (event.sender === mainWindow?.webContents) closePetWindow();
+  });
+  ipcMain.on("pet:working", (event, working: boolean) => {
+    if (event.sender !== mainWindow?.webContents || typeof working !== "boolean") return;
+    petWorking = working;
+    sendPetActivity();
+  });
+  ipcMain.on("pet:transcript", (event, transcript: PetTranscriptPayload) => {
+    if (event.sender !== mainWindow?.webContents || !transcript || !Array.isArray(transcript.entries)) return;
+    petTranscript = transcript;
+    sendPetActivity();
+  });
+  ipcMain.on("pet:close", (event) => {
+    if (event.sender === petWindow?.webContents) closePetWindow();
+  });
+  ipcMain.on("pet:voice-toggle", (event) => {
+    if (event.sender === petWindow?.webContents && mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("pet:voice-toggle");
+    }
+  });
+  ipcMain.on("pet:celebrate", (event, count: number) => {
+    if (event.sender === mainWindow?.webContents && petWindow && !petWindow.isDestroyed()) {
+      petWindow.webContents.send("pet:celebrate", Number.isInteger(count) && count > 0 ? count : 1);
+    }
+  });
+  ipcMain.handle("pet:activity", (event) => {
+    if (event.sender !== petWindow?.webContents) return { working: false };
+    return petActivity();
+  });
+  ipcMain.handle("pet:state", (event) => {
+    if (event.sender !== mainWindow?.webContents) return false;
+    return Boolean(petWindow && !petWindow.isDestroyed());
+  });
+  ipcMain.handle("pet:bounds", (event) => {
+    if (event.sender !== petWindow?.webContents) return null;
+    return petWindow.getBounds();
+  });
+  ipcMain.on("pet:drag", (event, x: number, y: number) => {
+    if (event.sender !== petWindow?.webContents || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    const next = clampPetPosition(x, y);
+    petWindow.setPosition(next.x, next.y, false);
+  });
+}
+
 function configurePreviewEvents() {
   ipcMain.handle("preview:start", (event, taskId: string, target: PreviewTarget) => {
     if (event.sender !== mainWindow?.webContents || !taskId || !validPreviewTarget(target)) return false;
     const targetKey = previewTargetKey(target);
-    if (previewProcesses.has(taskId) && previewTargets.get(taskId) === targetKey) return true;
-    if (previewTargets.has(taskId)) {
-      console.info("preview.target_changed", {
-        taskId,
-        from: previewTargets.get(taskId),
-        to: targetKey,
-      });
+    if (previewTaskId === taskId && previewTarget === targetKey && previewProcess) return true;
+    if (previewStopping) {
+      pendingPreview = { taskId, target, targetKey };
+      return true;
     }
-    stopPreview(taskId, true);
-    previewTargets.set(taskId, targetKey);
-    startPreview(taskId, target, 0);
+    const child = ensurePreviewProcess();
+    console.info("preview.target_switching", {
+      taskId,
+      from: previewTarget,
+      to: targetKey,
+      pid: child.pid,
+    });
+    previewTaskId = taskId;
+    previewTarget = targetKey;
+    child.stdin.write(`${JSON.stringify({ action: "switch", task_id: taskId, target })}\n`);
     return true;
   });
   ipcMain.on("preview:stop", (event, taskId: string) => {
-    if (event.sender === mainWindow?.webContents) stopPreview(taskId);
+    if (event.sender === mainWindow?.webContents && previewTaskId === taskId) idlePreview();
   });
   ipcMain.on("preview:stop-all", (event) => {
-    if (event.sender === mainWindow?.webContents) stopAllPreviews();
+    if (event.sender === mainWindow?.webContents) stopPreviewProcess();
   });
 }
 
-function startPreview(taskId: string, target: PreviewTarget, attempt: number) {
+function ensurePreviewProcess() {
+  if (previewProcess && !previewStopping) return previewProcess;
   const binary = app.isPackaged
     ? path.join(process.resourcesPath, "window-capture")
     : path.join(app.getAppPath(), "dist-native/window-capture");
-  const child = spawn(binary, previewArguments(target));
-  previewProcesses.set(taskId, child);
-  console.info("preview.capture_started", { taskId, target, attempt, pid: child.pid });
-  let buffer = Buffer.alloc(0);
-  let receivedFrame = false;
+  const child = spawn(binary);
+  previewProcess = child;
+  previewStopping = false;
+  previewBuffer = Buffer.alloc(0);
+  console.info("preview.broker_started", { pid: child.pid });
   child.stdout.on("data", (chunk: Buffer) => {
-    buffer = Buffer.concat([buffer, chunk]);
-    while (buffer.length >= 4) {
-      const length = buffer.readUInt32BE(0);
-      if (buffer.length < length + 4) break;
-      const frame = buffer.subarray(4, length + 4);
-      buffer = buffer.subarray(length + 4);
+    previewBuffer = Buffer.concat([previewBuffer, chunk]);
+    while (previewBuffer.length >= 4) {
+      const length = previewBuffer.readUInt32BE(0);
+      if (previewBuffer.length < length + 4) break;
+      const frame = previewBuffer.subarray(4, length + 4);
+      previewBuffer = previewBuffer.subarray(length + 4);
       if (frame[0] === 0x7b) {
         try {
-          mainWindow?.webContents.send("preview:metadata", taskId, JSON.parse(frame.toString()));
+          const payload = JSON.parse(frame.toString()) as {
+            type: string;
+            task_id?: string;
+            x?: number;
+            y?: number;
+            width?: number;
+            height?: number;
+            message?: string;
+          };
+          if (payload.type === "metadata" && payload.task_id) {
+            mainWindow?.webContents.send("preview:metadata", payload.task_id, payload);
+            console.info("preview.target_active", { taskId: payload.task_id, pid: child.pid });
+          } else if (payload.type === "stopped") {
+            console.info("preview.capture_stopped", { pid: child.pid });
+          } else if ((payload.type === "command_error" || payload.type === "stream_error") && previewTaskId) {
+            mainWindow?.webContents.send("preview:error", previewTaskId, String(payload.message || "Window preview stopped."));
+            if (payload.type === "stream_error") stopPreviewProcess();
+          }
         } catch {
-          mainWindow?.webContents.send("preview:error", taskId, "Window preview metadata was invalid.");
+          if (previewTaskId) mainWindow?.webContents.send("preview:error", previewTaskId, "Window preview metadata was invalid.");
         }
-      } else {
-        if (!receivedFrame) {
-          receivedFrame = true;
-          console.info("preview.first_frame", { taskId, pid: child.pid });
-        }
-        mainWindow?.webContents.send("preview:frame", taskId, Uint8Array.from(frame));
+      } else if (frame[0] === 0 && frame.length >= 3) {
+        const taskLength = frame.readUInt16BE(1);
+        if (frame.length < taskLength + 3) continue;
+        const taskId = frame.subarray(3, taskLength + 3).toString();
+        const image = frame.subarray(taskLength + 3);
+        mainWindow?.webContents.send("preview:frame", taskId, Uint8Array.from(image));
       }
     }
   });
   let errorText = "";
   child.stderr.on("data", (chunk: Buffer) => { errorText += chunk.toString(); });
   child.on("error", (error) => {
-    mainWindow?.webContents.send("preview:error", taskId, error.message);
+    if (previewTaskId) mainWindow?.webContents.send("preview:error", previewTaskId, error.message);
   });
   child.on("exit", (code) => {
-    const stopTimer = previewStopTimers.get(child);
-    if (stopTimer) clearTimeout(stopTimer);
-    previewStopTimers.delete(child);
-    const wasStopping = stoppingPreviews.delete(child);
-    if (previewProcesses.get(taskId) !== child) return;
-    previewProcesses.delete(taskId);
-    console.info("preview.capture_exited", { taskId, pid: child.pid, code, wasStopping });
-    if (wasStopping) return;
-    const interrupted = errorText.includes("SCStreamErrorDomain Code=-3805");
-    if (code && interrupted && attempt === 0) {
-      const restart = setTimeout(() => {
-        previewRestarts.delete(taskId);
-        if (mainWindow && !mainWindow.isDestroyed() && !previewProcesses.has(taskId)) {
-          startPreview(taskId, target, 1);
-        }
-      }, 200);
-      previewRestarts.set(taskId, restart);
-      return;
-    }
-    if (code && code !== 0) {
-      const message = interrupted
-        ? "The window preview connection was interrupted."
-        : errorText.trim() || "Window preview stopped.";
-      mainWindow?.webContents.send("preview:error", taskId, message);
+    clearPreviewExitTimers();
+    const taskId = previewTaskId;
+    const expected = previewStopping;
+    if (previewProcess === child) previewProcess = undefined;
+    previewStopping = false;
+    previewTaskId = undefined;
+    previewTarget = undefined;
+    previewBuffer = Buffer.alloc(0);
+    console.info("preview.broker_exited", { pid: child.pid, code, expected });
+    if (!expected && taskId) mainWindow?.webContents.send(
+      "preview:error",
+      taskId,
+      errorText.trim() || "Window preview stopped.",
+    );
+    const pending = pendingPreview;
+    pendingPreview = undefined;
+    if (pending && mainWindow && !mainWindow.isDestroyed()) {
+      const next = ensurePreviewProcess();
+      previewTaskId = pending.taskId;
+      previewTarget = pending.targetKey;
+      next.stdin.write(`${JSON.stringify({ action: "switch", task_id: pending.taskId, target: pending.target })}\n`);
     }
   });
+  return child;
 }
 
 function validPreviewTarget(target: PreviewTarget) {
@@ -329,47 +488,41 @@ function previewTargetKey(target: PreviewTarget) {
     .join(":");
 }
 
-function previewArguments(target: PreviewTarget) {
-  const args: string[] = [];
-  if (target.app) args.push("--app", target.app);
-  if (target.pid) args.push("--pid", String(target.pid));
-  if (target.window_id) args.push("--window-id", String(target.window_id));
-  if (target.window_title) args.push("--window-title", target.window_title);
-  return args;
+function idlePreview() {
+  const child = previewProcess;
+  previewTaskId = undefined;
+  previewTarget = undefined;
+  if (child && !previewStopping) child.stdin.write(`${JSON.stringify({ action: "idle" })}\n`);
 }
 
-function stopPreview(taskId: string, immediate = false) {
-  const restart = previewRestarts.get(taskId);
-  if (restart) {
-    clearTimeout(restart);
-    previewRestarts.delete(taskId);
-  }
-  const child = previewProcesses.get(taskId);
-  if (!child) {
-    previewTargets.delete(taskId);
-    return;
-  }
-  previewTargets.delete(taskId);
-  stoppingPreviews.add(child);
-  console.info("preview.capture_stopping", { taskId, pid: child.pid, immediate });
-  if (immediate) {
-    child.kill("SIGTERM");
-    return;
-  }
-  child.stdin.end();
-  const stopTimer = setTimeout(() => {
-    previewStopTimers.delete(child);
+function stopPreviewProcess() {
+  const child = previewProcess;
+  previewTaskId = undefined;
+  previewTarget = undefined;
+  pendingPreview = undefined;
+  if (!child || previewStopping) return;
+  previewStopping = true;
+  console.info("preview.broker_stopping", { pid: child.pid });
+  child.stdin.end(`${JSON.stringify({ action: "stop" })}\n`);
+  previewTerminateTimer = setTimeout(() => {
     if (child.exitCode === null && child.signalCode === null) {
-      console.warn("preview.capture_force_stopped", { taskId, pid: child.pid });
+      console.warn("preview.broker_terminating", { pid: child.pid });
       child.kill("SIGTERM");
     }
   }, 750);
-  previewStopTimers.set(child, stopTimer);
+  previewKillTimer = setTimeout(() => {
+    if (child.exitCode === null && child.signalCode === null) {
+      console.error("preview.broker_killing", { pid: child.pid });
+      child.kill("SIGKILL");
+    }
+  }, 1500);
 }
 
-function stopAllPreviews() {
-  const taskIds = new Set([...previewProcesses.keys(), ...previewRestarts.keys()]);
-  for (const taskId of taskIds) stopPreview(taskId);
+function clearPreviewExitTimers() {
+  if (previewTerminateTimer) clearTimeout(previewTerminateTimer);
+  if (previewKillTimer) clearTimeout(previewKillTimer);
+  previewTerminateTimer = undefined;
+  previewKillTimer = undefined;
 }
 
 app.whenReady().then(() => {
@@ -380,6 +533,7 @@ app.whenReady().then(() => {
     dock.setIcon(dockIconPath);
   }
   configureSystemEvents();
+  configurePetEvents();
   configurePreviewEvents();
   createWindow();
   createOverlayWindow();
@@ -397,10 +551,11 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  stopAllPreviews();
+  stopPreviewProcess();
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on("before-quit", stopAllPreviews);
+app.on("before-quit", stopPreviewProcess);
+app.on("before-quit", closePetWindow);

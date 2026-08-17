@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioControls } from "./components/AudioControls";
+import { CameraOrbPreview } from "./components/CameraOrbPreview";
 import { AccessibilityView } from "./components/AccessibilityView";
 import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
@@ -8,6 +9,7 @@ import { ControlRail } from "./components/ControlRail";
 import { FloatingVoiceOrb } from "./components/FloatingVoiceOrb";
 import { MemoryView } from "./components/MemoryView";
 import { PluginsView } from "./components/PluginsView";
+import { PetsView } from "./components/PetsView";
 import { useSherpaChat } from "./hooks/useSherpaChat";
 import { useVoiceSession } from "./hooks/useVoiceSession";
 import { useVoicePreview } from "./hooks/useVoicePreview";
@@ -33,18 +35,21 @@ import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
 
 export function App() {
-  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility">("voice");
+  const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility" | "pets">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState(loadVoice);
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraError, setCameraError] = useState<string>();
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [windowFocused, setWindowFocused] = useState(true);
   const [accessibilitySettings, setAccessibilitySettings] = useState(loadAccessibilitySettings);
   const automaticTaskViewRef = useRef(false);
   const hadActiveTasksRef = useRef(false);
+  const petTaskStatusesRef = useRef(new Map<string, string>());
   const chat = useSherpaChat();
   const connections = useConnectionSections();
   const skills = useSkills(view === "skills");
@@ -60,6 +65,7 @@ export function App() {
     onTurnComplete: completeVoiceTurn,
     sessionId: chat.activeChatId,
     speakerMuted,
+    spokenLanguage: accessibilitySettings.spokenLanguage,
     volume,
     voiceName: selectedVoice.id,
   });
@@ -67,11 +73,42 @@ export function App() {
   const orbMode = voice.status === "speaking" ? "speaking" : voice.status === "listening" ? "listening" : "idle";
   const voiceActive = voice.status === "connecting" || voice.status === "listening" || voice.status === "speaking";
   const hasActiveTasks = voice.tasks.some((task) => ["queued", "running", "blocked"].includes(task.status));
+  const hasRunningTasks = voice.tasks.some((task) => task.status === "running");
   const hasTranscript = chat.activeChat.transcript.some((entry) => entry.text.trim().length > 0);
 
   useEffect(() => {
     return window.sherpaSystem?.onWindowFocusChanged(setWindowFocused);
   }, []);
+
+  useEffect(() => {
+    window.sherpaPet?.setWorking(hasRunningTasks);
+  }, [hasRunningTasks]);
+
+  useEffect(() => {
+    const previous = petTaskStatusesRef.current;
+    const completedCount = voice.tasks.filter((task) => (
+      task.status === "completed"
+      && previous.has(task.id)
+      && previous.get(task.id) !== "completed"
+    )).length;
+    petTaskStatusesRef.current = new Map(voice.tasks.map((task) => [task.id, task.status]));
+    if (completedCount) window.sherpaPet?.celebrate(completedCount);
+  }, [voice.tasks]);
+
+  useEffect(() => {
+    window.sherpaPet?.setTranscript({
+      entries: chat.activeChat.transcript.slice(-3).map(({ id, role, text }) => ({ id, role, text })),
+      hue: selectedVoice.hue,
+      status: voice.status,
+    });
+  }, [chat.activeChat.transcript, selectedVoice.hue, voice.status]);
+
+  useEffect(() => {
+    return window.sherpaPet?.onVoiceToggle(() => {
+      if (voiceActive) voice.stop();
+      else void voice.start();
+    });
+  }, [voice.start, voice.stop, voiceActive]);
 
   useEffect(() => {
     if (!hasTranscript && transcriptExpanded) setTranscriptExpanded(false);
@@ -106,6 +143,9 @@ export function App() {
   };
 
   const updateAccessibilitySettings = (settings: AccessibilitySettings) => {
+    if (settings.spokenLanguage !== accessibilitySettings.spokenLanguage && voiceActive) {
+      voice.stop();
+    }
     setAccessibilitySettings(settings);
     saveAccessibilitySettings(settings);
   };
@@ -119,6 +159,7 @@ export function App() {
         expanded={sidebarOpen}
         onOpenAccessibility={() => setView("accessibility")}
         onOpenMemory={() => setView("memory")}
+        onOpenPets={() => setView("pets")}
         onOpenPlugins={() => setView("plugins")}
         onOpenSkills={() => setView("skills")}
         onOpenWorkspace={() => setView("workspace")}
@@ -142,19 +183,24 @@ export function App() {
             <VoiceTranscript entries={chat.activeChat.transcript} expanded={transcriptExpanded} hue={selectedVoice.hue} onExpandedChange={setTranscriptExpanded} />
           ) : null}
           <section className="orb-stage" data-transcript-expanded={hasTranscript && transcriptExpanded} aria-label="Sherpa is listening">
-            <Orb
-              mode={orbMode}
-              audioLevel={voice.audioLevel}
-              hue={selectedVoice.hue}
-            />
+            <div className="voice-orb-visual" data-camera-active={cameraEnabled}>
+              <CameraOrbPreview active={cameraEnabled} onError={setCameraError} onFrame={voice.sendVideoFrame} />
+              <Orb
+                mode={orbMode}
+                audioLevel={voice.audioLevel}
+                hue={selectedVoice.hue}
+              />
+            </div>
             <VoiceSessionButton hue={selectedVoice.hue} onStart={() => void voice.start()} onStop={voice.stop} status={voice.status} />
             <VoiceToolActivity activities={voice.toolActivities} context={voice.contextUsage} />
           </section>
-          {voice.error ? <p className="voice-error" role="alert">{voice.error}</p> : null}
+          {voice.error || cameraError ? <p className="voice-error" role="alert">{cameraError || voice.error}</p> : null}
           <AudioControls
+            cameraEnabled={cameraEnabled}
             microphoneMuted={microphoneMuted}
             speakerMuted={speakerMuted}
             volume={volume}
+            onCameraEnabledChange={setCameraEnabled}
             onMicrophoneMutedChange={setMicrophoneMuted}
             onSpeakerMutedChange={setSpeakerMuted}
             onVolumeChange={setVolume}
@@ -211,10 +257,12 @@ export function App() {
       </div>
       <div hidden={view !== "accessibility"}>
         <AccessibilityView
-          active={view === "accessibility"}
           onChange={updateAccessibilitySettings}
           settings={accessibilitySettings}
         />
+      </div>
+      <div hidden={view !== "pets"}>
+        <PetsView active={view === "pets"} />
       </div>
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
       <RefreshButton />

@@ -68,13 +68,14 @@ interface VoiceSessionOptions {
   microphoneMuted: boolean;
   sessionId: string;
   speakerMuted: boolean;
+  spokenLanguage: string;
   volume: number;
   voiceName: string;
   onTranscript: (entry: VoiceTranscriptEntry) => void;
   onTurnComplete: () => void;
 }
 
-export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete, sessionId, speakerMuted, volume, voiceName }: VoiceSessionOptions) {
+export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete, sessionId, speakerMuted, spokenLanguage, volume, voiceName }: VoiceSessionOptions) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState<string>();
@@ -215,7 +216,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       readySoundRef.current = readySound;
       readySound.load();
 
-      const socket = new WebSocket(`ws://127.0.0.1:8000/voice/${sessionId}?voice=${encodeURIComponent(voiceName)}`);
+      const query = new URLSearchParams({ voice: voiceName, language: spokenLanguage });
+      const socket = new WebSocket(`ws://127.0.0.1:8000/voice/${sessionId}?${query}`);
       socket.binaryType = "arraybuffer";
       socketRef.current = socket;
       await new Promise<void>((resolve, reject) => {
@@ -502,7 +504,13 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       setError(reason instanceof Error ? reason.message : "Sherpa voice failed.");
       setStatus("error");
     }
-  }, [clearPlayback, interruptPlayback, onTranscript, onTurnComplete, playAudio, sendControl, sessionId, speakerMuted, status, stop, voiceName, volume]);
+  }, [clearPlayback, interruptPlayback, onTranscript, onTurnComplete, playAudio, sendControl, sessionId, speakerMuted, spokenLanguage, status, stop, voiceName, volume]);
+
+  const sendVideoFrame = useCallback((data: string, mimeType: string) => {
+    const socket = socketRef.current;
+    if (socket?.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({ type: "video_frame", data, mime_type: mimeType }));
+  }, []);
 
   useEffect(() => {
     if (gainRef.current) gainRef.current.gain.value = speakerMuted ? 0 : volume / 100;
@@ -563,6 +571,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     computerActive,
     contextUsage,
     error,
+    sendVideoFrame,
     start,
     status,
     stop,

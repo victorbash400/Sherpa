@@ -1,4 +1,5 @@
 import json
+import base64
 import os
 import asyncio
 import html
@@ -454,7 +455,12 @@ async def stream_chat(body: ChatRequest):
 
 
 @app.websocket("/voice/{session_id}")
-async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> None:
+async def voice(
+    websocket: WebSocket,
+    session_id: str,
+    voice: str = "Kore",
+    language: str = "en",
+) -> None:
     await websocket.accept()
     logger.info("session.accepted session=%s voice=%s", session_id, voice)
     if not permission_store.enabled("google.models"):
@@ -465,6 +471,15 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
         return
     if voice not in LIVE_VOICES:
         await websocket.send_json({"type": "error", "error": "Unsupported Sherpa voice."})
+        await websocket.close(code=1008)
+        return
+    live_languages = {
+        "en": "English", "sw": "Swahili", "fr": "French", "de": "German",
+        "es": "Spanish", "pt": "Portuguese", "ar": "Arabic", "hi": "Hindi",
+        "zh": "Chinese", "ja": "Japanese", "ko": "Korean", "zu": "Zulu",
+    }
+    if language not in live_languages:
+        await websocket.send_json({"type": "error", "error": "Unsupported spoken language."})
         await websocket.close(code=1008)
         return
     if not (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")):
@@ -493,10 +508,16 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             )
         ),
         thinking_config=types.ThinkingConfig(thinking_level="minimal"),
+        context_window_compression=types.ContextWindowCompressionConfig(
+            sliding_window=types.SlidingWindow()
+        ),
         system_instruction=(
-            f"{VOICE_INSTRUCTION}\n\n{memory_store.context_for('voice')}"
+            f"{VOICE_INSTRUCTION}\n\n{memory_store.context_for('voice')}\n\n"
+            f"RESPOND IN {live_languages[language].upper()}. YOU MUST RESPOND "
+            f"UNMISTAKABLY IN {live_languages[language].upper()}."
             if memory_store.context_for("voice")
-            else VOICE_INSTRUCTION
+            else f"{VOICE_INSTRUCTION}\n\nRESPOND IN {live_languages[language].upper()}. "
+            f"YOU MUST RESPOND UNMISTAKABLY IN {live_languages[language].upper()}."
         ),
         tools=VOICE_TOOLS,
     )
@@ -567,7 +588,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     ],
                 ))
 
-        async def receive_audio() -> None:
+        async def receive_input() -> None:
             nonlocal playback_drained, user_speaking
             try:
                 while True:
@@ -582,6 +603,12 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                             await live.send_realtime_input(
                                 text="Say only: Hi, I'm Sherpa. Nice to meet you."
                             )
+                        elif payload.get("type") == "video_frame":
+                            frame = base64.b64decode(payload["data"], validate=True)
+                            await live.send_realtime_input(video=types.Blob(
+                                data=frame,
+                                mime_type=payload.get("mime_type", "image/jpeg"),
+                            ))
                         elif payload.get("type") == "playback_drained":
                             playback_drained = True
                             await maybe_deliver_notification()
@@ -598,7 +625,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                 if live_closed.is_set() or is_expected_live_close(error):
                     logger.info("session.input_closed session=%s", session_id)
                 else:
-                    logger.exception("audio.receiver_failed session=%s", session_id)
+                    logger.exception("input.receiver_failed session=%s", session_id)
 
         async def send_function_response(
             call_id: str,
@@ -805,7 +832,7 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
             finally:
                 sherpa_tasks.unsubscribe(session_id, event_queue)
 
-        receiver = asyncio.create_task(receive_audio())
+        receiver = asyncio.create_task(receive_input())
         sender = asyncio.create_task(send_events())
         relay = asyncio.create_task(relay_sherpa_events())
         done, pending = await asyncio.wait(

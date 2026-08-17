@@ -1,0 +1,322 @@
+[
+  {
+    "frame": "01",
+    "action": "walk",
+    "pose": "right foot begins forward",
+    "sheet": 1,
+    "row": 1,
+    "column": 1,
+    "svg_file": "frames_svg/frame_01_walk_right_foot_begins_forward.svg",
+    "png_file": "frames_png/frame_01_walk_right_foot_begins_forward.png"
+  },
+  {
+    "frame": "02",
+    "action": "walk",
+    "pose": "right foot forward body lowered",
+    "sheet": 1,
+    "row": 1,
+    "column": 2,
+    "svg_file": "frames_svg/frame_02_walk_right_foot_forward_body_lowered.svg",
+    "png_file": "frames_png/frame_02_walk_right_foot_forward_body_lowered.png"
+  },
+  {
+    "frame": "03",
+    "action": "walk",
+    "pose": "right foot planted passing pose",
+    "sheet": 1,
+    "row": 1,
+    "column": 3,
+    "svg_file": "frames_svg/frame_03_walk_right_foot_planted_passing_pose.svg",
+    "png_file": "frames_png/frame_03_walk_right_foot_planted_passing_pose.png"
+  },
+  {
+    "frame": "04",
+    "action": "walk",
+    "pose": "left foot begins forward",
+    "sheet": 1,
+    "row": 1,
+    "column": 4,
+    "svg_file": "frames_svg/frame_04_walk_left_foot_begins_forward.svg",
+    "png_file": "frames_png/frame_04_walk_left_foot_begins_forward.png"
+  },
+  {
+    "frame": "05",
+    "action": "walk",
+    "pose": "left foot forward",
+    "sheet": 1,
+    "row": 2,
+    "column": 1,
+    "svg_file": "frames_svg/frame_05_walk_left_foot_forward.svg",
+    "png_file": "frames_png/frame_05_walk_left_foot_forward.png"
+  },
+  {
+    "frame": "06",
+    "action": "walk",
+    "pose": "left foot forward body lowered",
+    "sheet": 1,
+    "row": 2,
+    "column": 2,
+    "svg_file": "frames_svg/frame_06_walk_left_foot_forward_body_lowered.svg",
+    "png_file": "frames_png/frame_06_walk_left_foot_forward_body_lowered.png"
+  },
+  {
+    "frame": "07",
+    "action": "walk",
+    "pose": "left foot planted passing pose",
+    "sheet": 1,
+    "row": 2,
+    "column": 3,
+    "svg_file": "frames_svg/frame_07_walk_left_foot_planted_passing_pose.svg",
+    "png_file": "frames_png/frame_07_walk_left_foot_planted_passing_pose.png"
+  },
+  {
+    "frame": "08",
+    "action": "walk",
+    "pose": "right foot begins forward loop",
+    "sheet": 1,
+    "row": 2,
+    "column": 4,
+    "svg_file": "frames_svg/frame_08_walk_right_foot_begins_forward_loop.svg",
+    "png_file": "frames_png/frame_08_walk_right_foot_begins_forward_loop.png"
+  },
+  {
+    "frame": "09",
+    "action": "idle",
+    "pose": "neutral",
+    "sheet": 1,
+    "row": 3,
+    "column": 1,
+    "svg_file": "frames_svg/frame_09_idle_neutral.svg",
+    "png_file": "frames_png/frame_09_idle_neutral.png"
+  },
+  {
+    "frame": "10",
+    "action": "idle",
+    "pose": "subtle breathing rise",
+    "sheet": 1,
+    "row": 3,
+    "column": 2,
+    "svg_file": "frames_svg/frame_10_idle_subtle_breathing_rise.svg",
+    "png_file": "frames_png/frame_10_idle_subtle_breathing_rise.png"
+  },
+  {
+    "frame": "11",
+    "action": "idle",
+    "pose": "blink beginning",
+    "sheet": 1,
+    "row": 3,
+    "column": 3,
+    "svg_file": "frames_svg/frame_11_idle_blink_beginning.svg",
+    "png_file": "frames_png/frame_11_idle_blink_beginning.png"
+  },
+  {
+    "frame": "12",
+    "action": "idle",
+    "pose": "eyes closed blink",
+    "sheet": 1,
+    "row": 3,
+    "column": 4,
+    "svg_file": "frames_svg/frame_12_idle_eyes_closed_blink.svg",
+    "png_file": "frames_png/frame_12_idle_eyes_closed_blink.png"
+  },
+  {
+    "frame": "13",
+    "action": "idle",
+    "pose": "eyes open head move",
+    "sheet": 1,
+    "row": 4,
+    "column": 1,
+    "svg_file": "frames_svg/frame_13_idle_eyes_open_head_move.svg",
+    "png_file": "frames_png/frame_13_idle_eyes_open_head_move.png"
+  },
+  {
+    "frame": "14",
+    "action": "idle",
+    "pose": "return to neutral",
+    "sheet": 1,
+    "row": 4,
+    "column": 2,
+    "svg_file": "frames_svg/frame_14_idle_return_to_neutral.svg",
+    "png_file": "frames_png/frame_14_idle_return_to_neutral.png"
+  },
+  {
+    "frame": "15",
+    "action": "thinking",
+    "pose": "attentive",
+    "sheet": 1,
+    "row": 4,
+    "column": 3,
+    "svg_file": "frames_svg/frame_15_thinking_attentive.svg",
+    "png_file": "frames_png/frame_15_thinking_attentive.png"
+  },
+  {
+    "frame": "16",
+    "action": "thinking",
+    "pose": "look up thoughtful",
+    "sheet": 1,
+    "row": 4,
+    "column": 4,
+    "svg_file": "frames_svg/frame_16_thinking_look_up_thoughtful.svg",
+    "png_file": "frames_png/frame_16_thinking_look_up_thoughtful.png"
+  },
+  {
+    "frame": "17",
+    "action": "thinking",
+    "pose": "chin gesture",
+    "sheet": 2,
+    "row": 1,
+    "column": 1,
+    "svg_file": "frames_svg/frame_17_thinking_chin_gesture.svg",
+    "png_file": "frames_png/frame_17_thinking_chin_gesture.png"
+  },
+  {
+    "frame": "18",
+    "action": "thinking",
+    "pose": "thoughtful loop return",
+    "sheet": 2,
+    "row": 1,
+    "column": 2,
+    "svg_file": "frames_svg/frame_18_thinking_thoughtful_loop_return.svg",
+    "png_file": "frames_png/frame_18_thinking_thoughtful_loop_return.png"
+  },
+  {
+    "frame": "19",
+    "action": "working",
+    "pose": "begin action",
+    "sheet": 2,
+    "row": 1,
+    "column": 3,
+    "svg_file": "frames_svg/frame_19_working_begin_action.svg",
+    "png_file": "frames_png/frame_19_working_begin_action.png"
+  },
+  {
+    "frame": "20",
+    "action": "working",
+    "pose": "first tap",
+    "sheet": 2,
+    "row": 1,
+    "column": 4,
+    "svg_file": "frames_svg/frame_20_working_first_tap.svg",
+    "png_file": "frames_png/frame_20_working_first_tap.png"
+  },
+  {
+    "frame": "21",
+    "action": "working",
+    "pose": "alternate tap",
+    "sheet": 2,
+    "row": 2,
+    "column": 1,
+    "svg_file": "frames_svg/frame_21_working_alternate_tap.svg",
+    "png_file": "frames_png/frame_21_working_alternate_tap.png"
+  },
+  {
+    "frame": "22",
+    "action": "working",
+    "pose": "return loop",
+    "sheet": 2,
+    "row": 2,
+    "column": 2,
+    "svg_file": "frames_svg/frame_22_working_return_loop.svg",
+    "png_file": "frames_png/frame_22_working_return_loop.png"
+  },
+  {
+    "frame": "23",
+    "action": "attention",
+    "pose": "notices user",
+    "sheet": 2,
+    "row": 2,
+    "column": 3,
+    "svg_file": "frames_svg/frame_23_attention_notices_user.svg",
+    "png_file": "frames_png/frame_23_attention_notices_user.png"
+  },
+  {
+    "frame": "24",
+    "action": "attention",
+    "pose": "perks up",
+    "sheet": 2,
+    "row": 2,
+    "column": 4,
+    "svg_file": "frames_svg/frame_24_attention_perks_up.svg",
+    "png_file": "frames_png/frame_24_attention_perks_up.png"
+  },
+  {
+    "frame": "25",
+    "action": "attention",
+    "pose": "raises hand",
+    "sheet": 2,
+    "row": 3,
+    "column": 1,
+    "svg_file": "frames_svg/frame_25_attention_raises_hand.svg",
+    "png_file": "frames_png/frame_25_attention_raises_hand.png"
+  },
+  {
+    "frame": "26",
+    "action": "attention",
+    "pose": "attentive wait",
+    "sheet": 2,
+    "row": 3,
+    "column": 2,
+    "svg_file": "frames_svg/frame_26_attention_attentive_wait.svg",
+    "png_file": "frames_png/frame_26_attention_attentive_wait.png"
+  },
+  {
+    "frame": "27",
+    "action": "success",
+    "pose": "realizes success",
+    "sheet": 2,
+    "row": 3,
+    "column": 3,
+    "svg_file": "frames_svg/frame_27_success_realizes_success.svg",
+    "png_file": "frames_png/frame_27_success_realizes_success.png"
+  },
+  {
+    "frame": "28",
+    "action": "success",
+    "pose": "compact celebration",
+    "sheet": 2,
+    "row": 3,
+    "column": 4,
+    "svg_file": "frames_svg/frame_28_success_compact_celebration.svg",
+    "png_file": "frames_png/frame_28_success_compact_celebration.png"
+  },
+  {
+    "frame": "29",
+    "action": "success",
+    "pose": "satisfied settle",
+    "sheet": 2,
+    "row": 4,
+    "column": 1,
+    "svg_file": "frames_svg/frame_29_success_satisfied_settle.svg",
+    "png_file": "frames_png/frame_29_success_satisfied_settle.png"
+  },
+  {
+    "frame": "30",
+    "action": "sleep",
+    "pose": "curled asleep",
+    "sheet": 2,
+    "row": 4,
+    "column": 2,
+    "svg_file": "frames_svg/frame_30_sleep_curled_asleep.svg",
+    "png_file": "frames_png/frame_30_sleep_curled_asleep.png"
+  },
+  {
+    "frame": "31",
+    "action": "sleep",
+    "pose": "breathing variation one",
+    "sheet": 2,
+    "row": 4,
+    "column": 3,
+    "svg_file": "frames_svg/frame_31_sleep_breathing_variation_one.svg",
+    "png_file": "frames_png/frame_31_sleep_breathing_variation_one.png"
+  },
+  {
+    "frame": "32",
+    "action": "sleep",
+    "pose": "breathing variation two",
+    "sheet": 2,
+    "row": 4,
+    "column": 4,
+    "svg_file": "frames_svg/frame_32_sleep_breathing_variation_two.svg",
+    "png_file": "frames_png/frame_32_sleep_breathing_variation_two.png"
+  }
+]

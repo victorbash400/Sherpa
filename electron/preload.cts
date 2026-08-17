@@ -45,3 +45,37 @@ contextBridge.exposeInMainWorld("sherpaPreview", {
     return () => ipcRenderer.removeListener("preview:metadata", listener);
   },
 });
+
+contextBridge.exposeInMainWorld("sherpaPet", {
+  wake: () => ipcRenderer.invoke("pet:wake"),
+  sleep: () => ipcRenderer.send("pet:sleep"),
+  isAwake: () => ipcRenderer.invoke("pet:state"),
+  setWorking: (working: boolean) => ipcRenderer.send("pet:working", working),
+  setTranscript: (transcript: unknown) => ipcRenderer.send("pet:transcript", transcript),
+  activity: () => ipcRenderer.invoke("pet:activity"),
+  close: () => ipcRenderer.send("pet:close"),
+  toggleVoice: () => ipcRenderer.send("pet:voice-toggle"),
+  celebrate: (count = 1) => ipcRenderer.send("pet:celebrate", count),
+  bounds: () => ipcRenderer.invoke("pet:bounds"),
+  drag: (x: number, y: number) => ipcRenderer.send("pet:drag", x, y),
+  onActivityChanged: (callback: (activity: unknown) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, activity: unknown) => callback(activity);
+    ipcRenderer.on("pet:activity", listener);
+    return () => ipcRenderer.removeListener("pet:activity", listener);
+  },
+  onVoiceToggle: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on("pet:voice-toggle", listener);
+    return () => ipcRenderer.removeListener("pet:voice-toggle", listener);
+  },
+  onCelebrate: (callback: (count: number) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, count: number) => callback(count);
+    ipcRenderer.on("pet:celebrate", listener);
+    return () => ipcRenderer.removeListener("pet:celebrate", listener);
+  },
+  onStateChanged: (callback: (awake: boolean) => void) => {
+    const listener = (_: Electron.IpcRendererEvent, awake: boolean) => callback(awake);
+    ipcRenderer.on("pet:state", listener);
+    return () => ipcRenderer.removeListener("pet:state", listener);
+  },
+});

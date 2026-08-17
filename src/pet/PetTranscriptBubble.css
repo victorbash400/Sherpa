@@ -1,0 +1,24 @@
+.pet-transcript-bubble {
+  position: absolute;
+  right: 30px;
+  bottom: 172px;
+  left: 30px;
+  z-index: 2;
+  max-height: 72px;
+  padding: 15px 18px;
+  overflow: hidden;
+  border-radius: 20px;
+  background-color: #fff;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.4;
+}
+
+.pet-transcript-bubble span {
+  position: relative;
+  z-index: 1;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}

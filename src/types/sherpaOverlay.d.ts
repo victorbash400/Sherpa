@@ -42,6 +42,16 @@ export type PreviewCursor = {
   y: number;
 };
 
+export type PetActivity = {
+  working: boolean;
+  minimized: boolean;
+  transcript: {
+    entries: Array<{ id: string; role: "user" | "assistant"; text: string }>;
+    hue: number;
+    status: string;
+  };
+};
+
 declare global {
   interface Window {
     sherpaOverlay?: {
@@ -62,6 +72,23 @@ declare global {
       onFrame: (callback: (taskId: string, frame: Uint8Array) => void) => () => void;
       onError: (callback: (taskId: string, message: string) => void) => () => void;
       onMetadata: (callback: (taskId: string, bounds: PreviewBounds) => void) => () => void;
+    };
+    sherpaPet?: {
+      wake: () => Promise<boolean>;
+      sleep: () => void;
+      isAwake: () => Promise<boolean>;
+      setWorking: (working: boolean) => void;
+      setTranscript: (transcript: PetActivity["transcript"]) => void;
+      activity: () => Promise<PetActivity>;
+      close: () => void;
+      toggleVoice: () => void;
+      celebrate: (count?: number) => void;
+      bounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
+      drag: (x: number, y: number) => void;
+      onActivityChanged: (callback: (activity: PetActivity) => void) => () => void;
+      onVoiceToggle: (callback: () => void) => () => void;
+      onCelebrate: (callback: (count: number) => void) => () => void;
+      onStateChanged: (callback: (awake: boolean) => void) => () => void;
     };
   }
 }

@@ -3,7 +3,7 @@ import { CursorDock } from "./CursorDock";
 import "./ControlRail.css";
 
 interface ControlRailProps {
-  activeView: "voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility";
+  activeView: "voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility" | "pets";
   computerActive: boolean;
   expanded: boolean;
   onOpenVoice: () => void;
@@ -14,9 +14,10 @@ interface ControlRailProps {
   onOpenSkills: () => void;
   onOpenWorkspace: () => void;
   onOpenAccessibility: () => void;
+  onOpenPets: () => void;
 }
 
-export function ControlRail({ activeView, computerActive, expanded, onOpenAccessibility, onOpenMemory, onOpenPlugins, onOpenSkills, onOpenTasks, onOpenVoice, onOpenVoices, onOpenWorkspace }: ControlRailProps) {
+export function ControlRail({ activeView, computerActive, expanded, onOpenAccessibility, onOpenMemory, onOpenPets, onOpenPlugins, onOpenSkills, onOpenTasks, onOpenVoice, onOpenVoices, onOpenWorkspace }: ControlRailProps) {
   return (
     <nav className="control-rail" data-expanded={expanded} aria-label="Sherpa controls">
       <span className="control-rail__title">Sherpa</span>
@@ -82,6 +83,10 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
         >
           <img alt="" aria-hidden="true" src="/accessibility-svgrepo-com.svg" />
           <span>Accessibility</span>
+        </button>
+        <button type="button" aria-label="Pets" aria-pressed={activeView === "pets"} title="Pets" onClick={onOpenPets}>
+          <img alt="" aria-hidden="true" src="/pet-svgrepo-com.svg" />
+          <span>Pets</span>
         </button>
         {computerActive ? <CursorDock /> : null}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { PreviewBounds, PreviewCursor, PreviewTarget } from "../types/sherpaOverlay";
+import { cachedPreviewFrame, cachePreviewFrame } from "../preview/previewFrameCache";
 import { TaskPreviewCursor } from "./TaskPreviewCursor";
 
 type WindowTaskPreviewProps = {
@@ -11,14 +12,17 @@ type WindowTaskPreviewProps = {
 };
 
 export function WindowTaskPreview({ active, cursor, revision, target, taskId }: WindowTaskPreviewProps) {
-  const [frame, setFrame] = useState<string>();
+  const [frame, setFrame] = useState(() => cachedPreviewFrame(taskId));
   const [error, setError] = useState<string>();
   const [bounds, setBounds] = useState<PreviewBounds>();
-  const frameUrl = useRef<string | undefined>(undefined);
-  const capturedTarget = useRef<string | undefined>(undefined);
   const retryPending = useRef(false);
   const targetKey = target ? `${target.app || ""}:${target.pid || ""}:${target.window_id || ""}:${target.window_title || ""}` : "";
-  const shouldCapture = active || capturedTarget.current !== targetKey;
+  const shouldCapture = active;
+
+  useEffect(() => {
+    setFrame(cachedPreviewFrame(taskId));
+    setError(undefined);
+  }, [taskId]);
 
   useEffect(() => {
     const bridge = window.sherpaPreview;
@@ -26,18 +30,12 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
     setError(undefined);
     const removeFrame = bridge.onFrame((frameTaskId, nextFrame) => {
       if (frameTaskId !== taskId) return;
-      if (frameUrl.current) URL.revokeObjectURL(frameUrl.current);
       const bytes = new Uint8Array(nextFrame);
-      frameUrl.current = URL.createObjectURL(new Blob([bytes.buffer], { type: "image/jpeg" }));
-      capturedTarget.current = targetKey;
-      setFrame(frameUrl.current);
+      setFrame(cachePreviewFrame(taskId, bytes));
       retryPending.current = false;
     });
     const removeError = bridge.onError((errorTaskId, message) => {
       if (errorTaskId === taskId) {
-        if (frameUrl.current) URL.revokeObjectURL(frameUrl.current);
-        frameUrl.current = undefined;
-        setFrame(undefined);
         retryPending.current = true;
         setError(message);
       }
@@ -59,10 +57,6 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
     };
   }, [shouldCapture, targetKey, target?.app, target?.pid, target?.window_id, target?.window_title, taskId]);
 
-  useEffect(() => () => {
-    if (frameUrl.current) URL.revokeObjectURL(frameUrl.current);
-  }, []);
-
   useEffect(() => {
     if (!shouldCapture || !revision || !target || !retryPending.current) return;
     retryPending.current = false;
@@ -78,7 +72,9 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
   return (
     <section className="task-preview" aria-label={`${label} preview`}>
       <div className="task-preview__screen">
-        {frame ? <img alt={`Live view of ${label}`} src={frame} /> : <p>{error || (target ? "Connecting to window" : "Waiting for a window")}</p>}
+        {frame ? <img alt={`${active ? "Live view" : "Last view"} of ${label}`} src={frame} /> : (
+          <p>{error || (target ? (active ? "Connecting to window" : "Select to view window") : "Waiting for a window")}</p>
+        )}
         {cursorPosition && cursor ? <TaskPreviewCursor cursor={cursor} position={cursorPosition} /> : null}
       </div>
     </section>

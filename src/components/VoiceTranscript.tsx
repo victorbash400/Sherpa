@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import type { VoiceTranscriptEntry } from "../chat/chatTypes";
+import "./TranscriptGlass.css";
 import "./VoiceTranscript.css";
 
 interface VoiceTranscriptProps {
@@ -19,7 +20,7 @@ export function VoiceTranscript({ entries, expanded, hue, onExpandedChange }: Vo
 
   return (
     <section
-      className="voice-transcript"
+      className="voice-transcript transcript-glass"
       data-expanded={expanded}
       aria-label="Live transcript"
       style={{ "--transcript-hue": hue } as CSSProperties}

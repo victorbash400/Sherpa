@@ -5,17 +5,18 @@ import ImageIO
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
-struct CaptureTarget {
+private let packetLock = NSLock()
+
+struct CaptureTarget: Decodable {
     let app: String?
     let pid: pid_t?
     let windowID: CGWindowID?
     let title: String?
 
-    init(arguments: [String]) {
-        app = arguments.value(after: "--app")
-        pid = arguments.value(after: "--pid").flatMap(Int32.init)
-        windowID = arguments.value(after: "--window-id").flatMap(UInt32.init)
-        title = arguments.value(after: "--window-title")
+    enum CodingKeys: String, CodingKey {
+        case app, pid
+        case windowID = "window_id"
+        case title = "window_title"
     }
 
     func matches(_ window: SCWindow) -> Bool {
@@ -32,10 +33,26 @@ struct CaptureTarget {
     }
 }
 
+struct CaptureCommand: Decodable {
+    let action: String
+    let taskID: String?
+    let target: CaptureTarget?
+
+    enum CodingKeys: String, CodingKey {
+        case action, target
+        case taskID = "task_id"
+    }
+}
+
 final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private let context = CIContext(options: [.cacheIntermediates: false])
-    private let output = FileHandle.standardOutput
+    private let lock = NSLock()
+    private var taskID: String?
     private var writing = false
+
+    func select(taskID: String?) {
+        lock.withLock { self.taskID = taskID }
+    }
 
     func stream(
         _ stream: SCStream,
@@ -43,21 +60,24 @@ final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         of outputType: SCStreamOutputType
     ) {
         guard outputType == .screen,
-              !writing,
               sampleBuffer.isValid,
               let pixelBuffer = sampleBuffer.imageBuffer else { return }
-        writing = true
-        defer { writing = false }
+        let selected = lock.withLock { () -> String? in
+            guard let taskID, !writing else { return nil }
+            writing = true
+            return taskID
+        }
+        guard let selected else { return }
+        defer { lock.withLock { writing = false } }
 
         let image = CIImage(cvPixelBuffer: pixelBuffer)
         guard let cgImage = context.createCGImage(image, from: image.extent),
               let data = jpegData(from: cgImage) else { return }
-        writePacket(data, to: output)
+        writeFrame(data, taskID: selected)
     }
 
     func stream(_ stream: SCStream, didStopWithError error: any Error) {
-        FileHandle.standardError.write(Data("\(error)\n".utf8))
-        exit(EXIT_FAILURE)
+        writeEvent(["type": "stream_error", "message": error.localizedDescription])
     }
 
     private func jpegData(from image: CGImage) -> Data? {
@@ -71,7 +91,7 @@ final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         CGImageDestinationAddImage(
             destination,
             image,
-            [kCGImageDestinationLossyCompressionQuality: 0.62] as CFDictionary
+            [kCGImageDestinationLossyCompressionQuality: 0.58] as CFDictionary
         )
         guard CGImageDestinationFinalize(destination) else { return nil }
         return data as Data
@@ -81,93 +101,140 @@ final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
 @main
 struct WindowCapture {
     static func main() async {
-        do {
-            _ = NSApplication.shared
-            let target = CaptureTarget(arguments: CommandLine.arguments)
-            let content = try await SCShareableContent.excludingDesktopWindows(
-                false,
-                onScreenWindowsOnly: false
-            )
-            guard let window = content.windows
-                .filter(target.matches)
-                .sorted(by: preferredWindow)
-                .first else {
-                throw CaptureError.windowNotFound
-            }
+        _ = NSApplication.shared
+        let output = FrameOutput()
+        var stream: SCStream?
 
-            let metadata = try JSONEncoder().encode(WindowMetadata(
-                x: window.frame.origin.x,
-                y: window.frame.origin.y,
-                width: window.frame.width,
-                height: window.frame.height
-            ))
-            writePacket(metadata, to: FileHandle.standardOutput)
-
-            let configuration = SCStreamConfiguration()
-            let scale = min(1, 720 / max(window.frame.width, 1))
-            configuration.width = max(1, Int(window.frame.width * scale))
-            configuration.height = max(1, Int(window.frame.height * scale))
-            configuration.minimumFrameInterval = CMTime(value: 1, timescale: 4)
-            configuration.queueDepth = 3
-            configuration.showsCursor = false
-            configuration.capturesAudio = false
-
-            let output = FrameOutput()
-            let stream = SCStream(
-                filter: SCContentFilter(desktopIndependentWindow: window),
-                configuration: configuration,
-                delegate: output
-            )
-            try stream.addStreamOutput(
-                output,
-                type: .screen,
-                sampleHandlerQueue: DispatchQueue(label: "sherpa.window.capture")
-            )
-            try await stream.startCapture()
-            await withCheckedContinuation { continuation in
-                DispatchQueue.global(qos: .utility).async {
-                _ = FileHandle.standardInput.readDataToEndOfFile()
-                    continuation.resume()
+        while let line = readLine() {
+            do {
+                let command = try JSONDecoder().decode(CaptureCommand.self, from: Data(line.utf8))
+                switch command.action {
+                case "switch":
+                    guard let taskID = command.taskID, let target = command.target else {
+                        throw CaptureError.invalidCommand
+                    }
+                    let content = try await SCShareableContent.excludingDesktopWindows(
+                        false,
+                        onScreenWindowsOnly: false
+                    )
+                    guard let window = content.windows
+                        .filter(target.matches)
+                        .sorted(by: preferredWindow)
+                        .first else {
+                        throw CaptureError.windowNotFound
+                    }
+                    let filter = SCContentFilter(desktopIndependentWindow: window)
+                    let configuration = captureConfiguration(for: window)
+                    output.select(taskID: nil)
+                    if let stream {
+                        try await stream.updateContentFilter(filter)
+                        try await stream.updateConfiguration(configuration)
+                    } else {
+                        let nextStream = SCStream(filter: filter, configuration: configuration, delegate: output)
+                        try nextStream.addStreamOutput(
+                            output,
+                            type: .screen,
+                            sampleHandlerQueue: DispatchQueue(label: "sherpa.window.capture")
+                        )
+                        try await nextStream.startCapture()
+                        stream = nextStream
+                    }
+                    output.select(taskID: taskID)
+                    writeEvent([
+                        "type": "metadata",
+                        "task_id": taskID,
+                        "x": window.frame.origin.x,
+                        "y": window.frame.origin.y,
+                        "width": window.frame.width,
+                        "height": window.frame.height,
+                    ])
+                case "idle":
+                    output.select(taskID: nil)
+                    if let stream {
+                        try await stream.stopCapture()
+                        writeStopped()
+                    }
+                    stream = nil
+                case "stop":
+                    output.select(taskID: nil)
+                    if let stream { try await stream.stopCapture() }
+                    writeStopped()
+                    return
+                default:
+                    throw CaptureError.invalidCommand
                 }
+            } catch {
+                writeEvent(["type": "command_error", "message": error.localizedDescription])
             }
-            try await stream.stopCapture()
-        } catch {
-            FileHandle.standardError.write(Data("\(error)\n".utf8))
-            exit(EXIT_FAILURE)
         }
+
+        output.select(taskID: nil)
+        if let stream { try? await stream.stopCapture() }
+        writeStopped()
+    }
+
+    static func captureConfiguration(for window: SCWindow) -> SCStreamConfiguration {
+        let configuration = SCStreamConfiguration()
+        let scale = min(1, 720 / max(window.frame.width, 1))
+        configuration.width = max(1, Int(window.frame.width * scale))
+        configuration.height = max(1, Int(window.frame.height * scale))
+        configuration.minimumFrameInterval = CMTime(value: 1, timescale: 4)
+        configuration.queueDepth = 2
+        configuration.showsCursor = false
+        configuration.capturesAudio = false
+        return configuration
     }
 
     static func preferredWindow(_ lhs: SCWindow, _ rhs: SCWindow) -> Bool {
         if lhs.isOnScreen != rhs.isOnScreen { return lhs.isOnScreen }
         return lhs.frame.width * lhs.frame.height > rhs.frame.width * rhs.frame.height
     }
-}
 
-struct WindowMetadata: Encodable {
-    let type = "metadata"
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-}
-
-func writePacket(_ data: Data, to output: FileHandle) {
-    var length = UInt32(data.count).bigEndian
-    output.write(Data(bytes: &length, count: MemoryLayout<UInt32>.size))
-    output.write(data)
-}
-
-enum CaptureError: LocalizedError {
-    case windowNotFound
-
-    var errorDescription: String? {
-        "The assigned window is not available for preview."
+    static func writeStopped() {
+        writeEvent(["type": "stopped"])
     }
 }
 
-extension Array where Element == String {
-    func value(after flag: String) -> String? {
-        guard let index = firstIndex(of: flag), indices.contains(index + 1) else { return nil }
-        return self[index + 1]
+func writeEvent(_ event: [String: Any]) {
+    guard let data = try? JSONSerialization.data(withJSONObject: event) else { return }
+    writePacket(data)
+}
+
+func writeFrame(_ image: Data, taskID: String) {
+    let identifier = Data(taskID.utf8)
+    guard identifier.count <= UInt16.max else { return }
+    var length = UInt16(identifier.count).bigEndian
+    var packet = Data([0])
+    packet.append(Data(bytes: &length, count: MemoryLayout<UInt16>.size))
+    packet.append(identifier)
+    packet.append(image)
+    writePacket(packet)
+}
+
+func writePacket(_ data: Data) {
+    packetLock.withLock {
+        var length = UInt32(data.count).bigEndian
+        FileHandle.standardOutput.write(Data(bytes: &length, count: MemoryLayout<UInt32>.size))
+        FileHandle.standardOutput.write(data)
+    }
+}
+
+enum CaptureError: LocalizedError {
+    case invalidCommand
+    case windowNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidCommand: "The preview command was invalid."
+        case .windowNotFound: "The assigned window is not available for preview."
+        }
+    }
+}
+
+extension NSLock {
+    func withLock<T>(_ operation: () -> T) -> T {
+        lock()
+        defer { unlock() }
+        return operation()
     }
 }

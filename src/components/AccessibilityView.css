@@ -4,7 +4,7 @@
   box-sizing: border-box;
   padding-right: 28px;
   color: #292927;
-  overflow: hidden;
+  overflow: visible;
   -webkit-app-region: no-drag;
   transition: left 220ms cubic-bezier(.2, .8, .2, 1);
 }
@@ -24,27 +24,6 @@
   font-weight: 560;
 }
 
-.accessibility-sign-language {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
-}
-
-.accessibility-sign-language__settings { min-width: 0; }
-.accessibility-preview { min-height: 154px; overflow: hidden; border-left: 1px solid #e3e3df; border-radius: 0 17px 17px 0; background: #f0f0ed; }
-
-.accessibility-sign-language header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 13px 16px;
-}
-
-.accessibility-sign-language header strong,
-.accessibility-sign-language header small { display: block; }
-.accessibility-sign-language header strong { font-size: 12px; font-weight: 560; }
-.accessibility-sign-language header small { margin-top: 3px; color: #858581; font-size: 10px; }
-
 .accessibility-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -60,14 +39,6 @@
 .accessibility-row small { display: block; }
 .accessibility-row strong { font-size: 13px; font-weight: 550; }
 .accessibility-row small { margin-top: 4px; color: #858581; font-size: 11px; line-height: 1.35; }
-
-.accessibility-switch { position: relative; width: 38px; height: 22px; }
-.accessibility-switch input { position: absolute; opacity: 0; }
-.accessibility-switch span { position: absolute; inset: 0; border-radius: 999px; background: #dfdfdc; cursor: pointer; }
-.accessibility-switch span::after { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .16); content: ""; transition: transform 150ms ease; }
-.accessibility-switch input:checked + span { background: #30302e; }
-.accessibility-switch input:checked + span::after { transform: translateX(16px); }
-.accessibility-switch input:focus-visible + span { outline: 2px solid #7c6cff; outline-offset: 2px; }
 
 .accessibility-select { position: relative; }
 .accessibility-select > button {
@@ -125,9 +96,3 @@
 .accessibility-select__menu button:hover,
 .accessibility-select__menu button[aria-selected="true"] { background: #f0f0ed; }
 .accessibility-select__menu svg { width: 13px; height: 13px; }
-.accessibility-language .accessibility-select__menu { top: auto; bottom: calc(100% + 5px); }
-
-.accessibility-camera { display: block; width: 100%; height: 100%; min-height: 154px; background: #f0f0ed; object-fit: cover; transform: scaleX(-1); }
-.accessibility-camera--idle { display: grid; place-content: center; justify-items: center; gap: 8px; color: #999994; transform: none; font-size: 11px; }
-.accessibility-camera--idle svg { width: 20px; height: 20px; stroke-width: 1.5; }
-.accessibility-camera__error { margin: 0; padding: 20px; color: #9a3c32; font-size: 11px; }

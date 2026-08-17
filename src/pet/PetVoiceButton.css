@@ -1,0 +1,25 @@
+.pet-voice-button {
+  --pet-voice-hue: 0;
+  position: absolute;
+  right: 174px;
+  bottom: 6px;
+  z-index: 3;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  place-items: center;
+  color: hsl(var(--pet-voice-hue) 32% 32% / 78%);
+  border: 1px solid rgb(255 255 255 / 82%);
+  border-radius: 999px;
+  background: rgb(248 248 245 / 66%);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 92%), 0 6px 18px rgb(30 30 27 / 13%);
+  backdrop-filter: blur(20px) saturate(170%);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+}
+
+.pet-voice-button svg { width: 15px; height: 15px; }
+.pet-voice-button[data-active="true"] { color: hsl(var(--pet-voice-hue) 62% 42%); }
+.pet-voice-button[data-active="true"] svg { width: 11px; height: 11px; fill: currentColor; }
+.pet-voice-button:hover { background: rgb(255 255 252 / 84%); }

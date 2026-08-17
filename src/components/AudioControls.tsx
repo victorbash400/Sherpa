@@ -1,20 +1,24 @@
-import { Mic, MicOff, Volume2, VolumeOff } from "lucide-react";
+import { Camera, CameraOff, Mic, MicOff, Volume2, VolumeOff } from "lucide-react";
 import "./AudioControls.css";
 
 interface AudioControlsProps {
   microphoneMuted: boolean;
+  cameraEnabled: boolean;
   speakerMuted: boolean;
   volume: number;
   onMicrophoneMutedChange: (muted: boolean) => void;
+  onCameraEnabledChange: (enabled: boolean) => void;
   onSpeakerMutedChange: (muted: boolean) => void;
   onVolumeChange: (volume: number) => void;
 }
 
 export function AudioControls({
   microphoneMuted,
+  cameraEnabled,
   speakerMuted,
   volume,
   onMicrophoneMutedChange,
+  onCameraEnabledChange,
   onSpeakerMutedChange,
   onVolumeChange,
 }: AudioControlsProps) {
@@ -27,6 +31,14 @@ export function AudioControls({
         onClick={() => onMicrophoneMutedChange(!microphoneMuted)}
       >
         {microphoneMuted ? <MicOff aria-hidden="true" /> : <Mic aria-hidden="true" />}
+      </button>
+      <button
+        type="button"
+        aria-label={cameraEnabled ? "Turn camera off" : "Turn camera on"}
+        aria-pressed={cameraEnabled}
+        onClick={() => onCameraEnabledChange(!cameraEnabled)}
+      >
+        {cameraEnabled ? <Camera aria-hidden="true" /> : <CameraOff aria-hidden="true" />}
       </button>
       <button
         type="button"

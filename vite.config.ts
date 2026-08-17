@@ -8,6 +8,7 @@ export default defineConfig({
       input: {
         main: "index.html",
         overlay: "overlay.html",
+        pet: "pet.html",
       },
     },
   },

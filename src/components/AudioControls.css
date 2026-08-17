@@ -16,3 +16,16 @@
   accent-color: #5f5f67;
   cursor: pointer;
 }
+
+.audio-controls button {
+  place-items: center;
+}
+
+.audio-controls button svg {
+  display: block;
+}
+
+.audio-controls button[aria-pressed="true"] {
+  background: #ececf1;
+  color: #34343a;
+}
