@@ -36,6 +36,13 @@ class SkillStoreTests(unittest.TestCase):
         self.assertIn("Move the selected file to Trash", context)
         self.assertIn("verify that the exact filename is absent", context)
 
+    def test_native_dialog_transition_uses_compound_file_action(self) -> None:
+        context = skill_store.context_for(["native-macos-apps", "native-whatsapp"])
+
+        self.assertIn("action=file", context)
+        self.assertIn("exact absolute `path`", context)
+        self.assertIn("Do not inspect or click through the file picker manually", context)
+
     def test_skill_instructions_can_be_overridden(self) -> None:
         with TemporaryDirectory() as directory:
             store = SkillStore(Path(directory) / "skills.json")

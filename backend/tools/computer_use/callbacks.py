@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+from pathlib import Path
 from typing import Any
 
 from google.adk.tools import BaseTool, ToolContext
@@ -80,11 +81,14 @@ async def after_computer_tool(
     tool_context: ToolContext,
     tool_response: dict,
 ) -> dict:
-    del args
     duration_ms = tool_duration_ms(tool, tool_context)
     if is_interaction_tool(tool.name):
         computer_runtime.release(tool_call_key(tool, tool_context))
-    safe_response = sanitize_tool_response(tool_response)
+    safe_response = normalize_tool_outcome(
+        tool.name,
+        args,
+        sanitize_tool_response(tool_response, tool.name),
+    )
     if (
         safe_response.get("isError")
         or safe_response.get("error")
@@ -146,8 +150,15 @@ async def on_computer_tool_error(
     }
 
 
-def sanitize_tool_response(response: dict) -> dict:
+def sanitize_tool_response(response: dict, tool_name: str = "") -> dict:
     safe = dict(response)
+    preserve_metadata = tool_name in {
+        "computer_see",
+        "computer_inspect_ui",
+        "computer_surfaces",
+        "computer_window",
+        "computer_app",
+    }
     content = safe.get("content")
     if isinstance(content, list):
         text_blocks = []
@@ -165,9 +176,33 @@ def sanitize_tool_response(response: dict) -> dict:
         safe["content"] = text_blocks
         if omitted_images:
             safe["media_omitted"] = omitted_images
-    safe.pop("_meta", None)
-    safe.pop("meta", None)
+    if preserve_metadata:
+        metadata = safe.pop("_meta", None) or safe.pop("meta", None)
+        if metadata is not None:
+            safe["metadata"] = metadata
+    else:
+        safe.pop("_meta", None)
+        safe.pop("meta", None)
     return safe
+
+
+def normalize_tool_outcome(
+    tool_name: str,
+    args: dict[str, Any],
+    response: dict,
+) -> dict:
+    """Convert known transport signals into truthful domain outcomes."""
+    if not tool_name.startswith("browser_"):
+        return response
+    message = response_error(response)
+    if "download is starting" not in message.casefold():
+        return response
+    return {
+        "status": "download_started",
+        "outcome": "Chrome accepted the download request. The saved file has not yet been verified on disk.",
+        "source_url": str(args.get("url", "")),
+        "verification_required": True,
+    }
 
 
 def tool_call_key(tool: BaseTool, tool_context: ToolContext) -> str:
@@ -193,6 +228,25 @@ def is_dialog_timeout(error: Exception) -> bool:
 def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
     if tool_name == "computer_app" and str(args.get("action", "")).lower() == "open":
         return "computer_app does not support action=open. Use action=launch for an installed application."
+    if tool_name == "computer_dialog":
+        action = str(args.get("action", "")).casefold()
+        if not action:
+            return "computer_dialog requires an explicit action."
+        has_app = isinstance(args.get("app"), str) and bool(args["app"].strip())
+        has_pid = isinstance(args.get("pid"), int) and not isinstance(args.get("pid"), bool)
+        has_window = isinstance(args.get("window_id"), int) and not isinstance(args.get("window_id"), bool)
+        if not (has_app or has_pid or has_window):
+            return "computer_dialog requires an originating app, PID, or exact window ID."
+        if action == "file":
+            path = args.get("path")
+            if not isinstance(path, str) or not path.strip():
+                return "computer_dialog action=file requires the exact absolute file path."
+            file_path = Path(path).expanduser()
+            if not file_path.is_absolute():
+                return "computer_dialog action=file requires an absolute file path."
+            if not file_path.is_file():
+                return f"The selected local file does not exist: {file_path}"
+            args["path"] = str(file_path)
     if tool_name.startswith("browser_"):
         target = args.get("target")
         if isinstance(target, str):

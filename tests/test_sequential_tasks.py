@@ -7,7 +7,10 @@ from backend.sherpa_tasks import (
     SherpaSubmission,
     SherpaTask,
     SherpaTaskManager,
+    extract_computer_target,
     is_observation_tool,
+    tool_result_outcome,
+    tool_result_status,
     preview_target_for,
     tool_result_self_verifies,
 )
@@ -213,6 +216,24 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["task_status"], "running")
         self.assertIn("steer_task", result["guidance"])
 
+    async def test_running_task_steer_becomes_next_model_instruction(self) -> None:
+        task = SherpaTask(
+            id="task",
+            chat_id="chat",
+            instruction="Find Dev's video",
+            status="running",
+        )
+        self.manager._tasks[task.id] = task
+
+        result = await self.manager.steer(task.id, "Find Ben's video instead")
+        directive = self.manager._take_directive(task)
+        prompt = await self.manager._directive_prompt(task, [directive])
+
+        self.assertEqual(result["status"], "queued")
+        self.assertIn("The user changed the active task: Find Ben's video instead", prompt)
+        self.assertIn("Continue this same task from its current state", prompt)
+        self.assertEqual(task.current_step, "Applying the latest direction")
+
     async def test_dependency_handoff_includes_structured_outputs(self) -> None:
         dependency = SherpaTask(
             id="dependency",
@@ -312,6 +333,65 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
     async def test_browser_evaluate_requires_visual_verification(self) -> None:
         self.assertFalse(is_observation_tool("browser_evaluate"))
         self.assertFalse(tool_result_self_verifies("browser_evaluate", {}))
+
+    async def test_local_artifact_inspection_counts_as_verification(self) -> None:
+        self.assertTrue(is_observation_tool("inspect_local_artifacts"))
+        self.assertTrue(tool_result_self_verifies("inspect_local_artifacts", {}))
+
+    async def test_compound_file_dialog_self_verifies(self) -> None:
+        self.assertTrue(tool_result_self_verifies(
+            "computer_dialog",
+            {"action": "file"},
+        ))
+
+    async def test_computer_result_exposes_transitioned_window(self) -> None:
+        result = extract_computer_target({
+            "data": {
+                "resultingWindow": {
+                    "application": "WhatsApp",
+                    "pid": 42,
+                    "windowId": 91,
+                    "title": "Open",
+                },
+            },
+        })
+
+        self.assertEqual(result, {
+            "app": "WhatsApp",
+            "pid": 42,
+            "window_id": 91,
+            "window_title": "Open",
+        })
+
+    async def test_computer_result_joins_window_inventory_owner(self) -> None:
+        result = extract_computer_target({
+            "data": {
+                "windows": [{"window_id": 2153, "window_title": "WhatsApp"}],
+                "target_application_info": {
+                    "app_name": "WhatsApp",
+                    "pid": 6773,
+                },
+            },
+        })
+
+        self.assertEqual(result, {
+            "app": "WhatsApp",
+            "pid": 6773,
+            "window_id": 2153,
+            "window_title": "WhatsApp",
+        })
+
+    async def test_structured_tool_outcomes_are_preserved(self) -> None:
+        response = {
+            "status": "download_started",
+            "outcome": "Chrome accepted the download request.",
+        }
+        self.assertEqual(tool_result_status(response), "download_started")
+        self.assertEqual(
+            tool_result_outcome(response),
+            "Chrome accepted the download request.",
+        )
+        self.assertEqual(tool_result_status(response, failed=True), "failed")
 
     async def test_window_preview_requires_verified_ownership(self) -> None:
         self.assertIsNone(preview_target_for("computer_see", {"window_id": 1664}))

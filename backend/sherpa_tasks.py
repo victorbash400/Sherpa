@@ -11,11 +11,11 @@ from typing import Any
 from google.adk.agents import RunConfig
 from google.adk.agents.run_config import StreamingMode
 from google.adk.runners import Runner
-from google.adk.sessions import InMemorySessionService
 from google.adk.tools import ToolContext
 from google.genai import types
 
 from backend.agents.sherpa_agent import sherpa_app
+from backend.compaction import COMPACTION_TOKEN_LIMIT, SherpaSessionService, compaction_events
 from backend.agents.task_planner import TaskPlan, task_planner_app
 from backend.memory_manager import memory_manager
 from backend.logging_config import add_token_usage
@@ -77,6 +77,7 @@ class SherpaTask:
     questions: list[dict[str, Any]] = field(default_factory=list)
     tool_counts: dict[str, int] = field(default_factory=dict)
     tool_failures: dict[str, int] = field(default_factory=dict)
+    context_tokens: int = 0
     directives: asyncio.Queue[dict[str, Any]] = field(
         default_factory=asyncio.Queue,
         repr=False,
@@ -99,7 +100,7 @@ class SherpaSubmission:
 
 class SherpaTaskManager:
     def __init__(self) -> None:
-        self._sessions = InMemorySessionService()
+        self._sessions = SherpaSessionService()
         self._runner = Runner(app=sherpa_app, session_service=self._sessions)
         self._planner_runner = Runner(app=task_planner_app, session_service=self._sessions)
         self._tasks: dict[str, SherpaTask] = {}
@@ -381,6 +382,8 @@ class SherpaTaskManager:
             "questions": list(task.questions),
             "tool_counts": dict(task.tool_counts),
             "tool_failures": dict(task.tool_failures),
+            "context_tokens": task.context_tokens,
+            "context_token_limit": COMPACTION_TOKEN_LIMIT,
         }
         snapshot["children"] = [
             self.snapshot(child)
@@ -471,6 +474,11 @@ class SherpaTaskManager:
             "created_at": datetime.now(UTC).isoformat(),
         }
         await task.directives.put(directive)
+        logger.info(
+            "task.steering_queued task=%s directive=%s",
+            task.id,
+            directive["id"],
+        )
         self._record_update(
             task,
             "working",
@@ -740,6 +748,22 @@ class SherpaTaskManager:
             last_successful_observation = -1
             completion: dict[str, Any] | None = None
             token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
+
+            async def emit_compaction(phase: str, tokens: int) -> None:
+                if tokens >= 0:
+                    task.context_tokens = tokens
+                await self._emit(task, {
+                    "type": f"compaction_{phase}",
+                    "context_tokens": task.context_tokens,
+                    "context_token_limit": COMPACTION_TOKEN_LIMIT,
+                })
+
+            compaction_events.register_session(
+                worker_session_id,
+                task.id,
+                emit_compaction,
+            )
+
             async for event in run_with_google_tool_scope(
                 self._runner,
                 instruction,
@@ -749,6 +773,20 @@ class SherpaTaskManager:
                 run_config=RunConfig(streaming_mode=StreamingMode.SSE),
             ):
                 add_token_usage(token_usage, getattr(event, "usage_metadata", None))
+                compaction_events.register(
+                    getattr(event, "invocation_id", None),
+                    task.id,
+                    emit_compaction,
+                )
+                usage = getattr(event, "usage_metadata", None)
+                prompt_tokens = getattr(usage, "prompt_token_count", None)
+                if isinstance(prompt_tokens, int) and prompt_tokens != task.context_tokens:
+                    task.context_tokens = prompt_tokens
+                    await self._emit(task, {
+                        "type": "context_usage",
+                        "context_tokens": prompt_tokens,
+                        "context_token_limit": COMPACTION_TOKEN_LIMIT,
+                    })
                 if event.error_message:
                     raise RuntimeError(event.error_message)
                 for call in event.get_function_calls():
@@ -862,6 +900,14 @@ class SherpaTaskManager:
                         completion = dict(response.response or {})
                     if response.name in {"computer_see", "computer_inspect_ui"}:
                         element_targets = extract_element_targets(response.response)
+                    if response.name.startswith("computer_"):
+                        transitioned_target = extract_computer_target(response.response)
+                        if transitioned_target:
+                            task.preview_target = transitioned_target
+                            await self._emit(task, {
+                                "type": "task_updated",
+                                **self.snapshot(task),
+                            })
                     if response.name.startswith("browser_"):
                         next_browser_targets = extract_browser_targets(response.response)
                         if next_browser_targets:
@@ -935,10 +981,15 @@ class SherpaTaskManager:
                         "id": response_id,
                         "name": response.name,
                         "result": {
-                            "status": "failed" if failed else "done",
+                            "status": tool_result_status(response.response, failed),
                             "error": failure_message,
+                            "outcome": tool_result_outcome(response.response),
                         },
-                        "message": failure_message or describe_result(response.name, failed),
+                        "message": (
+                            failure_message
+                            or tool_result_outcome(response.response)
+                            or describe_result(response.name, failed)
+                        ),
                     })
                     directive = self._take_directive(task)
                     if directive:
@@ -1003,12 +1054,14 @@ class SherpaTaskManager:
                 assistant_text=task.summary,
                 tool_assisted=True,
             )
+            compaction_events.unregister_task(task.id)
         except TaskSteeringBoundary as boundary:
             prompt = await self._directive_prompt(task, [boundary.directive])
             await self._run_with_computer(task, prompt, resume=True)
         except TaskQuestionBoundary:
             raise
         except asyncio.CancelledError:
+            compaction_events.unregister_task(task.id)
             if task.status != "cancelled":
                 task.status = "cancelled"
                 task.phase = "cancelled"
@@ -1019,6 +1072,7 @@ class SherpaTaskManager:
                     **self.snapshot(task),
                 })
         except Exception as error:
+            compaction_events.unregister_task(task.id)
             task.status = "failed"
             task.phase = "failed"
             task.summary = str(error)
@@ -1074,6 +1128,11 @@ class SherpaTaskManager:
                 lines.append(f"The user changed the active task: {directive['instruction']}")
         task.phase = "working"
         task.current_step = "Applying the latest direction"
+        logger.info(
+            "task.steering_applied task=%s directives=%s",
+            task.id,
+            ",".join(directive["id"] for directive in directives),
+        )
         await self._emit(task, {"type": "task_steering_applied", **self.snapshot(task)})
         return "\n".join([
             *lines,
@@ -1214,6 +1273,25 @@ def tool_error_message(response: dict | None) -> str:
     return "The tool reported a failure without an explanation."
 
 
+def tool_result_status(response: Any, failed: bool = False) -> str:
+    if failed:
+        return "failed"
+    if isinstance(response, dict):
+        status = response.get("status")
+        if isinstance(status, str) and status.strip():
+            return status.strip()
+    return "done"
+
+
+def tool_result_outcome(response: Any) -> str | None:
+    if not isinstance(response, dict):
+        return None
+    outcome = response.get("outcome")
+    if isinstance(outcome, str) and outcome.strip():
+        return outcome.strip()[:1000]
+    return None
+
+
 def tool_waiting_question(response: Any) -> str | None:
     if not isinstance(response, dict) or response.get("status") != "waiting_for_user":
         return None
@@ -1244,7 +1322,9 @@ def tool_result_self_verifies(name: str, args: dict[str, Any]) -> bool:
         "workspace_slides_batch_update",
         "workspace_slides_create_presentation",
     }
-    return name in workspace_mutations or (
+    return name in workspace_mutations or name == "inspect_local_artifacts" or (
+        name == "computer_dialog" and action == "file"
+    ) or (
         name == "computer_app" and action in {"quit", "terminate"}
     ) or (
         name == "computer_window" and action == "close"
@@ -1259,8 +1339,10 @@ def is_observation_tool(
 ) -> bool:
     action = str((args or {}).get("action", "")).lower()
     return name in {
+        "inspect_local_artifacts",
         "computer_see",
         "computer_inspect_ui",
+        "computer_surfaces",
         "browser_snapshot",
         "browser_find",
         "workspace_calendar_list_events",
@@ -1326,6 +1408,53 @@ def extract_element_targets(response: Any) -> dict[str, tuple[float, float]]:
 
     visit(response)
     return targets
+
+
+def extract_computer_target(response: Any) -> dict[str, str | int | None] | None:
+    """Extract an explicit resulting window target returned by a computer tool."""
+    candidates: list[dict[str, Any]] = []
+    owners: list[dict[str, str | int | None]] = []
+
+    def visit(value: Any) -> None:
+        if isinstance(value, str):
+            try:
+                visit(json.loads(value))
+            except (json.JSONDecodeError, TypeError):
+                return
+            return
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+            return
+        if not isinstance(value, dict):
+            return
+        window_id = value.get("window_id", value.get("windowId"))
+        pid = value.get("pid", value.get("process_id"))
+        app = value.get("app", value.get("application", value.get("app_name")))
+        title = value.get("window_title", value.get("title"))
+        if isinstance(app, str) or isinstance(pid, int):
+            owners.append({
+                "app": app if isinstance(app, str) else None,
+                "pid": pid if isinstance(pid, int) else None,
+            })
+        if isinstance(window_id, int):
+            candidates.append({
+                "app": app if isinstance(app, str) else None,
+                "pid": pid if isinstance(pid, int) else None,
+                "window_id": window_id,
+                "window_title": title if isinstance(title, str) else None,
+            })
+        for nested in value.values():
+            visit(nested)
+
+    visit(response)
+    if not candidates:
+        return None
+    target = candidates[-1]
+    owner = owners[-1] if owners else {}
+    target["app"] = target["app"] or owner.get("app")
+    target["pid"] = target["pid"] or owner.get("pid")
+    return target if target["app"] or target["pid"] is not None else None
 
 
 def extract_browser_targets(response: Any) -> dict[str, tuple[float, float]]:
@@ -1531,7 +1660,7 @@ def describe_tool(name: str, args: dict[str, Any]) -> str:
     action = args.get("action")
     if name == "computer_app" and action in {"launch", "open"}:
         return f"Opening {target or 'the application'}"
-    if name in {"computer_see", "computer_inspect_ui"}:
+    if name in {"computer_see", "computer_inspect_ui", "computer_surfaces"}:
         return f"Checking {target or 'the screen'}"
     if name == "computer_click":
         return f"Clicking {target or 'the control'}"
@@ -1539,6 +1668,8 @@ def describe_tool(name: str, args: dict[str, Any]) -> str:
         return "Typing"
     if name == "computer_scroll":
         return "Scrolling"
+    if name == "computer_dialog" and action == "file":
+        return "Selecting the local file"
     if name == "computer_press":
         return "Pressing a key"
     browser_target = next((args[key] for key in ("element", "url", "text")

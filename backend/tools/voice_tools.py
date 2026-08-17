@@ -59,7 +59,10 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="update_task",
-            description="Replace the stored instruction for a queued task that has not begun working.",
+            description=(
+                "Replace the stored instruction for a queued task that has not begun working. "
+                "If the result is an error, follow its retry instructions and do not claim the task changed."
+            ),
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -72,7 +75,11 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="steer_task",
-            description="Change running or blocked work at its next completed tool boundary.",
+            description=(
+                "Change running or blocked work at its next completed tool boundary so the next model step "
+                "uses the new direction. If the result is an error, select the correct task from its task "
+                "choices and retry; do not claim the task changed."
+            ),
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -109,12 +116,36 @@ async def handle_voice_tool_call(
     call_id = call.id or call.name or "unknown"
     name = call.name or "unknown"
     args = call.args or {}
-    logger.info("tool.requested session=%s call=%s name=%s", session_id, call_id, name)
+    requested_task_id = str(args.get("task_id", "")).strip()
+    logger.info(
+        "tool.requested session=%s call=%s name=%s task=%s",
+        session_id,
+        call_id,
+        name,
+        requested_task_id or "-",
+    )
+
+    async def finish(response: dict) -> None:
+        error = response.get("error")
+        error_code = error.get("code") if isinstance(error, dict) else "-"
+        logger.info(
+            "tool.result session=%s call=%s name=%s status=%s task=%s error=%s",
+            session_id,
+            call_id,
+            name,
+            response.get("status", "error" if error else "success"),
+            response.get("task_id") or requested_task_id or "-",
+            error_code or "-",
+        )
+        await respond(call_id, name, response)
 
     if name == "submit_task":
         instruction = str(args.get("instruction", "")).strip()
         if not instruction:
-            await respond(call_id, name, {"error": "instruction is required"})
+            await finish(voice_tool_error(
+                "instruction_required",
+                "A non-empty instruction is required. Retry this tool with the user's complete request.",
+            ))
             return
         logger.info(
             'task.admission session=%s instruction="%s"',
@@ -129,7 +160,7 @@ async def handle_voice_tool_call(
             decision.get("submission_id", "none"),
             call_id,
         )
-        await respond(call_id, name, decision)
+        await finish(decision)
         return
 
     if name == "inspect_task":
@@ -140,7 +171,7 @@ async def handle_voice_tool_call(
             if task and task.chat_id == session_id
             else {"status": "not_found", "task_id": task_id}
         )
-        await respond(call_id, name, response)
+        await finish(response)
         return
 
     if name == "list_active_tasks":
@@ -152,7 +183,7 @@ async def handle_voice_tool_call(
             sherpa_tasks.submission_snapshot(submission)
             for submission in sherpa_tasks.list_pending_submissions(session_id)
         ]
-        await respond(call_id, name, active_tasks_response(tasks, submissions))
+        await finish(active_tasks_response(tasks, submissions))
         return
 
     if name == "list_tasks":
@@ -165,7 +196,7 @@ async def handle_voice_tool_call(
             sherpa_tasks.submission_snapshot(submission)
             for submission in sherpa_tasks.list_pending_submissions(session_id)
         ]
-        await respond(call_id, name, task_ledger_response(tasks, submissions))
+        await finish(task_ledger_response(tasks, submissions))
         return
 
     if name == "cancel_task":
@@ -174,26 +205,49 @@ async def handle_voice_tool_call(
         cancelled = bool(
             task and task.chat_id == session_id and sherpa_tasks.cancel(task_id)
         )
-        await respond(call_id, name, {
+        await finish({
             "status": "cancelled" if cancelled else "not_running",
             "task_id": task_id,
         })
         return
 
     if name in {"update_task", "steer_task"}:
-        task_id = str(args.get("task_id", "")).strip()
+        task_id = requested_task_id
         instruction = str(args.get("instruction", "")).strip()
         task = sherpa_tasks.get(task_id)
-        response = (
-            await (
-                sherpa_tasks.update(task_id, instruction)
-                if name == "update_task"
-                else sherpa_tasks.steer(task_id, instruction)
-            )
-            if task and task.chat_id == session_id
-            else {"status": "not_found", "task_id": task_id}
+        if not instruction:
+            await finish(voice_tool_error(
+                "instruction_required",
+                "A non-empty changed instruction is required. Retry without inventing details.",
+                task_id=task_id,
+                session_id=session_id,
+                retry_tool=name,
+            ))
+            return
+        if not task or task.chat_id != session_id:
+            await finish(voice_tool_error(
+                "task_not_found",
+                "That task ID is not part of this conversation. Choose the intended task from task_choices and retry.",
+                task_id=task_id,
+                session_id=session_id,
+            ))
+            return
+        response = await (
+            sherpa_tasks.update(task_id, instruction)
+            if name == "update_task"
+            else sherpa_tasks.steer(task_id, instruction)
         )
-        await respond(call_id, name, response)
+        if response["status"] not in {"updated", "queued"}:
+            retry_tool = "update_task" if task.status == "queued" else "steer_task"
+            await finish(voice_tool_error(
+                "wrong_task_state",
+                response.get("guidance", "The task cannot be changed in its current state."),
+                task_id=task_id,
+                session_id=session_id,
+                retry_tool=retry_tool,
+            ))
+            return
+        await finish(response)
         return
 
     if name == "answer_task_question":
@@ -206,10 +260,51 @@ async def handle_voice_tool_call(
             if task and task.chat_id == session_id
             else {"status": "not_found", "task_id": task_id}
         )
-        await respond(call_id, name, response)
+        await finish(response)
         return
 
-    await respond(call_id, name, {"error": "Unknown voice tool"})
+    await finish(voice_tool_error("unknown_tool", "Unknown voice tool."))
+
+
+def voice_tool_error(
+    code: str,
+    message: str,
+    *,
+    task_id: str = "",
+    session_id: str = "",
+    retry_tool: str = "",
+) -> dict:
+    choices = task_choices(session_id) if session_id else []
+    retry = {
+        "tool": retry_tool or "task_choices.change_with",
+        "instruction": (
+            "Select the task that matches the user's change, then retry with its exact task_id and "
+            "change_with tool. If multiple tasks match, ask the user which one. Do not say the change "
+            "was applied unless the retry returns status updated or queued."
+        ),
+    } if choices else None
+    return {
+        "status": "error",
+        "task_id": task_id or None,
+        "error": {"code": code, "message": message},
+        "task_choices": choices,
+        "retry": retry,
+    }
+
+
+def task_choices(session_id: str) -> list[dict]:
+    return [
+        {
+            "task_id": task.id,
+            "status": task.status,
+            "instruction": task.instruction,
+            "request": task.request,
+            "current_step": task.current_step,
+            "parent_id": task.parent_id,
+            "change_with": "update_task" if task.status == "queued" else "steer_task",
+        }
+        for task in sherpa_tasks.list_active_for_chat(session_id)
+    ]
 
 
 def active_tasks_response(tasks: list[dict], submissions: list[dict]) -> dict:

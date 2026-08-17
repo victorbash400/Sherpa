@@ -5,13 +5,21 @@ from mcp import StdioServerParameters
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-PEEKABOO_BINARY = PROJECT_ROOT / "node_modules" / ".bin" / "peekaboo"
+PEEKABOO_BINARY = (
+    PROJECT_ROOT.parent
+    / "peekaboo-sherpa"
+    / "Apps"
+    / "CLI"
+    / ".build"
+    / "release"
+    / "peekaboo"
+)
 
 PEEKABOO_TOOL_NAMES = [
-    "see",
     "inspect_ui",
     "permissions",
     "app",
+    "surfaces",
     "window",
     "menu",
     "dialog",
@@ -25,7 +33,6 @@ PEEKABOO_TOOL_NAMES = [
 ]
 
 PEEKABOO_VOICE_TOOL_NAMES = [
-    "see",
     "inspect_ui",
     "app",
     "click",
@@ -42,7 +49,9 @@ def create_peekaboo_toolset(
 ) -> McpToolset:
     if not PEEKABOO_BINARY.is_file():
         raise RuntimeError(
-            "Peekaboo is not installed. Run `pnpm install` from the Sherpa root."
+            "Sherpa's Peekaboo fork is not built. Run "
+            "`swift build --configuration release --package-path Apps/CLI` "
+            "from /Users/victorbash/projects/peekaboo-sherpa."
         )
 
     return McpToolset(

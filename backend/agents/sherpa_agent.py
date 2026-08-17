@@ -1,5 +1,6 @@
 from google.adk.agents import Agent
 from google.adk.apps import App
+from google.adk.apps.app import EventsCompactionConfig
 from google.adk.models import Gemini
 from google.genai import types
 
@@ -10,8 +11,16 @@ from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import ask_task_question, complete_task, update_task_board
 from backend.tools.google_tools import create_google_cloud_toolsets, create_workspace_toolsets
+from backend.tools.local_artifacts import inspect_local_artifacts
+from backend.compaction import COMPACTION_EVENT_RETENTION_SIZE
+from backend.compaction import COMPACTION_TOKEN_LIMIT
+from backend.compaction import create_compaction_summarizer
 
 SHERPA_MODEL = "gemini-3.7-flash"
+sherpa_model = Gemini(
+    model=SHERPA_MODEL,
+    retry_options=types.HttpRetryOptions(attempts=3),
+)
 sherpa_computer_tools = create_peekaboo_toolset()
 sherpa_browser_tools = create_playwright_toolset()
 sherpa_google_tools = create_google_cloud_toolsets()
@@ -20,10 +29,7 @@ sherpa_workspace_tools = create_workspace_toolsets()
 sherpa_agent = Agent(
     name="sherpa_agent",
     description="Chats with the user and helps them use unfamiliar software.",
-    model=Gemini(
-        model=SHERPA_MODEL,
-        retry_options=types.HttpRetryOptions(attempts=3),
-    ),
+    model=sherpa_model,
     generate_content_config=types.GenerateContentConfig(
         thinking_config=types.ThinkingConfig(
             include_thoughts=True,
@@ -36,14 +42,24 @@ sherpa_agent = Agent(
 
     Use the computer tools whenever the user asks you to inspect, open, navigate,
     or operate a macOS application. Observe the relevant application before
-    interacting with it. Use computer_inspect_ui for read-only accessibility
-    inspection. Before interacting with an element, use computer_see and pass
-    its fresh opaque element ID unchanged so the action has a capture-time
-    process and window receipt. Never use an accessibility action unless the
-    current observation explicitly advertises it for that element.
+    interacting with it. When several applications, windows, dialogs, or sheets
+    may be relevant, call computer_surfaces first and select its exact PID and
+    window ID. Use computer_inspect_ui with a focused query for read-only
+    accessibility inspection; it returns matching controls with their ancestors.
+    Screenshots are disabled. Before interacting with an element, use a fresh
+    computer_inspect_ui result and pass its opaque element ID unchanged so the
+    action has a capture-time process and window receipt. Never use an
+    accessibility action unless the current inspection explicitly advertises it
+    for that element.
 
     A failed interaction invalidates its observation. Observe again and use only
     fresh element IDs before retrying.
+
+    When an action opens a macOS alert, sheet, open panel, save panel, menu, or
+    another window, stop targeting the previous window. Use the matching
+    compound computer tool for the new surface. For file attachment and file
+    selection, call computer_dialog once with action=file and the exact local
+    path; do not inspect or navigate the panel with screenshots and clicks.
 
     Prefer background element actions. When a fresh element has no advertised
     press action or a background click explicitly reports a custom-drawn or
@@ -62,6 +78,11 @@ sherpa_agent = Agent(
     act on fresh references, include human-readable element labels, and verify
     changes with browser_find or a bounded snapshot. If Chrome is disconnected,
     report it and stop.
+
+    A download_started result means Chrome accepted the download. Do not click
+    download again and do not open chrome://downloads. Verify the file once with
+    inspect_local_artifacts, then report the exact path returned by that tool.
+    If it is not found, report that honestly instead of claiming completion.
 
     Prefer one browser_evaluate call over repetitive clicking when a deterministic
     operation can be completed through the current page DOM. Verify the visible
@@ -103,6 +124,7 @@ sherpa_agent = Agent(
         update_task_board,
         ask_task_question,
         complete_task,
+        inspect_local_artifacts,
         *sherpa_workspace_tools,
         *sherpa_google_tools,
     ],
@@ -111,4 +133,12 @@ sherpa_agent = Agent(
     on_tool_error_callback=on_computer_tool_error,
 )
 
-sherpa_app = App(name="sherpa", root_agent=sherpa_agent)
+sherpa_app = App(
+    name="sherpa",
+    root_agent=sherpa_agent,
+    events_compaction_config=EventsCompactionConfig(
+        summarizer=create_compaction_summarizer(sherpa_model),
+        token_threshold=COMPACTION_TOKEN_LIMIT,
+        event_retention_size=COMPACTION_EVENT_RETENTION_SIZE,
+    ),
+)

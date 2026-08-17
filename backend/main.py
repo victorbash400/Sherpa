@@ -768,6 +768,8 @@ async def voice(websocket: WebSocket, session_id: str, voice: str = "Kore") -> N
                     event = await event_queue.get()
                     if event["type"] in {
                         "submission_updated", "tool_call", "tool_response",
+                        "context_usage", "compaction_started",
+                        "compaction_completed", "compaction_failed",
                         "task_started", "task_updated", "task_question",
                         "task_question_answered", "task_steering_queued",
                         "task_steering_applied",
