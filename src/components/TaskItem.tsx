@@ -5,7 +5,7 @@ import { TaskDetails } from "./TaskDetails";
 import "./TaskItem.css";
 
 export function TaskItem({ onSelect, selected, task }: { onSelect: () => void; selected: boolean; task: VoiceTask }) {
-  const [expanded, setExpanded] = useState(task.status === "running" || task.status === "blocked");
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <article className="task-item" data-expanded={expanded} data-phase={task.phase} data-selected={selected} data-status={task.status}>

@@ -3,9 +3,13 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+app.setName("Sherpa");
+
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const preloadPath = path.join(currentDirectory, "preload.cjs");
-const dockIconPath = app.isPackaged
+const developmentServerUrl = process.env.SHERPA_DEV_SERVER_URL;
+const isDevelopment = Boolean(developmentServerUrl);
+const dockIconPath = !isDevelopment
   ? path.join(currentDirectory, "../dist/sherpa-dock-icon.png")
   : path.join(app.getAppPath(), "public/sherpa-dock-icon.png");
 let mainWindow: BrowserWindow | undefined;
@@ -86,8 +90,8 @@ function createWindow() {
   window.webContents.on("render-process-gone", stopPreviewProcess);
   window.webContents.on("will-navigate", stopPreviewProcess);
 
-  if (!app.isPackaged) {
-    void window.loadURL("http://localhost:5173");
+  if (developmentServerUrl) {
+    void window.loadURL(developmentServerUrl);
     return;
   }
 
@@ -137,8 +141,8 @@ function createOverlayWindow() {
     console.error("Sherpa overlay renderer stopped", { reason: details.reason });
   });
 
-  if (!app.isPackaged) {
-    void overlayWindow.loadURL("http://localhost:5173/overlay.html");
+  if (developmentServerUrl) {
+    void overlayWindow.loadURL(`${developmentServerUrl}/overlay.html`);
   } else {
     void overlayWindow.loadFile(path.join(currentDirectory, "../dist/overlay.html"));
   }
@@ -182,7 +186,7 @@ function createPetWindow() {
   window.webContents.on("did-fail-load", (_, code, description) => {
     console.error("Sherpa pet failed to load", { code, description });
   });
-  if (!app.isPackaged) void window.loadURL("http://localhost:5173/pet.html");
+  if (developmentServerUrl) void window.loadURL(`${developmentServerUrl}/pet.html`);
   else void window.loadFile(path.join(currentDirectory, "../dist/pet.html"));
   return window;
 }
@@ -394,7 +398,7 @@ function configurePreviewEvents() {
 
 function ensurePreviewProcess() {
   if (previewProcess && !previewStopping) return previewProcess;
-  const binary = app.isPackaged
+  const binary = !isDevelopment
     ? path.join(process.resourcesPath, "window-capture")
     : path.join(app.getAppPath(), "dist-native/window-capture");
   const child = spawn(binary);
