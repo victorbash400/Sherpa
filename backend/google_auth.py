@@ -31,22 +31,20 @@ SCOPES = {
         "openid",
         "email",
         "profile",
-        "https://www.googleapis.com/auth/drive.readonly",
-        "https://www.googleapis.com/auth/drive.file",
+        "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/documents",
-        "https://www.googleapis.com/auth/documents.readonly",
         "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/spreadsheets.readonly",
         "https://www.googleapis.com/auth/presentations",
-        "https://www.googleapis.com/auth/presentations.readonly",
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.compose",
-        "https://www.googleapis.com/auth/calendar.events.readonly",
+        "https://www.googleapis.com/auth/gmail.modify",
         "https://www.googleapis.com/auth/calendar.events",
         "https://www.googleapis.com/auth/calendar.events.freebusy",
         "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
         "https://www.googleapis.com/auth/contacts.readonly",
-        "https://www.googleapis.com/auth/directory.readonly",
+        "https://www.googleapis.com/auth/tasks",
+        "https://www.googleapis.com/auth/forms.body",
+        "https://www.googleapis.com/auth/forms.responses.readonly",
+        "https://www.googleapis.com/auth/meetings.space.created",
+        "https://www.googleapis.com/auth/meetings.space.readonly",
         "https://www.googleapis.com/auth/cloud-platform",
     ),
     "cloud": (
@@ -56,6 +54,9 @@ SCOPES = {
         "https://www.googleapis.com/auth/cloud-platform",
     ),
 }
+WORKSPACE_REQUIRED_SCOPES = frozenset(
+    scope for scope in SCOPES["workspace"] if scope.startswith("https://www.googleapis.com/auth/")
+)
 
 
 class GoogleAuthManager:
@@ -81,9 +82,17 @@ class GoogleAuthManager:
 
     def snapshot(self, connection: GoogleConnection) -> dict[str, Any]:
         record = self._records.get(connection)
+        granted_scopes = set((record.get("scope") or "").split()) if record else set()
+        missing_scopes = (
+            sorted(WORKSPACE_REQUIRED_SCOPES - granted_scopes)
+            if connection == "workspace" and record
+            else []
+        )
         return {
             "configured": self.configured,
-            "connected": bool(record and record.get("refresh_token")),
+            "connected": bool(record and record.get("refresh_token") and not missing_scopes),
+            "needs_reconnect": bool(record and record.get("refresh_token") and missing_scopes),
+            "missing_scopes": missing_scopes,
             "email": record.get("email") if record else None,
             "name": record.get("name") if record else None,
             "picture": record.get("picture") if record else None,
@@ -175,7 +184,15 @@ class GoogleAuthManager:
                     "refresh_token": record["refresh_token"],
                     "grant_type": "refresh_token",
                 })
-                response.raise_for_status()
+                if response.is_error:
+                    try:
+                        detail = response.json().get("error_description")
+                    except ValueError:
+                        detail = response.text[:300]
+                    raise RuntimeError(
+                        "Google Workspace authorization could not be refreshed: "
+                        f"{detail or response.reason_phrase}. Reconnect Google Workspace."
+                    )
                 tokens = response.json()
             record["access_token"] = tokens["access_token"]
             record["expires_at"] = (

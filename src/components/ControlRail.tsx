@@ -51,7 +51,7 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           <span>Skills</span>
         </button>
         <button type="button" aria-label="Google Workspace" aria-pressed={activeView === "workspace"} title="Google Workspace" onClick={onOpenWorkspace}>
-          <img alt="" aria-hidden="true" src="/gnome-panel-workspace-switcher-svgrepo-com.svg" />
+          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src="/work-svgrepo-com.svg" />
           <span>Workspace</span>
         </button>
         <button
@@ -85,7 +85,7 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           <span>Accessibility</span>
         </button>
         <button type="button" aria-label="Pets" aria-pressed={activeView === "pets"} title="Pets" onClick={onOpenPets}>
-          <img alt="" aria-hidden="true" src="/pet-svgrepo-com.svg" />
+          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src="/pet-svgrepo-com.svg" />
           <span>Pets</span>
         </button>
         {computerActive ? <CursorDock /> : null}

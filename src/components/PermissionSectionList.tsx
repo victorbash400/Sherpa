@@ -42,7 +42,7 @@ export function PermissionSectionList({ sections, onConnectionError, onPermissio
 
 function PermissionIcon({ permissionId }: { permissionId: string }) {
   if (permissionId === "connection.google_workspace" || permissionId.startsWith("workspace.")) {
-    return <img src="/gnome-panel-workspace-switcher-svgrepo-com.svg" alt="" aria-hidden="true" />;
+    return <img src="/work-svgrepo-com.svg" alt="" aria-hidden="true" />;
   }
   if (permissionId === "connection.google_cloud" || permissionId.startsWith("cloud.")) return <Cloud aria-hidden="true" />;
   if (permissionId === "browser.read") return <img src="/browser-svgrepo-com.svg" alt="" aria-hidden="true" />;

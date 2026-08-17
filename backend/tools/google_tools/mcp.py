@@ -139,6 +139,9 @@ def infer_google_permissions(instruction: str) -> frozenset[str]:
         "workspace.gmail": ("gmail", "email", "inbox", "mailbox"),
         "workspace.calendar": ("google calendar", "calendar", "meeting", "schedule"),
         "workspace.people": ("google contact", "contacts", "address book"),
+        "workspace.tasks": ("google task", "google tasks", "task list"),
+        "workspace.forms": ("google form", "google forms", "form responses", "survey", "quiz"),
+        "workspace.meet": ("google meet", "meet recording", "meet transcript", "meeting transcript"),
         "cloud.resources": ("google cloud", "gcp", "cloud project", "cloud resource"),
         "cloud.cli": ("gcloud", "cloud cli", "google cloud command"),
     }

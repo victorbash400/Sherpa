@@ -1,4 +1,4 @@
-import { CalendarDays, Cloud, ContactRound, FileText, HardDrive, Mail, Presentation, Sheet, SquareTerminal } from "lucide-react";
+import { CalendarDays, Cloud, ContactRound, FileQuestion, FileText, HardDrive, ListChecks, Mail, Presentation, Sheet, SquareTerminal, Video } from "lucide-react";
 import type { Permission } from "../connections/connectionTypes";
 
 interface WorkspacePermissionsProps {
@@ -15,6 +15,9 @@ const icons = {
   "workspace.gmail": Mail,
   "workspace.calendar": CalendarDays,
   "workspace.people": ContactRound,
+  "workspace.tasks": ListChecks,
+  "workspace.forms": FileQuestion,
+  "workspace.meet": Video,
   "cloud.resources": Cloud,
   "cloud.cli": SquareTerminal,
 };

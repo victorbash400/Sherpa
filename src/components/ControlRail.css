@@ -152,6 +152,10 @@
   opacity: 0.66;
 }
 
+.control-rail img.control-rail__icon--dark {
+  opacity: 0.82;
+}
+
 .control-rail button:hover img,
 .control-rail button[aria-pressed="true"] img {
   opacity: 0.92;

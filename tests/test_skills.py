@@ -12,6 +12,9 @@ class SkillStoreTests(unittest.TestCase):
         self.assertIn("native-whatsapp", skills)
         self.assertIn("workspace-email", skills)
         self.assertIn("workspace-documents", skills)
+        self.assertIn("workspace-tasks", skills)
+        self.assertIn("workspace-forms", skills)
+        self.assertIn("workspace-meet", skills)
 
     def test_selected_skills_are_combined_without_keyword_matching(self) -> None:
         context = skill_store.context_for(["workspace-email", "native-whatsapp"])

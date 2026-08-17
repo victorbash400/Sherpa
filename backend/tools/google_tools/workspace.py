@@ -1,86 +1,31 @@
 import asyncio
 import base64
-import re
+import uuid
 from email.message import EmailMessage
-from typing import Any, Callable
+from typing import Any
 
-import httpx
-from google.adk.agents.readonly_context import ReadonlyContext
-from google.adk.tools import FunctionTool
-from google.adk.tools.base_tool import BaseTool
-from google.adk.tools.base_toolset import BaseToolset
+from backend.tools.google_tools.workspace_core import (
+    GOOGLE_API,
+    WorkspaceApiError,
+    WorkspaceApiToolset,
+    google_resource_id,
+    workspace_preview,
+    workspace_request,
+)
+from backend.tools.google_tools.workspace_calendar import CALENDAR_EXTRA_TOOLS
+from backend.tools.google_tools.workspace_drive import DRIVE_EXTRA_TOOLS
+from backend.tools.google_tools.workspace_forms import FORMS_TOOLS
+from backend.tools.google_tools.workspace_gmail import GMAIL_EXTRA_TOOLS
+from backend.tools.google_tools.workspace_meet import MEET_TOOLS
+from backend.tools.google_tools.workspace_tasks import TASKS_TOOLS
 
-from backend.google_auth import google_auth
-from backend.permission_store import permission_store
-from backend.tools.google_tools.mcp import permission_in_scope
 
-
-GOOGLE_API = "https://www.googleapis.com"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 DOCS_API = "https://docs.googleapis.com/v1/documents"
 SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
 SLIDES_API = "https://slides.googleapis.com/v1/presentations"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 PEOPLE_API = "https://people.googleapis.com/v1"
-GOOGLE_ID = re.compile(r"[-\w]{20,}")
-
-
-class WorkspaceApiError(RuntimeError):
-    pass
-
-
-class WorkspaceApiToolset(BaseToolset):
-    def __init__(self, permission_id: str, functions: list[Callable[..., Any]]) -> None:
-        super().__init__()
-        self.permission_id = permission_id
-        self._tools = [FunctionTool(function) for function in functions]
-
-    async def get_tools(
-        self,
-        readonly_context: ReadonlyContext | None = None,
-    ) -> list[BaseTool]:
-        del readonly_context
-        if not permission_in_scope(self.permission_id):
-            return []
-        if not permission_store.enabled(self.permission_id):
-            return []
-        if not google_auth.snapshot("workspace")["connected"]:
-            return []
-        return self._tools
-
-
-async def workspace_request(
-    method: str,
-    url: str,
-    *,
-    params: dict[str, Any] | None = None,
-    json: Any = None,
-) -> dict[str, Any]:
-    token = await google_auth.access_token("workspace")
-    if not token:
-        raise WorkspaceApiError("Google Workspace is not connected.")
-    async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.request(
-            method,
-            url,
-            headers={"Authorization": f"Bearer {token}"},
-            params=params,
-            json=json,
-        )
-    if response.is_error:
-        try:
-            message = response.json().get("error", {}).get("message")
-        except ValueError:
-            message = response.text[:500]
-        raise WorkspaceApiError(
-            f"Google Workspace returned {response.status_code}: "
-            f"{message or response.reason_phrase}"
-        )
-    if not response.content:
-        return {}
-    return response.json()
-
-
 async def workspace_gmail_search_threads(query: str, max_results: int = 10) -> dict[str, Any]:
     """Search Gmail and return matching threads with recent message metadata.
 
@@ -424,18 +369,22 @@ async def workspace_calendar_list_events(
     time_max: str,
     calendar_id: str = "primary",
     max_results: int = 50,
+    query: str | None = None,
 ) -> dict[str, Any]:
     """List Google Calendar events within an RFC3339 time range."""
+    params: dict[str, Any] = {
+        "timeMin": time_min,
+        "timeMax": time_max,
+        "singleEvents": "true",
+        "orderBy": "startTime",
+        "maxResults": max(1, min(250, max_results)),
+    }
+    if query:
+        params["q"] = query
     result = await workspace_request(
         "GET",
         f"{CALENDAR_API}/calendars/{calendar_id}/events",
-        params={
-            "timeMin": time_min,
-            "timeMax": time_max,
-            "singleEvents": "true",
-            "orderBy": "startTime",
-            "maxResults": max(1, min(250, max_results)),
-        },
+        params=params,
     )
     return {"events": result.get("items", [])}
 
@@ -446,19 +395,54 @@ async def workspace_calendar_create_event(
     end: str,
     calendar_id: str = "primary",
     description: str = "",
+    time_zone: str | None = None,
+    all_day: bool = False,
+    location: str = "",
+    attendees: list[str] | None = None,
+    recurrence: list[str] | None = None,
+    create_meet_link: bool = False,
 ) -> dict[str, Any]:
-    """Create a timed Google Calendar event using RFC3339 start and end values."""
+    """Create a Calendar event with optional guests, recurrence, location, and Google Meet link."""
+    time_key = "date" if all_day else "dateTime"
+    start_value: dict[str, Any] = {time_key: start}
+    end_value: dict[str, Any] = {time_key: end}
+    if time_zone and not all_day:
+        start_value["timeZone"] = time_zone
+        end_value["timeZone"] = time_zone
+    payload: dict[str, Any] = {
+        "summary": summary,
+        "description": description,
+        "start": start_value,
+        "end": end_value,
+    }
+    if location:
+        payload["location"] = location
+    if attendees:
+        payload["attendees"] = [{"email": email} for email in attendees]
+    if recurrence:
+        payload["recurrence"] = recurrence
+    if create_meet_link:
+        payload["conferenceData"] = {
+            "createRequest": {
+                "requestId": uuid.uuid4().hex,
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            },
+        }
     result = await workspace_request(
         "POST",
         f"{CALENDAR_API}/calendars/{calendar_id}/events",
-        json={
-            "summary": summary,
-            "description": description,
-            "start": {"dateTime": start},
-            "end": {"dateTime": end},
+        params={
+            "conferenceDataVersion": 1,
+            "sendUpdates": "all" if attendees else "none",
         },
+        json=payload,
     )
-    return {"event_id": result.get("id"), "html_link": result.get("htmlLink")}
+    return {
+        "event_id": result.get("id"),
+        "html_link": result.get("htmlLink"),
+        "meet_link": result.get("hangoutLink"),
+        "attendees": result.get("attendees", []),
+    }
 
 
 async def workspace_calendar_update_event(
@@ -468,6 +452,12 @@ async def workspace_calendar_update_event(
     description: str | None = None,
     start: str | None = None,
     end: str | None = None,
+    time_zone: str | None = None,
+    all_day: bool = False,
+    location: str | None = None,
+    attendees: list[str] | None = None,
+    recurrence: list[str] | None = None,
+    create_meet_link: bool = False,
 ) -> dict[str, Any]:
     """Update selected fields on a Google Calendar event."""
     payload: dict[str, Any] = {}
@@ -476,17 +466,43 @@ async def workspace_calendar_update_event(
     if description is not None:
         payload["description"] = description
     if start is not None:
-        payload["start"] = {"dateTime": start}
+        payload["start"] = {"date" if all_day else "dateTime": start}
+        if time_zone and not all_day:
+            payload["start"]["timeZone"] = time_zone
     if end is not None:
-        payload["end"] = {"dateTime": end}
+        payload["end"] = {"date" if all_day else "dateTime": end}
+        if time_zone and not all_day:
+            payload["end"]["timeZone"] = time_zone
+    if location is not None:
+        payload["location"] = location
+    if attendees is not None:
+        payload["attendees"] = [{"email": email} for email in attendees]
+    if recurrence is not None:
+        payload["recurrence"] = recurrence
+    if create_meet_link:
+        payload["conferenceData"] = {
+            "createRequest": {
+                "requestId": uuid.uuid4().hex,
+                "conferenceSolutionKey": {"type": "hangoutsMeet"},
+            },
+        }
     if not payload:
         raise WorkspaceApiError("Provide at least one event field to update.")
     result = await workspace_request(
         "PATCH",
         f"{CALENDAR_API}/calendars/{calendar_id}/events/{event_id}",
+        params={
+            "conferenceDataVersion": 1,
+            "sendUpdates": "all" if attendees is not None else "none",
+        },
         json=payload,
     )
-    return {"event_id": result.get("id"), "html_link": result.get("htmlLink"), "status": "updated"}
+    return {
+        "event_id": result.get("id"),
+        "html_link": result.get("htmlLink"),
+        "meet_link": result.get("hangoutLink"),
+        "status": "updated",
+    }
 
 
 async def workspace_calendar_delete_event(event_id: str, calendar_id: str = "primary") -> dict[str, Any]:
@@ -519,12 +535,14 @@ def create_workspace_toolsets() -> list[WorkspaceApiToolset]:
             workspace_gmail_send_draft,
             workspace_gmail_send_message,
             workspace_gmail_list_labels,
+            *GMAIL_EXTRA_TOOLS,
         ]),
         WorkspaceApiToolset("workspace.drive", [
             workspace_drive_search_files,
             workspace_drive_get_file,
             workspace_drive_create_folder,
             workspace_drive_update_file,
+            *DRIVE_EXTRA_TOOLS,
         ]),
         WorkspaceApiToolset("workspace.docs", [
             workspace_docs_read_doc,
@@ -549,27 +567,13 @@ def create_workspace_toolsets() -> list[WorkspaceApiToolset]:
             workspace_calendar_create_event,
             workspace_calendar_update_event,
             workspace_calendar_delete_event,
+            *CALENDAR_EXTRA_TOOLS,
         ]),
         WorkspaceApiToolset("workspace.people", [workspace_people_search_contacts]),
+        WorkspaceApiToolset("workspace.tasks", TASKS_TOOLS),
+        WorkspaceApiToolset("workspace.forms", FORMS_TOOLS),
+        WorkspaceApiToolset("workspace.meet", MEET_TOOLS),
     ]
-
-
-def google_resource_id(value: str) -> str:
-    if "/d/" in value:
-        value = value.split("/d/", 1)[1].split("/", 1)[0]
-    match = GOOGLE_ID.fullmatch(value.strip())
-    if not match:
-        raise WorkspaceApiError("A valid Google resource ID or URL is required.")
-    return match.group(0)
-
-
-def workspace_preview(resource_id: str, title: str | None = None, mime_type: str | None = None) -> dict[str, Any]:
-    return {
-        "kind": "workspace",
-        "resource_id": resource_id,
-        "title": title,
-        "mime_type": mime_type,
-    }
 
 
 def gmail_thread_summary(thread: dict[str, Any], include_body: bool = False) -> dict[str, Any]:

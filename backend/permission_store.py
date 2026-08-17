@@ -22,6 +22,9 @@ DEFAULT_PERMISSIONS = {
     "workspace.gmail": True,
     "workspace.calendar": True,
     "workspace.people": True,
+    "workspace.tasks": True,
+    "workspace.forms": True,
+    "workspace.meet": True,
     "cloud.resources": True,
     "cloud.cli": True,
 }

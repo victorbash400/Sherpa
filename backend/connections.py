@@ -46,6 +46,9 @@ async def connection_snapshot() -> dict[str, Any]:
                     permission("workspace.gmail", "Gmail", "Read mail and create drafts"),
                     permission("workspace.calendar", "Google Calendar", "Read and manage calendar events"),
                     permission("workspace.people", "Google Contacts", "Find people and contact details"),
+                    permission("workspace.tasks", "Google Tasks", "Create and manage task lists and tasks"),
+                    permission("workspace.forms", "Google Forms", "Create forms and read responses"),
+                    permission("workspace.meet", "Google Meet", "Create meetings and read participants and artifacts"),
                     permission("cloud.resources", "Cloud resources", "Inspect and manage projects and resources through Google MCP"),
                     permission("cloud.cli", "Cloud operations", "Run supported Google Cloud operations through Google MCP"),
                 ],
@@ -148,7 +151,11 @@ def google_connection(connection_id: str, name: str) -> dict[str, Any]:
     return {
         "id": f"connection.google_{connection_id}",
         "name": name,
-        "description": email or "Allow Sherpa to use your Google account",
+        "description": (
+            "Reconnect to enable the latest Workspace tools"
+            if state.get("needs_reconnect")
+            else email or "Allow Sherpa to use your Google account"
+        ),
         "enabled": state["connected"],
         "connection": f"google_{connection_id}",
         "configured": state["configured"],
