@@ -12,6 +12,7 @@ from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import ask_task_question, complete_task, update_task_board
 from backend.tools.google_tools import create_google_cloud_toolsets, create_workspace_toolsets
 from backend.tools.local_artifacts import inspect_local_artifacts
+from backend.tools.memory import save_memory
 from backend.compaction import COMPACTION_EVENT_RETENTION_SIZE
 from backend.compaction import COMPACTION_TOKEN_LIMIT
 from backend.compaction import create_compaction_summarizer
@@ -125,6 +126,7 @@ sherpa_agent = Agent(
         ask_task_question,
         complete_task,
         inspect_local_artifacts,
+        save_memory,
         *sherpa_workspace_tools,
         *sherpa_google_tools,
     ],

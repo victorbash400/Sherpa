@@ -22,6 +22,7 @@ export function TaskWindowThumbnail({ index, onSelect, task }: TaskWindowThumbna
     >
       <TaskPreview
         active={false}
+        apiActivity={task.apiActivity}
         revision={task.previewRevision}
         target={task.previewTarget}
         taskId={task.id}

@@ -39,6 +39,7 @@ class VoiceNotificationTests(unittest.TestCase):
 
         self.assertIn("update_task", names)
         self.assertIn("steer_task", names)
+        self.assertIn("remember_for_task", names)
 
     def test_completed_event_keeps_downstream_tasks_grounded(self) -> None:
         prompt = task_state_notification(
@@ -171,6 +172,28 @@ class VoiceTaskSteeringTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(response["status"], "queued")
         self.assertEqual(directive["instruction"], "Use Ben instead")
+
+    async def test_remember_for_task_queues_distinct_memory_directive(self) -> None:
+        response = await self.call(
+            "remember_for_task",
+            self.task_ids[0],
+            "Remember that Dev means Marques Brownlee in this workflow",
+        )
+        directive = sherpa_tasks._tasks[self.task_ids[0]].directives.get_nowait()
+
+        self.assertEqual(response["status"], "queued")
+        self.assertEqual(directive["type"], "remember")
+        self.assertIn("Marques Brownlee", directive["instruction"])
+
+    async def test_remember_for_task_rejects_queued_worker(self) -> None:
+        response = await self.call(
+            "remember_for_task",
+            self.task_ids[1],
+            "Remember the workflow",
+        )
+
+        self.assertEqual(response["status"], "error")
+        self.assertEqual(response["error"]["code"], "wrong_task_state")
 
 
 if __name__ == "__main__":

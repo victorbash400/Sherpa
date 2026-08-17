@@ -1,0 +1,57 @@
+.task-api-activity {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: #282824;
+  background: #fbfbf9;
+  text-align: center;
+}
+
+.task-api-activity__mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: #62625d;
+  background: #f0f0ec;
+  border: 1px solid #e5e5df;
+  border-radius: 13px;
+}
+
+.task-api-activity__mark svg { width: 20px; height: 20px; }
+.task-api-activity__copy { display: grid; gap: 4px; max-width: 260px; }
+.task-api-activity__copy span { color: #92928c; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.task-api-activity__copy strong { overflow: hidden; color: #3d3d39; font-size: 12px; font-weight: 550; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+
+.task-api-activity__shimmer {
+  width: 86px;
+  height: 3px;
+  overflow: hidden;
+  background: #e7e7e2;
+  border-radius: 999px;
+}
+
+.task-api-activity__shimmer::after {
+  display: block;
+  width: 36px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #9b9b94, transparent);
+  content: "";
+  animation: task-api-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes task-api-shimmer {
+  from { transform: translateX(-40px); }
+  to { transform: translateX(90px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-api-activity__shimmer::after { animation: none; background: #aaa9a2; }
+}

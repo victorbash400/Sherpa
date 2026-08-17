@@ -15,6 +15,11 @@ export type VoiceContextUsage = {
   limit: number;
   compacting: boolean;
 };
+export type TaskApiActivity = {
+  id: string;
+  message: string;
+  tool: string;
+};
 export type VoiceTask = {
   id: string;
   chatId: string;
@@ -31,6 +36,7 @@ export type VoiceTask = {
   interactionMode?: "background" | "foreground";
   previewCursor?: PreviewCursor;
   previewRevision?: string;
+  apiActivity?: TaskApiActivity;
 };
 export type VoiceTaskUpdate = {
   phase: string;
@@ -380,6 +386,17 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
               intent: message.intent,
               args: message.args || {},
             });
+          } else if (message.task_id) {
+            setTasks((current) => current.map((task) => task.id === message.task_id
+              ? {
+                ...task,
+                apiActivity: {
+                  id: toolId,
+                  message: message.message || toolName.replaceAll("_", " "),
+                  tool: toolName,
+                },
+              }
+              : task));
           }
         } else if (message.type === "tool_response" && message.id) {
           setToolActivities((current) => current.map((activity) =>
@@ -391,6 +408,9 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
               }
               : activity,
           ));
+          setTasks((current) => current.map((task) => task.apiActivity?.id === message.id
+            ? { ...task, apiActivity: undefined, previewRevision: message.id }
+            : task));
         } else if (message.type === "context_usage" && typeof message.context_tokens === "number") {
           setContextUsage((current) => ({
             tokens: message.context_tokens ?? current.tokens,
@@ -436,6 +456,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
                 interactionMode: item.interactionMode,
                 previewCursor: item.previewCursor,
                 previewRevision: item.previewRevision,
+                apiActivity: item.apiActivity,
               } : item)
               : [...current, task];
           });
@@ -457,6 +478,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
               interactionMode: task.interactionMode,
               previewCursor: task.previewCursor,
               previewRevision: task.previewRevision,
+              apiActivity: undefined,
               status: taskStatus,
               result: message.message || message.summary,
             }

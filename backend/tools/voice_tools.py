@@ -104,6 +104,27 @@ VOICE_TOOLS = [
                 required=["task_id", "question_id", "answer"],
             ),
         ),
+        types.FunctionDeclaration(
+            name="remember_for_task",
+            description=(
+                "Tell the exact running or blocked worker to save a user-requested durable fact, "
+                "preference, project detail, name, or reusable workflow it has observed. The worker "
+                "validates and writes the memory at its next tool boundary. Retry from task_choices "
+                "if the task ID is wrong."
+            ),
+            behavior=types.Behavior.BLOCKING,
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "task_id": types.Schema(type=types.Type.STRING),
+                    "instruction": types.Schema(
+                        type=types.Type.STRING,
+                        description="What the user explicitly wants remembered from this task.",
+                    ),
+                },
+                required=["task_id", "instruction"],
+            ),
+        ),
     ])
 ]
 
@@ -245,6 +266,41 @@ async def handle_voice_tool_call(
                 task_id=task_id,
                 session_id=session_id,
                 retry_tool=retry_tool,
+            ))
+            return
+        await finish(response)
+        return
+
+    if name == "remember_for_task":
+        task_id = requested_task_id
+        instruction = str(args.get("instruction", "")).strip()
+        task = sherpa_tasks.get(task_id)
+        if not instruction:
+            await finish(voice_tool_error(
+                "instruction_required",
+                "Say exactly what the user wants remembered and retry.",
+                task_id=task_id,
+                session_id=session_id,
+                retry_tool=name,
+            ))
+            return
+        if not task or task.chat_id != session_id:
+            await finish(voice_tool_error(
+                "task_not_found",
+                "That task ID is not part of this conversation. Choose the intended task from task_choices and retry.",
+                task_id=task_id,
+                session_id=session_id,
+                retry_tool=name,
+            ))
+            return
+        response = await sherpa_tasks.remember(task_id, instruction)
+        if response["status"] != "queued":
+            await finish(voice_tool_error(
+                "wrong_task_state",
+                response.get("guidance", "That task cannot save this memory now."),
+                task_id=task_id,
+                session_id=session_id,
+                retry_tool=name,
             ))
             return
         await finish(response)

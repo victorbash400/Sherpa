@@ -11,7 +11,7 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
   const running = visibleTasks.filter((task) => task.status === "running");
   const previewActive = visibleTasks.filter((task) => ["running", "blocked"].includes(task.status));
   const orderedTasks = visibleTasks;
-  const previewTasks = previewActive.filter((task) => task.previewTarget);
+  const previewTasks = previewActive.filter((task) => task.previewTarget || task.apiActivity);
   const effectiveSelectedTaskId = previewTasks.some((task) => task.id === selectedTaskId)
     ? selectedTaskId
     : previewTasks[0]?.id;
@@ -25,7 +25,7 @@ export function TasksView({ tasks }: { tasks: VoiceTask[] }) {
             <TaskItem
               key={task.id}
               onSelect={() => {
-                if (task.previewTarget && ["running", "blocked"].includes(task.status)) setSelectedTaskId(task.id);
+                if ((task.previewTarget || task.apiActivity) && ["running", "blocked"].includes(task.status)) setSelectedTaskId(task.id);
               }}
               selected={task.id === effectiveSelectedTaskId}
               task={task}

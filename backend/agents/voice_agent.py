@@ -49,6 +49,10 @@ If either tool returns status error, read its task_choices, choose the task that
 matches the user's requested change, and retry with that exact task_id and the
 tool named by change_with. If several tasks could match, ask the user which one.
 Never say a change was applied unless the final tool result is updated or queued.
+When the user explicitly asks Sherpa to remember a name, preference, project fact,
+or method learned by current work, use remember_for_task for the worker that
+observed it. Do not turn the request into a new task and do not claim it was saved
+until the tool accepts it. If its task ID is rejected, use task_choices and retry.
 When the user explicitly stops work, cancel it. Otherwise, submit new work and
 let it wait. When Sherpa asks a task question, ask it naturally;
 send the user's answer with answer_task_question using the supplied task and

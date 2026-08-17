@@ -17,6 +17,7 @@ export function TaskWindowCard({ active, expanded, onExpand, task }: TaskWindowC
     <article className="task-window-card" data-active={active} data-expanded={expanded} aria-label={label}>
       <TaskPreview
         active={active}
+        apiActivity={task.apiActivity}
         cursor={active ? task.previewCursor : undefined}
         revision={task.previewRevision}
         target={task.previewTarget}

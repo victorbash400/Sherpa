@@ -489,6 +489,29 @@ class SherpaTaskManager:
         await self._emit(task, {"type": "task_steering_queued", **self.snapshot(task)})
         return {"status": "queued", "task_id": task_id, "directive_id": directive["id"]}
 
+    async def remember(self, task_id: str, instruction: str) -> dict[str, Any]:
+        task = self._tasks.get(task_id)
+        clean_instruction = " ".join(instruction.split()).strip()
+        if not task or task.status not in {"running", "blocked"}:
+            return {
+                "status": "not_working",
+                "task_id": task_id,
+                "task_status": task.status if task else "not_found",
+                "guidance": "Only a running or blocked task can save an observed workflow.",
+            }
+        if not clean_instruction:
+            return {"status": "invalid", "task_id": task_id}
+        directive = {
+            "type": "remember",
+            "id": f"directive_{crypto_id()}",
+            "instruction": clean_instruction,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        await task.directives.put(directive)
+        logger.info("task.memory_queued task=%s directive=%s", task.id, directive["id"])
+        await self._emit(task, {"type": "task_memory_queued", **self.snapshot(task)})
+        return {"status": "queued", "task_id": task_id, "directive_id": directive["id"]}
+
     async def answer_question(
         self,
         task_id: str,
@@ -1124,6 +1147,14 @@ class SherpaTaskManager:
                 lines.append(
                     f"Answer to your question '{directive['question']}': "
                     f"{directive['answer']}"
+                )
+            elif directive["type"] == "remember":
+                lines.append(
+                    "The user explicitly asked you to remember this from your current work: "
+                    f"{directive['instruction']}\n"
+                    "Use save_memory now. Store the durable fact or reusable method you actually "
+                    "observed, not transient task state or an unverified inference. Then continue "
+                    "the same task without repeating completed work."
                 )
             else:
                 lines.append(f"The user changed the active task: {directive['instruction']}")
