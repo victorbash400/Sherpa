@@ -19,6 +19,7 @@ BROWSER_EVALUATE_FORBIDDEN = re.compile(
     r"requestSubmit\s*\(|\.submit\s*\(",
     re.IGNORECASE,
 )
+COMPOUND_PID_TARGET = re.compile(r"^pid\s*:\s*(\d+)(?::(.*))?$", re.IGNORECASE)
 tool_started_at: dict[str, float] = {}
 
 
@@ -57,6 +58,8 @@ async def before_computer_tool(
         for key in ("app", "app_target", "bundle_id")
         if isinstance(args.get(key), str)
     ), None)
+    if app_target is None and isinstance(args.get("pid"), int):
+        app_target = f"PID:{args['pid']}"
     if (
         app_target
         and app_target.casefold() != "frontmost"
@@ -248,6 +251,15 @@ def normalize_tool_args(tool_name: str, args: dict[str, Any]) -> str | None:
             if not file_path.is_file():
                 return f"The selected local file does not exist: {file_path}"
             args["path"] = str(file_path)
+    app_target = args.get("app")
+    if isinstance(app_target, str):
+        pid_target = COMPOUND_PID_TARGET.fullmatch(app_target.strip())
+        if pid_target:
+            args.pop("app")
+            args["pid"] = int(pid_target.group(1))
+            window_title = (pid_target.group(2) or "").strip()
+            if window_title:
+                args.setdefault("window_title", window_title)
     if tool_name.startswith("browser_"):
         target = args.get("target")
         if isinstance(target, str):

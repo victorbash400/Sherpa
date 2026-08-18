@@ -65,6 +65,12 @@ class ToolOutcomeTests(unittest.TestCase):
 
             self.assertIsNone(normalize_tool_args("computer_dialog", args))
 
+    def test_dialog_normalizes_compound_pid_and_window_title(self) -> None:
+        args = {"action": "list", "app": "PID:76387:Open"}
+
+        self.assertIsNone(normalize_tool_args("computer_dialog", args))
+        self.assertEqual(args, {"action": "list", "pid": 76387, "window_title": "Open"})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,7 @@ description: Operate an installed macOS application with fresh visual and access
 # Native macOS workflow
 
 1. Resolve the named installed application with `computer_app`. Use `action=launch` to launch it; never invent an `open` action. Do not replace it with a website.
-2. Inspect the relevant window read-only, then call `computer_see` immediately before each interaction. Use only the fresh opaque element ID returned for that window.
+2. Inspect the relevant window read-only, then call `computer_inspect_ui` immediately before each interaction. Use only the fresh opaque element ID returned for that window.
 3. Prefer background accessibility actions. If the observed control has no supported action or explicitly reports a custom-drawn control, retry that same target once using foreground synthetic input.
 4. Treat a newly opened alert, sheet, menu, open panel, save panel, or application window as a window transition. Stop using IDs and receipts from the previous surface. Use the compound tool for the new surface so it resolves the current target itself.
 5. For an `NSOpenPanel` or `NSSavePanel`, use `computer_dialog` with `action=file`, the exact absolute `path`, the originating `app`, `select=default`, and `foreground=true`. This single call navigates, selects, and verifies. Do not call `computer_dialog action=list`, do not walk Finder, and do not alternate screenshots and clicks inside the panel.

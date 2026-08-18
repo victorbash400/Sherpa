@@ -39,7 +39,7 @@ chat_logger = logging.getLogger("sherpa.conversation")
 
 from backend.credential_store import load_gemini_api_key
 from backend.credential_store import load_playwright_extension_token
-from backend.connections import connection_snapshot
+from backend.connections import connection_snapshot, installed_applications
 from backend.google_auth import GoogleConnection, google_auth
 from backend.memory_manager import memory_manager
 from backend.memory_store import memory_store
@@ -73,6 +73,7 @@ runner = Runner(app=sherpa_app, session_service=sessions)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    permission_store.register_apps(await asyncio.to_thread(installed_applications))
     await asyncio.gather(
         sherpa_browser_tools.get_tools(),
         sherpa_computer_tools.get_tools(),
