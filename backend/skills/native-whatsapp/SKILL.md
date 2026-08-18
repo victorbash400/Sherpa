@@ -10,6 +10,7 @@ description: Operate WhatsApp through the installed macOS application. Use whene
 - Locate or launch WhatsApp with `computer_app`, then observe its window before interacting.
 - Use a fresh `computer_see` result immediately before every click or text action.
 - Search for the requested contact or conversation, verify the visible recipient, then compose the message.
-- To attach an existing local file, open WhatsApp's attachment picker, then call `computer_dialog` once with `action=file`, the exact absolute `path`, `app=WhatsApp`, `select=default`, and `foreground=true`. Do not inspect or click through the file picker manually.
+- To attach an existing local file, open WhatsApp's attachment picker, then call `computer_dialog` with `action=file`, the exact absolute `path`, `app=WhatsApp`, `select=default`, and `foreground=true`. Do not inspect or click through the file picker manually.
+- If that call reports an ambiguous confirmation or says the same dialog remained open, inspect the originating WhatsApp window once. If the attachment preview is visible, continue without reopening the picker. If the picker is still open, list that dialog and retry `computer_dialog` once against its fresh exact PID/window target and the same path. If neither state can be verified, stop and report the attachment as unconfirmed. Never use manual Go to Folder shortcuts or repeat the recovery.
 - Treat sending as a consequential action: verify the recipient and message before the final send interaction.
 - If the native application is unavailable or disabled, report that exact problem. Do not silently substitute a website.

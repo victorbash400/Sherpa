@@ -28,6 +28,13 @@ class AppPermissionTests(unittest.TestCase):
         with patch("backend.permission_store.bundle_id_for_pid", return_value="net.whatsapp.WhatsApp"):
             self.assertTrue(store.app_enabled("PID:25681"))
 
+    def test_pid_targets_with_window_titles_resolve_to_bundle_permissions(self) -> None:
+        store = self.permission_store()
+        store.register_apps([{"name": "WhatsApp", "bundle_id": "net.whatsapp.WhatsApp"}])
+
+        with patch("backend.permission_store.bundle_id_for_pid", return_value="net.whatsapp.WhatsApp"):
+            self.assertTrue(store.app_enabled("PID:25681:Open"))
+
     def test_finder_installation_location_is_discovered(self) -> None:
         finder_root = Path("/System/Library/CoreServices")
 

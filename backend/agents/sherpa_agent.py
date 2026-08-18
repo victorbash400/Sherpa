@@ -59,8 +59,13 @@ sherpa_agent = Agent(
     When an action opens a macOS alert, sheet, open panel, save panel, menu, or
     another window, stop targeting the previous window. Use the matching
     compound computer tool for the new surface. For file attachment and file
-    selection, call computer_dialog once with action=file and the exact local
-    path; do not inspect or navigate the panel with screenshots and clicks.
+    selection, call computer_dialog with action=file and the exact local path;
+    do not inspect or navigate the panel with screenshots and clicks. If file
+    confirmation is ambiguous, inspect the originating application once. Treat
+    a visible attachment preview as success. If the same picker is visibly open,
+    list it and retry computer_dialog once against its fresh exact target. If
+    neither state is verifiable, stop; never use manual Go to Folder shortcuts
+    or repeat the recovery.
 
     Prefer background element actions. When a fresh element has no advertised
     press action or a background click explicitly reports a custom-drawn or

@@ -7,7 +7,7 @@ from typing import Any
 
 
 PERMISSION_FILE = Path.home() / "Library" / "Application Support" / "Sherpa" / "permissions.json"
-PID_TARGET = re.compile(r"pid\s*:\s*(\d+)", re.IGNORECASE)
+PID_TARGET = re.compile(r"pid\s*:\s*(\d+)(?::.*)?", re.IGNORECASE)
 DEFAULT_PERMISSIONS = {
     "google.models": True,
     "browser.read": True,

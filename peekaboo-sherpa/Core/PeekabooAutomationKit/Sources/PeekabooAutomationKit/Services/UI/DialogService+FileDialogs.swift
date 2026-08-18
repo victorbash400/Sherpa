@@ -169,7 +169,15 @@ extension DialogService {
                         details: &details)
                 } else {
                     failureStage = "verify the file dialog closed"
-                    let presence = self.dialogPresence(target: retainedTarget, retainedDialog: dialog)
+                    var presence = self.dialogPresence(target: retainedTarget, retainedDialog: dialog)
+                    if presence != .absent {
+                        // Hosts such as WhatsApp dismiss NSOpenPanel only after they begin importing the file.
+                        // Give that one asynchronous transition time to settle, then recheck exactly once.
+                        try Task.checkCancellation()
+                        try await Task.sleep(nanoseconds: 650_000_000)
+                        presence = self.dialogPresence(target: retainedTarget, retainedDialog: dialog)
+                        details["dialog_closure_rechecked"] = "true"
+                    }
                     guard presence == .absent else {
                         guard let fallbackOutcome = actionSequence.successResolution().outcome ?? clickResult.outcome
                         else {
