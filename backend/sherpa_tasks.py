@@ -14,7 +14,7 @@ from google.adk.runners import Runner
 from google.adk.tools import ToolContext
 from google.genai import types
 
-from backend.agents.sherpa_agent import sherpa_app
+from backend.agents.sherpa_agent import create_sherpa_app
 from backend.compaction import COMPACTION_TOKEN_LIMIT, SherpaSessionService, compaction_events
 from backend.agents.task_planner import TaskPlan, task_planner_app
 from backend.memory_manager import memory_manager
@@ -101,7 +101,6 @@ class SherpaSubmission:
 class SherpaTaskManager:
     def __init__(self) -> None:
         self._sessions = SherpaSessionService()
-        self._runner = Runner(app=sherpa_app, session_service=self._sessions)
         self._planner_runner = Runner(app=task_planner_app, session_service=self._sessions)
         self._tasks: dict[str, SherpaTask] = {}
         self._submissions: dict[str, SherpaSubmission] = {}
@@ -787,8 +786,18 @@ class SherpaTaskManager:
                 emit_compaction,
             )
 
+            worker_runner = Runner(
+                app=create_sherpa_app(task.skill_ids),
+                session_service=self._sessions,
+            )
+            logger.info(
+                "worker.tools task=%s skills=%s discovery=dynamic",
+                task.id,
+                ",".join(task.skill_ids) or "none",
+            )
+
             async for event in run_with_google_tool_scope(
-                self._runner,
+                worker_runner,
                 instruction,
                 user_id="local-user",
                 session_id=worker_session_id,

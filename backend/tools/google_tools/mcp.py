@@ -115,10 +115,10 @@ async def run_with_google_tool_scope(
     instruction: str,
     **run_arguments: Any,
 ) -> AsyncIterator[Any]:
-    permissions = infer_google_permissions(instruction)
+    del instruction
     events = runner.run_async(**run_arguments).__aiter__()
     while True:
-        token = _active_permissions.set(permissions)
+        token = _active_permissions.set(None)
         try:
             event = await anext(events)
         except StopAsyncIteration:

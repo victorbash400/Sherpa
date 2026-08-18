@@ -74,10 +74,11 @@ task_planner = Agent(
     instruction containing the exact app or service, target object, actions,
     constraints, completion evidence, required inputs, and expected outputs.
     Select zero or more skill IDs from the supplied skill catalog for each
-    create operation.
-    Skills contain execution procedures, not separate jobs: attach every skill
-    needed for a cross-tool outcome to that one task. Never invent a skill ID.
-    Do not select a skill for a simple task that does not benefit from one.
+    create operation. Skills provide execution procedures but never restrict
+    tool access; workers discover tools from the registry while they work.
+    Skills are not separate jobs: attach every useful procedural skill for a
+    cross-tool outcome to that one task. Never invent a skill ID or select an
+    unrelated one.
 
     Update and steer need the task ID and complete revised instruction. Include
     every skill the revised task needs. Reuse and cancel need a valid task ID.

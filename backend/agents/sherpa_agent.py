@@ -4,42 +4,51 @@ from google.adk.apps.app import EventsCompactionConfig
 from google.adk.models import Gemini
 from google.genai import types
 
-from backend.tools.browser_use import create_playwright_toolset
-from backend.tools.computer_use import create_peekaboo_toolset
 from backend.tools.computer_use.callbacks import after_computer_tool
 from backend.tools.computer_use.callbacks import before_computer_tool
 from backend.tools.computer_use.callbacks import on_computer_tool_error
 from backend.tools.task_board import ask_task_question, complete_task, update_task_board
-from backend.tools.google_tools import create_google_cloud_toolsets, create_workspace_toolsets
 from backend.tools.local_artifacts import inspect_local_artifacts
 from backend.tools.memory import save_memory
 from backend.compaction import COMPACTION_EVENT_RETENTION_SIZE
 from backend.compaction import COMPACTION_TOKEN_LIMIT
 from backend.compaction import create_compaction_summarizer
+from backend.tool_registry import (
+    browser_tools as sherpa_browser_tools,
+    cloud_tools as sherpa_google_tools,
+    computer_tools as sherpa_computer_tools,
+    tool_registry,
+)
 
 SHERPA_MODEL = "gemini-3.7-flash"
 sherpa_model = Gemini(
     model=SHERPA_MODEL,
     retry_options=types.HttpRetryOptions(attempts=3),
 )
-sherpa_computer_tools = create_peekaboo_toolset()
-sherpa_browser_tools = create_playwright_toolset()
-sherpa_google_tools = create_google_cloud_toolsets()
-sherpa_workspace_tools = create_workspace_toolsets()
 
-sherpa_agent = Agent(
-    name="sherpa_agent",
-    description="Chats with the user and helps them use unfamiliar software.",
-    model=sherpa_model,
-    generate_content_config=types.GenerateContentConfig(
-        thinking_config=types.ThinkingConfig(
-            include_thoughts=True,
-            thinking_level="medium",
+
+def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
+    del skill_ids
+    return Agent(
+        name="sherpa_agent",
+        description="Chats with the user and helps them use unfamiliar software.",
+        model=sherpa_model,
+        generate_content_config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_level="medium",
+            ),
         ),
-    ),
-    instruction="""
+        instruction="""
     You are Sherpa. Complete the assigned task with the available APIs, Chrome,
     and macOS applications. Report only observed results.
+
+    External tools are discovered at runtime. When the task needs a browser,
+    native application, Google Workspace product, or Google Cloud, call
+    search_tools with the intended action, then call load_tools once with the
+    relevant result IDs. Continue with the newly available tools. Search again and
+    load another namespace whenever the task expands; skills are guidance and
+    never limit which capabilities you may discover.
 
     Use the computer tools whenever the user asks you to inspect, open, navigate,
     or operate a macOS application. Observe the relevant application before
@@ -123,29 +132,32 @@ sherpa_agent = Agent(
     waiting_for_user, do not retry it or abandon the task. Pause for the
     supplied question; the task runner preserves this session and resumes it
     after the user answers.
-    """,
-    tools=[
-        sherpa_computer_tools,
-        sherpa_browser_tools,
-        update_task_board,
-        ask_task_question,
-        complete_task,
-        inspect_local_artifacts,
-        save_memory,
-        *sherpa_workspace_tools,
-        *sherpa_google_tools,
-    ],
-    before_tool_callback=before_computer_tool,
-    after_tool_callback=after_computer_tool,
-    on_tool_error_callback=on_computer_tool_error,
-)
+        """,
+        tools=[
+            update_task_board,
+            ask_task_question,
+            complete_task,
+            inspect_local_artifacts,
+            save_memory,
+            tool_registry,
+        ],
+        before_tool_callback=before_computer_tool,
+        after_tool_callback=after_computer_tool,
+        on_tool_error_callback=on_computer_tool_error,
+    )
 
-sherpa_app = App(
-    name="sherpa",
-    root_agent=sherpa_agent,
-    events_compaction_config=EventsCompactionConfig(
-        summarizer=create_compaction_summarizer(sherpa_model),
-        token_threshold=COMPACTION_TOKEN_LIMIT,
-        event_retention_size=COMPACTION_EVENT_RETENTION_SIZE,
-    ),
-)
+
+def create_sherpa_app(skill_ids: list[str] | None = None) -> App:
+    return App(
+        name="sherpa",
+        root_agent=create_sherpa_agent(skill_ids),
+        events_compaction_config=EventsCompactionConfig(
+            summarizer=create_compaction_summarizer(sherpa_model),
+            token_threshold=COMPACTION_TOKEN_LIMIT,
+            event_retention_size=COMPACTION_EVENT_RETENTION_SIZE,
+        ),
+    )
+
+
+sherpa_agent = create_sherpa_agent()
+sherpa_app = create_sherpa_app()
