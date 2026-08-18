@@ -46,13 +46,14 @@
 }
 
 .camera-orb-preview[data-flashing="true"]::after {
-  background: rgb(255 255 255 / 92%);
-  animation: camera-shutter-flash 180ms ease-out;
+  background: rgb(255 255 255 / 94%);
+  animation: camera-shutter-flash 320ms cubic-bezier(.2, .75, .25, 1);
 }
 
 @keyframes camera-shutter-flash {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  0% { opacity: 0; }
+  18% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .voice-orb-visual[data-camera-active="true"] .camera-orb-preview {

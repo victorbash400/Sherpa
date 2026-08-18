@@ -23,6 +23,7 @@ export function CameraOrbPreview({ active, captureRequest, onCaptured, onCapture
   const frameCallbackRef = useRef<number | undefined>(undefined);
   const encodingRef = useRef(false);
   const lastFrameAtRef = useRef(0);
+  const shutterRef = useRef<HTMLAudioElement | undefined>(undefined);
   const [ready, setReady] = useState(false);
   const [flashing, setFlashing] = useState(false);
   const capturedCallRef = useRef<string | undefined>(undefined);
@@ -47,9 +48,13 @@ export function CameraOrbPreview({ active, captureRequest, onCaptured, onCapture
       return;
     }
     context.drawImage(video, 0, 0);
-    playShutter();
+    const shutter = shutterRef.current;
+    if (shutter) {
+      shutter.currentTime = 0;
+      void shutter.play().catch(() => undefined);
+    }
     setFlashing(true);
-    window.setTimeout(() => setFlashing(false), 180);
+    window.setTimeout(() => setFlashing(false), 320);
     canvas.toBlob((blob) => {
       if (!blob) {
         onCaptureResult(captureRequest.callId, { status: "failed", error: "The photo could not be encoded." });
@@ -77,6 +82,18 @@ export function CameraOrbPreview({ active, captureRequest, onCaptured, onCapture
         });
     }, "image/jpeg", 0.94);
   }, [active, captureRequest, onCaptured, onCaptureResult, ready]);
+
+  useEffect(() => {
+    const shutter = new Audio("/irinairinafomicheva-camera-13695.mp3");
+    shutter.preload = "auto";
+    shutter.volume = 0.72;
+    shutter.load();
+    shutterRef.current = shutter;
+    return () => {
+      shutter.pause();
+      shutterRef.current = undefined;
+    };
+  }, []);
 
   useEffect(() => {
     if (!active) {
@@ -156,19 +173,4 @@ export function CameraOrbPreview({ active, captureRequest, onCaptured, onCapture
       {!ready ? <Camera aria-hidden="true" /> : null}
     </div>
   );
-}
-
-function playShutter() {
-  const context = new AudioContext();
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = "square";
-  oscillator.frequency.setValueAtTime(180, context.currentTime);
-  oscillator.frequency.exponentialRampToValueAtTime(70, context.currentTime + 0.07);
-  gain.gain.setValueAtTime(0.12, context.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
-  oscillator.connect(gain).connect(context.destination);
-  oscillator.start();
-  oscillator.stop(context.currentTime + 0.09);
-  oscillator.addEventListener("ended", () => void context.close(), { once: true });
 }

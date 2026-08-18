@@ -60,6 +60,12 @@ export function App() {
       return photo;
     });
   }, []);
+  const dismissCapturedPhoto = useCallback(() => {
+    setCapturedPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return undefined;
+    });
+  }, []);
   const connections = useConnectionSections();
   const skills = useSkills(view === "skills");
   const appendVoiceTranscript = useCallback((entry: VoiceTranscriptEntry) => {
@@ -225,7 +231,9 @@ export function App() {
             onSpeakerMutedChange={setSpeakerMuted}
             onVolumeChange={setVolume}
           />
-          {capturedPhoto ? <CapturedPhotoDock photo={capturedPhoto} /> : null}
+          {capturedPhoto ? (
+            <CapturedPhotoDock key={capturedPhoto.id} photo={capturedPhoto} onClose={dismissCapturedPhoto} />
+          ) : null}
         </>
       ) : view === "chat" ? (
         <ChatShell
