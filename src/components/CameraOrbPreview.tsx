@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
+import type { PhotoCaptureResult } from "../hooks/useVoiceSession";
+import type { CapturedPhoto } from "./capturedPhotoTypes";
 import "./CameraOrbPreview.css";
 
 interface CameraOrbPreviewProps {
   active: boolean;
+  captureRequest?: { callId: string };
+  onCaptured: (photo: CapturedPhoto) => void;
+  onCaptureResult: (callId: string, result: PhotoCaptureResult) => void;
   onFrame: (data: string, mimeType: string) => void;
   onError: (message?: string) => void;
 }
@@ -13,12 +18,65 @@ type VideoWithFrameCallbacks = HTMLVideoElement & {
   cancelVideoFrameCallback: (handle: number) => void;
 };
 
-export function CameraOrbPreview({ active, onError, onFrame }: CameraOrbPreviewProps) {
+export function CameraOrbPreview({ active, captureRequest, onCaptured, onCaptureResult, onError, onFrame }: CameraOrbPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const frameCallbackRef = useRef<number | undefined>(undefined);
   const encodingRef = useRef(false);
   const lastFrameAtRef = useRef(0);
   const [ready, setReady] = useState(false);
+  const [flashing, setFlashing] = useState(false);
+  const capturedCallRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!captureRequest || capturedCallRef.current === captureRequest.callId) return;
+    capturedCallRef.current = captureRequest.callId;
+    const video = videoRef.current;
+    if (!active || !ready || !video?.videoWidth || !window.sherpaPhotos) {
+      onCaptureResult(captureRequest.callId, {
+        status: "failed",
+        error: active ? "The camera is not ready yet." : "Turn the camera on before taking a photo.",
+      });
+      return;
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      onCaptureResult(captureRequest.callId, { status: "failed", error: "The photo could not be rendered." });
+      return;
+    }
+    context.drawImage(video, 0, 0);
+    playShutter();
+    setFlashing(true);
+    window.setTimeout(() => setFlashing(false), 180);
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        onCaptureResult(captureRequest.callId, { status: "failed", error: "The photo could not be encoded." });
+        return;
+      }
+      void blob.arrayBuffer()
+        .then((buffer) => window.sherpaPhotos?.save(new Uint8Array(buffer)))
+        .then((photoPath) => {
+          if (!photoPath) throw new Error("The photo could not be saved.");
+          const mimeType = blob.type || "image/jpeg";
+          onCaptured({
+            id: captureRequest.callId,
+            mimeType,
+            path: photoPath,
+            previewUrl: URL.createObjectURL(blob),
+            sourceBounds: video.getBoundingClientRect().toJSON(),
+          });
+          onCaptureResult(captureRequest.callId, { status: "captured", path: photoPath, mimeType });
+        })
+        .catch((reason: unknown) => {
+          onCaptureResult(captureRequest.callId, {
+            status: "failed",
+            error: reason instanceof Error ? reason.message : "The photo could not be saved.",
+          });
+        });
+    }, "image/jpeg", 0.94);
+  }, [active, captureRequest, onCaptured, onCaptureResult, ready]);
 
   useEffect(() => {
     if (!active) {
@@ -93,9 +151,24 @@ export function CameraOrbPreview({ active, onError, onFrame }: CameraOrbPreviewP
   }, [active, onError, onFrame]);
 
   return (
-    <div className="camera-orb-preview" data-ready={ready} aria-hidden={!active}>
+    <div className="camera-orb-preview" data-flashing={flashing} data-ready={ready} aria-hidden={!active}>
       <video ref={videoRef} muted playsInline />
       {!ready ? <Camera aria-hidden="true" /> : null}
     </div>
   );
+}
+
+function playShutter() {
+  const context = new AudioContext();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(180, context.currentTime);
+  oscillator.frequency.exponentialRampToValueAtTime(70, context.currentTime + 0.07);
+  gain.gain.setValueAtTime(0.12, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.09);
+  oscillator.connect(gain).connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.09);
+  oscillator.addEventListener("ended", () => void context.close(), { once: true });
 }

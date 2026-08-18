@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -315,6 +316,21 @@ function configureSystemEvents() {
   });
 }
 
+function configurePhotoEvents() {
+  ipcMain.removeHandler("photo:save");
+  ipcMain.handle("photo:save", async (event, bytes: Uint8Array) => {
+    if (event.sender !== mainWindow?.webContents || !bytes?.byteLength) {
+      throw new Error("The captured photo was empty.");
+    }
+    const directory = path.join(app.getPath("pictures"), "Sherpa Captures");
+    await mkdir(directory, { recursive: true });
+    const timestamp = new Date().toISOString().replaceAll(":", "-").replace(".", "-");
+    const photoPath = path.join(directory, `Sherpa-${timestamp}.jpg`);
+    await writeFile(photoPath, Buffer.from(bytes));
+    return photoPath;
+  });
+}
+
 function configurePetEvents() {
   ipcMain.handle("pet:wake", (event) => {
     if (event.sender !== mainWindow?.webContents) return false;
@@ -537,6 +553,7 @@ app.whenReady().then(() => {
     dock.setIcon(dockIconPath);
   }
   configureSystemEvents();
+  configurePhotoEvents();
   configurePetEvents();
   configurePreviewEvents();
   createWindow();

@@ -12,7 +12,7 @@ from backend.tools.voice_tools import (
 from backend.voice_notifications import task_state_notification
 
 
-class VoiceNotificationTests(unittest.TestCase):
+class VoiceNotificationTests(unittest.IsolatedAsyncioTestCase):
     def test_turn_completion_finalizes_pending_user_transcript(self) -> None:
         event = final_transcript_event(
             "voice-user-3",
@@ -40,6 +40,27 @@ class VoiceNotificationTests(unittest.TestCase):
         self.assertIn("update_task", names)
         self.assertIn("steer_task", names)
         self.assertIn("remember_for_task", names)
+        self.assertIn("capture_photo", names)
+
+    async def test_capture_photo_returns_saved_path(self) -> None:
+        responses = []
+
+        async def respond(call_id: str, name: str, response: dict) -> None:
+            responses.append((call_id, name, response))
+
+        async def capture(call_id: str) -> dict:
+            self.assertEqual(call_id, "capture-1")
+            return {"status": "captured", "path": "/Pictures/Sherpa Captures/photo.jpg", "mime_type": "image/jpeg"}
+
+        await handle_voice_tool_call(
+            types.FunctionCall(id="capture-1", name="capture_photo", args={}),
+            "voice-chat",
+            respond,
+            capture,
+        )
+
+        self.assertEqual(responses[0][2]["status"], "captured")
+        self.assertEqual(responses[0][2]["path"], "/Pictures/Sherpa Captures/photo.jpg")
 
     def test_completed_event_keeps_downstream_tasks_grounded(self) -> None:
         prompt = task_state_notification(

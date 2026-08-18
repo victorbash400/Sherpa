@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioControls } from "./components/AudioControls";
 import { CameraOrbPreview } from "./components/CameraOrbPreview";
+import { CapturedPhotoDock } from "./components/CapturedPhotoDock";
+import type { CapturedPhoto } from "./components/capturedPhotoTypes";
 import { AccessibilityView } from "./components/AccessibilityView";
 import { ChatShell } from "./components/ChatShell";
 import { ChatHistoryButton } from "./components/ChatHistoryButton";
@@ -43,6 +45,7 @@ export function App() {
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [cameraError, setCameraError] = useState<string>();
+  const [capturedPhoto, setCapturedPhoto] = useState<CapturedPhoto>();
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [windowFocused, setWindowFocused] = useState(true);
@@ -51,6 +54,12 @@ export function App() {
   const hadActiveTasksRef = useRef(false);
   const petTaskStatusesRef = useRef(new Map<string, string>());
   const chat = useSherpaChat();
+  const acceptCapturedPhoto = useCallback((photo: CapturedPhoto) => {
+    setCapturedPhoto((current) => {
+      if (current) URL.revokeObjectURL(current.previewUrl);
+      return photo;
+    });
+  }, []);
   const connections = useConnectionSections();
   const skills = useSkills(view === "skills");
   const appendVoiceTranscript = useCallback((entry: VoiceTranscriptEntry) => {
@@ -79,6 +88,10 @@ export function App() {
   useEffect(() => {
     return window.sherpaSystem?.onWindowFocusChanged(setWindowFocused);
   }, []);
+
+  useEffect(() => () => {
+    if (capturedPhoto) URL.revokeObjectURL(capturedPhoto.previewUrl);
+  }, [capturedPhoto]);
 
   useEffect(() => {
     window.sherpaPet?.setWorking(hasRunningTasks);
@@ -184,7 +197,14 @@ export function App() {
           ) : null}
           <section className="orb-stage" data-transcript-expanded={hasTranscript && transcriptExpanded} aria-label="Sherpa is listening">
             <div className="voice-orb-visual" data-camera-active={cameraEnabled}>
-              <CameraOrbPreview active={cameraEnabled} onError={setCameraError} onFrame={voice.sendVideoFrame} />
+              <CameraOrbPreview
+                active={cameraEnabled}
+                captureRequest={voice.photoCaptureRequest}
+                onCaptured={acceptCapturedPhoto}
+                onCaptureResult={voice.completePhotoCapture}
+                onError={setCameraError}
+                onFrame={voice.sendVideoFrame}
+              />
               <Orb
                 mode={orbMode}
                 audioLevel={voice.audioLevel}
@@ -205,6 +225,7 @@ export function App() {
             onSpeakerMutedChange={setSpeakerMuted}
             onVolumeChange={setVolume}
           />
+          {capturedPhoto ? <CapturedPhotoDock photo={capturedPhoto} /> : null}
         </>
       ) : view === "chat" ? (
         <ChatShell

@@ -3,6 +3,13 @@ import type { VoiceTranscriptEntry } from "../chat/chatTypes";
 import type { PreviewCursor, PreviewTarget } from "../types/sherpaOverlay";
 
 export type VoiceStatus = "idle" | "connecting" | "listening" | "speaking" | "error";
+export type PhotoCaptureRequest = { callId: string };
+export type PhotoCaptureResult = {
+  status: "captured" | "failed";
+  path?: string;
+  mimeType?: string;
+  error?: string;
+};
 export type VoiceToolActivity = {
   id: string;
   name: string;
@@ -87,6 +94,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   });
   const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [computerActive, setComputerActive] = useState(false);
+  const [photoCaptureRequest, setPhotoCaptureRequest] = useState<PhotoCaptureRequest>();
   const socketRef = useRef<WebSocket | undefined>(undefined);
   const streamRef = useRef<MediaStream | undefined>(undefined);
   const contextRef = useRef<AudioContext | undefined>(undefined);
@@ -169,6 +177,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     if (context && context.state !== "closed") void context.close();
     setStatus("idle");
     setToolActivities([]);
+    setPhotoCaptureRequest(undefined);
   }, [clearPlayback]);
 
   const playAudio = useCallback((data: ArrayBuffer) => {
@@ -319,8 +328,11 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           interaction_mode?: VoiceTask["interactionMode"];
           context_tokens?: number;
           context_token_limit?: number;
+          call_id?: string;
         };
-        if (message.type === "interrupted") {
+        if (message.type === "capture_photo" && message.call_id) {
+          setPhotoCaptureRequest({ callId: message.call_id });
+        } else if (message.type === "interrupted") {
           interruptPlayback();
           setStatus("listening");
         } else if (message.type === "turn_complete") {
@@ -512,6 +524,21 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     socket.send(JSON.stringify({ type: "video_frame", data, mime_type: mimeType }));
   }, []);
 
+  const completePhotoCapture = useCallback((callId: string, result: PhotoCaptureResult) => {
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: "photo_capture_result",
+        call_id: callId,
+        status: result.status,
+        path: result.path,
+        mime_type: result.mimeType,
+        error: result.error,
+      }));
+    }
+    setPhotoCaptureRequest((current) => current?.callId === callId ? undefined : current);
+  }, []);
+
   useEffect(() => {
     if (gainRef.current) gainRef.current.gain.value = speakerMuted ? 0 : volume / 100;
     if (readySoundRef.current) readySoundRef.current.volume = speakerMuted ? 0 : volume / 100;
@@ -569,8 +596,10 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   return {
     audioLevel,
     computerActive,
+    completePhotoCapture,
     contextUsage,
     error,
+    photoCaptureRequest,
     sendVideoFrame,
     start,
     status,

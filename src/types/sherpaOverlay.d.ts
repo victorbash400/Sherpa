@@ -65,6 +65,9 @@ declare global {
       openExternal: (url: string) => Promise<boolean>;
       onWindowFocusChanged: (callback: (focused: boolean) => void) => () => void;
     };
+    sherpaPhotos?: {
+      save: (bytes: Uint8Array) => Promise<string>;
+    };
     sherpaPreview?: {
       start: (taskId: string, target: PreviewTarget) => Promise<boolean>;
       stop: (taskId: string) => void;

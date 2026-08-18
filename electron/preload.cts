@@ -25,6 +25,10 @@ contextBridge.exposeInMainWorld("sherpaSystem", {
   },
 });
 
+contextBridge.exposeInMainWorld("sherpaPhotos", {
+  save: (bytes: Uint8Array) => ipcRenderer.invoke("photo:save", bytes),
+});
+
 contextBridge.exposeInMainWorld("sherpaPreview", {
   start: (taskId: string, target: unknown) => ipcRenderer.invoke("preview:start", taskId, target),
   stop: (taskId: string) => ipcRenderer.send("preview:stop", taskId),

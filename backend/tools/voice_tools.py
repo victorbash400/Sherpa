@@ -8,10 +8,20 @@ from backend.sherpa_tasks import sherpa_tasks
 
 logger = logging.getLogger("sherpa.voice")
 VoiceToolResponder = Callable[[str, str, dict], Awaitable[None]]
+VoicePhotoRequester = Callable[[str], Awaitable[dict]]
 
 
 VOICE_TOOLS = [
     types.Tool(function_declarations=[
+        types.FunctionDeclaration(
+            name="capture_photo",
+            description=(
+                "Capture and save the current camera image when the user asks to take a photo. "
+                "After this succeeds, ask the user to confirm that this is the photo they want. "
+                "Do not submit a task to send, store, or use it until the user confirms."
+            ),
+            behavior=types.Behavior.BLOCKING,
+        ),
         types.FunctionDeclaration(
             name="submit_task",
             description="Hand one complete request to Sherpa. New work runs sequentially behind any active task.",
@@ -133,6 +143,7 @@ async def handle_voice_tool_call(
     call: types.FunctionCall,
     session_id: str,
     respond: VoiceToolResponder,
+    request_photo: VoicePhotoRequester | None = None,
 ) -> None:
     call_id = call.id or call.name or "unknown"
     name = call.name or "unknown"
@@ -159,6 +170,16 @@ async def handle_voice_tool_call(
             error_code or "-",
         )
         await respond(call_id, name, response)
+
+    if name == "capture_photo":
+        if request_photo is None:
+            await finish(voice_tool_error(
+                "camera_unavailable",
+                "Photo capture is unavailable in this session.",
+            ))
+            return
+        await finish(await request_photo(call_id))
+        return
 
     if name == "submit_task":
         instruction = str(args.get("instruction", "")).strip()

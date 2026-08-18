@@ -546,6 +546,7 @@ async def voice(
         output_transcript_sequence = 0
         input_transcript_text = ""
         output_transcript_text = ""
+        pending_photo_captures: dict[str, asyncio.Future[dict]] = {}
 
         await websocket.send_json({"type": "ready"})
         voice_tool_count = sum(
@@ -609,6 +610,16 @@ async def voice(
                                 data=frame,
                                 mime_type=payload.get("mime_type", "image/jpeg"),
                             ))
+                        elif payload.get("type") == "photo_capture_result":
+                            call_id = str(payload.get("call_id", ""))
+                            pending = pending_photo_captures.pop(call_id, None)
+                            if pending and not pending.done():
+                                pending.set_result({
+                                    "status": payload.get("status", "failed"),
+                                    "path": payload.get("path"),
+                                    "mime_type": payload.get("mime_type"),
+                                    "error": payload.get("error"),
+                                })
                         elif payload.get("type") == "playback_drained":
                             playback_drained = True
                             await maybe_deliver_notification()
@@ -638,6 +649,16 @@ async def voice(
                 response=response,
             )])
 
+        async def request_photo_capture(call_id: str) -> dict:
+            future = asyncio.get_running_loop().create_future()
+            pending_photo_captures[call_id] = future
+            await websocket.send_json({"type": "capture_photo", "call_id": call_id})
+            try:
+                return await asyncio.wait_for(future, timeout=15)
+            except TimeoutError:
+                pending_photo_captures.pop(call_id, None)
+                return {"status": "failed", "error": "The camera did not return a photo."}
+
         async def send_events() -> None:
             nonlocal model_idle, playback_drained, notification_in_flight
             nonlocal in_flight_notifications, transcript_sequence
@@ -653,6 +674,7 @@ async def voice(
                                     call,
                                     session_id,
                                     send_function_response,
+                                    request_photo_capture,
                                 )
                         content = response.server_content
                         if not content:
