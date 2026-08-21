@@ -21,9 +21,9 @@ export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
   spokenLanguage: "en",
 };
 
-export function loadAccessibilitySettings(): AccessibilitySettings {
+export function loadAccessibilitySettings(accountId: string): AccessibilitySettings {
   try {
-    const stored = JSON.parse(localStorage.getItem("sherpa.accessibility") || "null") as Partial<AccessibilitySettings> | null;
+    const stored = JSON.parse(localStorage.getItem(`sherpa.accessibility:${accountId}`) || "null") as Partial<AccessibilitySettings> | null;
     if (!stored) return DEFAULT_ACCESSIBILITY_SETTINGS;
     return {
       spokenLanguage: stored.spokenLanguage ?? DEFAULT_ACCESSIBILITY_SETTINGS.spokenLanguage,
@@ -33,6 +33,6 @@ export function loadAccessibilitySettings(): AccessibilitySettings {
   }
 }
 
-export function saveAccessibilitySettings(settings: AccessibilitySettings) {
-  localStorage.setItem("sherpa.accessibility", JSON.stringify(settings));
+export function saveAccessibilitySettings(accountId: string, settings: AccessibilitySettings) {
+  localStorage.setItem(`sherpa.accessibility:${accountId}`, JSON.stringify(settings));
 }

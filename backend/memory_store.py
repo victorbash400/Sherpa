@@ -1,12 +1,12 @@
 import sqlite3
 import threading
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from backend.account_context import account_context
 
 
-MEMORY_DIRECTORY = Path.home() / "Library" / "Application Support" / "Sherpa"
-MEMORY_DATABASE = MEMORY_DIRECTORY / "memory.sqlite3"
 SETTING_LIMITS = {
     "custom_instructions": 1200,
     "chat_style": 240,
@@ -16,18 +16,21 @@ SETTING_LIMITS = {
 
 class MemoryStore:
     def __init__(self) -> None:
-        MEMORY_DIRECTORY.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
-        self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(MEMORY_DATABASE)
+        database = account_context.profile_directory() / "memory.sqlite3"
+        database.parent.mkdir(parents=True, exist_ok=True)
+        initialize = not database.exists()
+        connection = sqlite3.connect(database)
         connection.row_factory = sqlite3.Row
+        if initialize:
+            self._initialize(connection)
         return connection
 
-    def _initialize(self) -> None:
-        with self._lock, self._connect() as connection:
-            connection.executescript(
+    @staticmethod
+    def _initialize(connection: sqlite3.Connection) -> None:
+        connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS memory_settings (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -52,10 +55,10 @@ class MemoryStore:
                     UNIQUE(category, content)
                 );
                 """
-            )
+        )
 
     def snapshot(self) -> dict[str, Any]:
-        with self._lock, self._connect() as connection:
+        with self._lock, closing(self._connect()) as connection, connection:
             settings = dict(connection.execute(
                 "SELECT enabled, learn_from_tools, custom_instructions, chat_style, response_style "
                 "FROM memory_settings WHERE id = 1"
@@ -89,7 +92,7 @@ class MemoryStore:
             updates.append(f"{key} = ?")
             parameters.append(value)
         if updates:
-            with self._lock, self._connect() as connection:
+            with self._lock, closing(self._connect()) as connection, connection:
                 connection.execute(
                     f"UPDATE memory_settings SET {', '.join(updates)} WHERE id = 1",
                     parameters,
@@ -111,7 +114,7 @@ class MemoryStore:
         now = datetime.now(UTC).isoformat()
         import uuid
 
-        with self._lock, self._connect() as connection:
+        with self._lock, closing(self._connect()) as connection, connection:
             connection.execute(
                 """
                 INSERT INTO memories (
@@ -130,7 +133,7 @@ class MemoryStore:
             )
 
     def update_memory(self, memory_id: str, values: dict[str, Any]) -> dict[str, Any]:
-        with self._lock, self._connect() as connection:
+        with self._lock, closing(self._connect()) as connection, connection:
             row = connection.execute(
                 "SELECT editable FROM memories WHERE id = ?", (memory_id,)
             ).fetchone()
@@ -160,7 +163,7 @@ class MemoryStore:
         return self.snapshot()
 
     def delete_all(self) -> None:
-        with self._lock, self._connect() as connection:
+        with self._lock, closing(self._connect()) as connection, connection:
             connection.execute("DELETE FROM memories")
 
     def context_for(self, audience: str, limit: int = 8) -> str:

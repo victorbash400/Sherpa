@@ -14,7 +14,7 @@ from backend.logging_config import add_token_usage, configure_logging, log_text
 
 configure_logging()
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response, StreamingResponse
 import httpx
@@ -27,6 +27,8 @@ from google.genai import types
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from backend.permission_store import permission_store
+from backend.account_context import ActiveAccount, account_context
+from backend.accounts import account_store
 
 load_dotenv(Path(__file__).with_name(".env"))
 load_dotenv(Path(__file__).with_name(".env.cloud"))
@@ -137,9 +139,86 @@ class SkillRequest(BaseModel):
     instructions: str = Field(min_length=1, max_length=30_000)
 
 
+class AccountRequest(BaseModel):
+    email: str
+    password: str
+    name: str = ""
+
+
+class SessionRequest(BaseModel):
+    token: str
+
+
+def account_payload(account: ActiveAccount, token: str | None = None) -> dict[str, str]:
+    payload = {"id": account.id, "email": account.email, "name": account.name}
+    if token:
+        payload["token"] = token
+    return payload
+
+
+def activate_account(account: ActiveAccount) -> None:
+    account_context.activate(account)
+    permission_store.activate_account()
+    google_auth.activate_account()
+
+
+@app.middleware("http")
+async def require_account(request: Request, call_next):
+    if request.method != "OPTIONS" and not (
+        request.url.path == "/health" or request.url.path.startswith("/accounts")
+    ) and not account_context.current():
+        return Response(
+            content=json.dumps({"detail": "Sign in to Sherpa first."}),
+            status_code=401,
+            media_type="application/json",
+        )
+    return await call_next(request)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/accounts", status_code=201)
+def create_account(body: AccountRequest) -> dict[str, str]:
+    try:
+        account = account_store.create(body.email, body.password, body.name)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return account_payload(account)
+
+
+@app.post("/accounts/authenticate")
+def authenticate_account(body: AccountRequest) -> dict[str, str]:
+    result = account_store.authenticate(body.email, body.password)
+    if not result:
+        raise HTTPException(status_code=401, detail="Email or password is incorrect.")
+    account, token = result
+    activate_account(account)
+    return account_payload(account, token)
+
+
+@app.post("/accounts/session")
+def resume_account(body: SessionRequest) -> dict[str, str]:
+    account = account_store.resume(body.token)
+    if not account:
+        raise HTTPException(status_code=401, detail="This Sherpa session has expired.")
+    activate_account(account)
+    return account_payload(account)
+
+
+@app.post("/accounts/logout")
+async def logout_account(body: SessionRequest) -> dict[str, bool]:
+    account = account_context.current()
+    session_account = account_store.resume(body.token)
+    if not account or not session_account or session_account.id != account.id:
+        raise HTTPException(status_code=401, detail="This Sherpa session is not active.")
+    await sherpa_tasks.close_account(account.id)
+    account_store.logout(body.token)
+    account_context.clear()
+    google_auth.activate_account()
+    return {"signed_out": True}
 
 
 @app.get("/connections")
@@ -332,23 +411,24 @@ def tasks_for_chat(chat_id: str) -> dict[str, object]:
 async def chat(body: ChatRequest) -> StreamingResponse:
     if agent_engine_runtime.enabled():
         await agent_engine_runtime.ensure_session(
-            "local-user",
+            account_context.require().id,
             body.session_id,
             {
                 "session_id": body.session_id,
+                "account_id": account_context.require().id,
                 "installation_id": tool_relay_client.installation_id,
             },
         )
     else:
         session = await sessions.get_session(
             app_name="sherpa",
-            user_id="local-user",
+            user_id=account_context.require().id,
             session_id=body.session_id,
         )
         if not session:
             await sessions.create_session(
                 app_name="sherpa",
-                user_id="local-user",
+                user_id=account_context.require().id,
                 session_id=body.session_id,
             )
     return StreamingResponse(
@@ -406,7 +486,7 @@ async def stream_chat(body: ChatRequest):
         token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
         event_stream = (
             agent_engine_runtime.stream_events(
-                user_id="local-user",
+                user_id=account_context.require().id,
                 session_id=body.session_id,
                 content=message,
             )
@@ -414,7 +494,7 @@ async def stream_chat(body: ChatRequest):
             else run_with_google_tool_scope(
                 runner,
                 body.message,
-                user_id="local-user",
+                user_id=account_context.require().id,
                 session_id=body.session_id,
                 new_message=message,
                 run_config=config,
@@ -490,6 +570,10 @@ async def voice(
     language: str = "en",
 ) -> None:
     await websocket.accept()
+    if not account_context.current():
+        await websocket.send_json({"type": "error", "error": "Sign in to Sherpa first."})
+        await websocket.close(code=1008)
+        return
     logger.info("session.accepted session=%s voice=%s", session_id, voice)
     if not permission_store.enabled("google.models"):
         await websocket.send_json(

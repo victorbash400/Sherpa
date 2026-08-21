@@ -4,6 +4,7 @@ import logging
 
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
+from backend.account_context import account_context
 from google.genai import types
 
 from backend.agents.memory_agent import MemoryCandidates, memory_agent_app
@@ -47,7 +48,7 @@ class MemoryManager:
         session_id = f"memory:{source_type}:{source_id}:{id(asyncio.current_task())}"
         try:
             await self._sessions.create_session(
-                app_name="memory_agent", user_id="local-user", session_id=session_id
+                app_name="memory_agent", user_id=account_context.require().id, session_id=session_id
             )
             response = ""
             prompt = json.dumps({
@@ -55,7 +56,7 @@ class MemoryManager:
                 "assistant_replied": assistant_text[-3000:],
             })
             async for event in self._runner.run_async(
-                user_id="local-user",
+                user_id=account_context.require().id,
                 session_id=session_id,
                 new_message=types.Content(
                     role="user", parts=[types.Part.from_text(text=prompt)]

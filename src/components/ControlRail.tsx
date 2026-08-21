@@ -1,4 +1,5 @@
 import { Circle, Mic } from "lucide-react";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import { CursorDock } from "./CursorDock";
 import "./ControlRail.css";
 
@@ -43,15 +44,15 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           <span>Voices</span>
         </button>
         <button type="button" aria-label="Plugins" aria-pressed={activeView === "plugins"} title="Plugins" onClick={onOpenPlugins}>
-          <img alt="" aria-hidden="true" src="/plugin-svgrepo-com (2).svg" />
+          <img alt="" aria-hidden="true" src={publicAssetUrl("plugin-svgrepo-com (2).svg")} />
           <span>Plugins</span>
         </button>
         <button type="button" aria-label="Skills" aria-pressed={activeView === "skills"} title="Skills" onClick={onOpenSkills}>
-          <img alt="" aria-hidden="true" src="/scroll-svgrepo-com (2).svg" />
+          <img alt="" aria-hidden="true" src={publicAssetUrl("scroll-svgrepo-com (2).svg")} />
           <span>Skills</span>
         </button>
         <button type="button" aria-label="Google Workspace" aria-pressed={activeView === "workspace"} title="Google Workspace" onClick={onOpenWorkspace}>
-          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src="/work-svgrepo-com.svg" />
+          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src={publicAssetUrl("work-svgrepo-com.svg")} />
           <span>Workspace</span>
         </button>
         <button
@@ -61,7 +62,7 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           title="Tasks"
           onClick={onOpenTasks}
         >
-          <img alt="" aria-hidden="true" src="/task-square-svgrepo-com.svg" />
+          <img alt="" aria-hidden="true" src={publicAssetUrl("task-square-svgrepo-com.svg")} />
           <span>Tasks</span>
         </button>
         <button
@@ -71,7 +72,7 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           title="Memory"
           onClick={onOpenMemory}
         >
-          <img alt="" aria-hidden="true" src="/brain-fill-svgrepo-com.svg" />
+          <img alt="" aria-hidden="true" src={publicAssetUrl("brain-fill-svgrepo-com.svg")} />
           <span>Memory</span>
         </button>
         <button
@@ -81,11 +82,11 @@ export function ControlRail({ activeView, computerActive, expanded, onOpenAccess
           title="Accessibility"
           onClick={onOpenAccessibility}
         >
-          <img alt="" aria-hidden="true" src="/accessibility-svgrepo-com.svg" />
+          <img alt="" aria-hidden="true" src={publicAssetUrl("accessibility-svgrepo-com.svg")} />
           <span>Accessibility</span>
         </button>
         <button type="button" aria-label="Pets" aria-pressed={activeView === "pets"} title="Pets" onClick={onOpenPets}>
-          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src="/pet-svgrepo-com.svg" />
+          <img className="control-rail__icon--dark" alt="" aria-hidden="true" src={publicAssetUrl("pet-svgrepo-com.svg")} />
           <span>Pets</span>
         </button>
         {computerActive ? <CursorDock /> : null}

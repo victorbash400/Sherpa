@@ -2,10 +2,10 @@ import json
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+from backend.account_context import account_context
 
 
 SKILLS_ROOT = Path(__file__).with_name("skills")
-SKILL_OVERRIDES = Path.home() / "Library/Application Support/Sherpa/skills.json"
 FRONTMATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n(.*)\Z", re.DOTALL)
 
 
@@ -28,8 +28,13 @@ class SherpaSkill:
 
 
 class SkillStore:
-    def __init__(self, overrides_path: Path = SKILL_OVERRIDES) -> None:
+    def __init__(self, overrides_path: Path | None = None) -> None:
         self._overrides_path = overrides_path
+
+    def _path(self) -> Path:
+        if self._overrides_path:
+            return self._overrides_path
+        return account_context.profile_directory() / "skills.json"
 
     def all(self) -> list[SherpaSkill]:
         overrides = self._load_overrides()
@@ -62,13 +67,14 @@ class SkillStore:
             raise KeyError(skill_id)
         overrides = self._load_overrides()
         overrides[skill_id] = clean
-        self._overrides_path.parent.mkdir(parents=True, exist_ok=True)
-        self._overrides_path.write_text(json.dumps(overrides, indent=2) + "\n")
+        path = self._path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(overrides, indent=2) + "\n")
         return replace(existing, instructions=clean)
 
     def _load_overrides(self) -> dict[str, str]:
         try:
-            value = json.loads(self._overrides_path.read_text())
+            value = json.loads(self._path().read_text())
         except (OSError, json.JSONDecodeError):
             return {}
         if not isinstance(value, dict):

@@ -4,9 +4,10 @@ import subprocess
 import unicodedata
 from pathlib import Path
 from typing import Any
+from backend.account_context import account_context
 
 
-PERMISSION_FILE = Path.home() / "Library" / "Application Support" / "Sherpa" / "permissions.json"
+PERMISSION_FILE = Path.home() / "Library" / "Application Support" / "Sherpa" / "signed-out-permissions.json"
 PID_TARGET = re.compile(r"pid\s*:\s*(\d+)(?::.*)?", re.IGNORECASE)
 DEFAULT_PERMISSIONS = {
     "google.models": True,
@@ -42,8 +43,12 @@ class PermissionStore:
     def set(self, permission_id: str, enabled: bool) -> None:
         del enabled
         self._values[permission_id] = True
-        PERMISSION_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PERMISSION_FILE.write_text(json.dumps(self._values, indent=2) + "\n")
+        path = self._path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(self._values, indent=2) + "\n")
+
+    def activate_account(self) -> None:
+        self._values = self._load()
 
     def register_apps(self, apps: list[dict[str, Any]]) -> None:
         for app in apps:
@@ -61,12 +66,19 @@ class PermissionStore:
     def _load(self) -> dict[str, bool]:
         values = dict(DEFAULT_PERMISSIONS)
         try:
-            stored = json.loads(PERMISSION_FILE.read_text())
+            stored = json.loads(self._path().read_text())
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             return values
         if isinstance(stored, dict):
             values.update({key: value for key, value in stored.items() if isinstance(value, bool)})
         return values
+
+    @staticmethod
+    def _path() -> Path:
+        account = account_context.current()
+        if not account:
+            return PERMISSION_FILE
+        return account_context.profile_directory() / "permissions.json"
 
 
 permission_store = PermissionStore()

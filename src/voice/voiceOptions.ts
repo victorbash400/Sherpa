@@ -17,11 +17,11 @@ export const voiceOptions: VoiceOption[] = [
   { id: "Sulafat", name: "Sulafat", description: "Warm", hue: 338 },
 ];
 
-export function loadVoice(): VoiceOption {
-  const saved = window.localStorage.getItem("sherpa-voice");
+export function loadVoice(accountId: string): VoiceOption {
+  const saved = window.localStorage.getItem(`sherpa-voice:${accountId}`);
   return voiceOptions.find((voice) => voice.id === saved) ?? voiceOptions[0];
 }
 
-export function saveVoice(voice: VoiceOption) {
-  window.localStorage.setItem("sherpa-voice", voice.id);
+export function saveVoice(accountId: string, voice: VoiceOption) {
+  window.localStorage.setItem(`sherpa-voice:${accountId}`, voice.id);
 }

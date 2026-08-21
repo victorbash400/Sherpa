@@ -1,4 +1,5 @@
 import "./RefreshButton.css";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 
 export function RefreshButton() {
   return (
@@ -8,7 +9,7 @@ export function RefreshButton() {
       onClick={() => window.location.reload()}
       type="button"
     >
-      <img alt="" aria-hidden="true" src="/reload-ui-svgrepo-com.svg" />
+      <img alt="" aria-hidden="true" src={publicAssetUrl("reload-ui-svgrepo-com.svg")} />
     </button>
   );
 }

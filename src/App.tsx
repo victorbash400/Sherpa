@@ -35,12 +35,14 @@ import {
 } from "./accessibility/accessibilitySettings";
 import { loadVoice, saveVoice, type VoiceOption } from "./voice/voiceOptions";
 import "./App.css";
+import { AccountButton } from "./auth/AccountButton";
+import type { AuthenticatedSherpaAccount } from "./auth/authTypes";
 
-export function App() {
+export function App({ account, onSignedOut }: { account: AuthenticatedSherpaAccount; onSignedOut: () => void }) {
   const [view, setView] = useState<"voice" | "chat" | "voices" | "tasks" | "memory" | "plugins" | "skills" | "workspace" | "accessibility" | "pets">("voice");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedVoice, setSelectedVoice] = useState(loadVoice);
+  const [selectedVoice, setSelectedVoice] = useState(() => loadVoice(account.id));
   const [microphoneMuted, setMicrophoneMuted] = useState(false);
   const [speakerMuted, setSpeakerMuted] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
@@ -49,11 +51,11 @@ export function App() {
   const [volume, setVolume] = useState(70);
   const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [windowFocused, setWindowFocused] = useState(true);
-  const [accessibilitySettings, setAccessibilitySettings] = useState(loadAccessibilitySettings);
+  const [accessibilitySettings, setAccessibilitySettings] = useState(() => loadAccessibilitySettings(account.id));
   const automaticTaskViewRef = useRef(false);
   const hadActiveTasksRef = useRef(false);
   const petTaskStatusesRef = useRef(new Map<string, string>());
-  const chat = useSherpaChat();
+  const chat = useSherpaChat(account.id);
   const acceptCapturedPhoto = useCallback((photo: CapturedPhoto) => {
     setCapturedPhoto((current) => {
       if (current) URL.revokeObjectURL(current.previewUrl);
@@ -151,7 +153,7 @@ export function App() {
     voice.stop();
     voicePreview.stop();
     setSelectedVoice(nextVoice);
-    saveVoice(nextVoice);
+    saveVoice(account.id, nextVoice);
   };
 
   const startNewChat = () => {
@@ -166,7 +168,7 @@ export function App() {
       voice.stop();
     }
     setAccessibilitySettings(settings);
-    saveAccessibilitySettings(settings);
+    saveAccessibilitySettings(account.id, settings);
   };
 
   return (
@@ -275,6 +277,7 @@ export function App() {
       </div>
       <div hidden={view !== "workspace"}>
         <WorkspaceView
+          accountId={account.id}
           error={connections.error}
           section={connections.sections.find((section) => section.id === "workspace")}
           onError={(message) => connections.setError(message || undefined)}
@@ -294,6 +297,7 @@ export function App() {
         <PetsView active={view === "pets"} />
       </div>
       <ChatHistoryButton onClick={() => setHistoryOpen(true)} />
+      <AccountButton account={account} onSignedOut={() => { voice.stop(); chat.cancel(); onSignedOut(); }} />
       <RefreshButton />
       <ChatHistoryDrawer
         activeChatId={chat.activeChatId}

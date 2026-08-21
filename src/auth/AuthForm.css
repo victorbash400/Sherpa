@@ -1,0 +1,21 @@
+.auth-page { display: grid; min-height: 100vh; padding: 24px; background: #fbfbfa; place-items: center; -webkit-app-region: drag; }
+.auth-card { width: min(100%, 330px); padding: 30px 28px 26px; border: 1px solid #e9e9e7; border-radius: 18px; background: #fff; box-shadow: 0 12px 36px rgba(25,25,23,.06); }
+.auth-mark { display: grid; width: 46px; height: 46px; margin: 0 auto 20px; border: 1px solid #ebebe8; border-radius: 12px; background: #f7f7f5; place-items: center; }
+.auth-mark span { width: 18px; height: 18px; border: 2px solid #262624; border-radius: 50%; box-shadow: inset 0 0 0 4px #f7f7f5; background: #262624; }
+.auth-card h1 { margin: 0; color: #171717; font-size: 20px; font-weight: 600; letter-spacing: -.035em; text-align: center; }
+.auth-card > p:not(.auth-switch) { margin: 7px 0 23px; color: #8a8a86; font-size: 10px; text-align: center; }
+.auth-card form { display: grid; gap: 12px; }
+.auth-card label { display: grid; gap: 6px; color: #686868; font-size: 10px; font-weight: 550; }
+.auth-card input { width: 100%; height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 7px; outline: 0; background: #f4f4f2; color: #222; font: inherit; font-size: 12px; }
+.auth-card input:focus { border-color: #b8b8b3; background: #fff; }
+.auth-password { position: relative; display: block; }
+.auth-password input { padding-right: 34px; }
+.auth-password button { position: absolute; top: 50%; right: 9px; display: grid; width: 20px; height: 20px; padding: 0; border: 0; background: transparent; color: #858581; cursor: pointer; transform: translateY(-50%); place-items: center; }
+.auth-password svg { width: 14px; height: 14px; }
+.auth-card form > button { height: 38px; margin-top: 3px; border: 1px solid #171717; border-radius: 8px; background: #171717; color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.auth-card form > button:disabled { cursor: default; opacity: .5; }
+.auth-error { margin: 0; color: #9d2828; font-size: 10px; line-height: 1.4; }
+.auth-switch { display: flex; margin: 15px 0 0; justify-content: center; gap: 5px; color: #969692; font-size: 10px; }
+.auth-switch button { padding: 0; border: 0; background: transparent; color: #444440; font: inherit; font-size: 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.auth-demo { display: block; margin: 10px auto 0; padding: 0; border: 0; background: transparent; color: #777; font: inherit; font-size: 10px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.auth-card form, .auth-card button { -webkit-app-region: no-drag; }

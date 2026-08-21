@@ -28,6 +28,7 @@ from backend import agent_engine_runtime
 from backend.tool_registry import namespaces_for_skills
 from backend.tool_relay_client import tool_relay_client
 from backend.runtime_paths import peekaboo_binary
+from backend.account_context import account_context
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -49,6 +50,17 @@ BROWSER_BOX = re.compile(
     r'(?P<y>-?\d+(?:\.\d+)?),(?P<width>\d+(?:\.\d+)?),'
     r'(?P<height>\d+(?:\.\d+)?)\]'
 )
+AGENT_ENGINE_SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def build_worker_session_id(chat_id: str, task_id: str, restart_id: str | None = None) -> str:
+    session_id = "-".join(
+        part for part in (chat_id, task_id, "restart" if restart_id else "", restart_id or "")
+        if part
+    )
+    if not AGENT_ENGINE_SESSION_ID.fullmatch(session_id):
+        raise ValueError(f"Invalid Agent Engine worker session ID: {session_id}")
+    return session_id
 
 
 class TaskSteeringBoundary(Exception):
@@ -66,6 +78,7 @@ class SherpaTask:
     id: str
     chat_id: str
     instruction: str
+    account_id: str = "signed-out"
     request: str = ""
     kind: str = "worker"
     parent_id: str | None = None
@@ -100,6 +113,7 @@ class SherpaSubmission:
     id: str
     chat_id: str
     instruction: str
+    account_id: str = "signed-out"
     status: str = "received"
     decision: str = "pending"
     message: str = "Sherpa received the request."
@@ -117,6 +131,11 @@ class SherpaTaskManager:
         self._event_queues: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
         self._execution_lease = asyncio.Lock()
         self._admission_lease = asyncio.Lock()
+
+    @staticmethod
+    def _account_id() -> str:
+        account = account_context.current()
+        return account.id if account else "signed-out"
 
     def subscribe(self, chat_id: str) -> asyncio.Queue[dict[str, Any]]:
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -144,7 +163,8 @@ class SherpaTaskManager:
         clean_instruction = " ".join(instruction.split()).strip()
         existing_submission = next((
             submission for submission in reversed(self._submissions.values())
-            if submission.chat_id == chat_id
+            if submission.account_id == self._account_id()
+            and submission.chat_id == chat_id
             and submission.status == "received"
             and submission.instruction.casefold() == clean_instruction.casefold()
         ), None)
@@ -155,6 +175,7 @@ class SherpaTaskManager:
             id=f"submission_{crypto_id()}",
             chat_id=chat_id,
             instruction=clean_instruction,
+            account_id=self._account_id(),
         )
         self._submissions[submission.id] = submission
         submission.worker = asyncio.create_task(
@@ -264,6 +285,7 @@ class SherpaTaskManager:
             id=f"task_{crypto_id()}",
             chat_id=chat_id,
             instruction=" ".join(title.split()).strip(),
+            account_id=self._account_id(),
             request=" ".join(instruction.split()).strip(),
             skill_ids=list(skill_ids or []),
             depends_on=list(depends_on or []),
@@ -325,15 +347,17 @@ class SherpaTaskManager:
                 raise RuntimeError("The task planner returned an incomplete task update.")
 
     def get(self, task_id: str) -> SherpaTask | None:
-        return self._tasks.get(task_id)
+        task = self._tasks.get(task_id)
+        return task if task and task.account_id == self._account_id() else None
 
     def get_submission(self, submission_id: str) -> SherpaSubmission | None:
-        return self._submissions.get(submission_id)
+        submission = self._submissions.get(submission_id)
+        return submission if submission and submission.account_id == self._account_id() else None
 
     def list_for_chat(self, chat_id: str) -> list[SherpaTask]:
         return [
             task for task in self._tasks.values()
-            if task.chat_id == chat_id
+            if task.account_id == self._account_id() and task.chat_id == chat_id
         ]
 
     def list_active_for_chat(self, chat_id: str) -> list[SherpaTask]:
@@ -347,7 +371,8 @@ class SherpaTaskManager:
         return [
             submission
             for submission in self._submissions.values()
-            if submission.chat_id == chat_id and submission.status == "received"
+            if submission.account_id == self._account_id()
+            and submission.chat_id == chat_id and submission.status == "received"
         ]
 
     def requires_handoff(self, task: SherpaTask) -> bool:
@@ -570,6 +595,20 @@ class SherpaTaskManager:
         if workers:
             await asyncio.gather(*workers, return_exceptions=True)
 
+    async def close_account(self, account_id: str) -> None:
+        workers = [
+            worker
+            for worker in (
+                *(task.worker for task in self._tasks.values() if task.account_id == account_id),
+                *(submission.worker for submission in self._submissions.values() if submission.account_id == account_id),
+            )
+            if worker and not worker.done()
+        ]
+        for worker in workers:
+            worker.cancel()
+        if workers:
+            await asyncio.gather(*workers, return_exceptions=True)
+
     async def _plan(self, chat_id: str, instruction: str) -> TaskPlan:
         started_at = time.perf_counter()
         planner_session_id = f"{chat_id}:planner:{crypto_id()}"
@@ -584,11 +623,12 @@ class SherpaTaskManager:
                 "skill_ids": task.skill_ids,
             }
             for task in self._tasks.values()
-            if task.chat_id == chat_id and task.status in ACTIVE_TASK_STATUSES
+            if task.account_id == self._account_id()
+            and task.chat_id == chat_id and task.status in ACTIVE_TASK_STATUSES
         ]
         await self._sessions.create_session(
             app_name="task_planner",
-            user_id="local-user",
+            user_id=account_context.require().id,
             session_id=planner_session_id,
         )
         response_text = ""
@@ -599,7 +639,7 @@ class SherpaTaskManager:
             "skill_catalog": skill_store.catalog(),
         })
         async for event in self._planner_runner.run_async(
-            user_id="local-user",
+            user_id=account_context.require().id,
             session_id=planner_session_id,
             new_message=types.Content(
                 role="user",
@@ -750,7 +790,10 @@ class SherpaTaskManager:
         resume: bool = False,
         worker_session_id: str | None = None,
     ) -> None:
-        worker_session_id = worker_session_id or f"{task.chat_id}:{task.id}"
+        worker_session_id = worker_session_id or build_worker_session_id(
+            task.chat_id,
+            task.id,
+        )
         try:
             task.phase = "starting"
             task.current_step = "Starting work"
@@ -758,7 +801,7 @@ class SherpaTaskManager:
             if not resume and not agent_engine_runtime.enabled():
                 await self._sessions.create_session(
                     app_name="sherpa",
-                    user_id="local-user",
+                    user_id=account_context.require().id,
                     session_id=worker_session_id,
                 )
             memory_context = memory_store.context_for("sherpa") if not resume else ""
@@ -803,10 +846,11 @@ class SherpaTaskManager:
 
             if agent_engine_runtime.enabled() and not resume:
                 await agent_engine_runtime.ensure_session(
-                    "local-user",
+                    account_context.require().id,
                     worker_session_id,
                     {
                         "session_id": worker_session_id,
+                        "account_id": account_context.require().id,
                         "installation_id": tool_relay_client.installation_id,
                         "loaded_tool_ids": namespaces_for_skills(task.skill_ids),
                     },
@@ -823,7 +867,7 @@ class SherpaTaskManager:
 
             event_stream = (
                 agent_engine_runtime.stream_events(
-                    user_id="local-user",
+                    user_id=account_context.require().id,
                     session_id=worker_session_id,
                     content=message,
                 )
@@ -831,7 +875,7 @@ class SherpaTaskManager:
                 else run_with_google_tool_scope(
                     worker_runner,
                     instruction,
-                    user_id="local-user",
+                    user_id=account_context.require().id,
                     session_id=worker_session_id,
                     new_message=message,
                     run_config=RunConfig(streaming_mode=StreamingMode.SSE),
@@ -1154,8 +1198,10 @@ class SherpaTaskManager:
                     correction,
                 )),
                 resume=False,
-                worker_session_id=(
-                    f"{task.chat_id}:{task.id}:restart:{crypto_id()}"
+                worker_session_id=build_worker_session_id(
+                    task.chat_id,
+                    task.id,
+                    crypto_id(),
                 ),
             )
         except TaskQuestionBoundary:

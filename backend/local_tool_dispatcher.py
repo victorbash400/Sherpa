@@ -17,6 +17,7 @@ from backend.tools.computer_use.callbacks import (
 )
 from backend.tools.local_artifacts import inspect_local_artifacts
 from backend.tools.memory import save_memory
+from backend.account_context import account_context
 
 
 class RelayState(dict[str, Any]):
@@ -105,6 +106,13 @@ class LocalToolDispatcher:
         function_call_id: str,
         session_id: str,
     ) -> Any:
+        account = account_context.current()
+        request_account_id = str(state.get("account_id") or "")
+        if not account or request_account_id != account.id:
+            return {
+                "status": "failed",
+                "error": "This tool request does not belong to the signed-in Sherpa account.",
+            }
         tool = await self.tool(name)
         if not tool:
             return {"status": "failed", "error": f"Local tool is unavailable: {name}"}

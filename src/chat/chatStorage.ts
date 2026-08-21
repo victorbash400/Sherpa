@@ -1,6 +1,8 @@
 import type { SherpaChat } from "./chatTypes";
 
-const storageKey = "sherpa-chats";
+function storageKey(accountId: string) {
+  return `sherpa-chats:${accountId}`;
+}
 
 export function createSherpaChat(): SherpaChat {
   const now = Date.now();
@@ -15,8 +17,8 @@ export function createSherpaChat(): SherpaChat {
   };
 }
 
-export function loadSherpaChats(): SherpaChat[] {
-  const stored = window.localStorage.getItem(storageKey);
+export function loadSherpaChats(accountId: string): SherpaChat[] {
+  const stored = window.localStorage.getItem(storageKey(accountId));
   if (!stored) return [];
   const parsed = JSON.parse(stored) as unknown;
   if (!Array.isArray(parsed)) throw new Error("The saved Sherpa chats are invalid.");
@@ -37,6 +39,6 @@ export function loadSherpaChats(): SherpaChat[] {
     .sort((left, right) => right.updatedAt - left.updatedAt);
 }
 
-export function saveSherpaChats(chats: SherpaChat[]) {
-  window.localStorage.setItem(storageKey, JSON.stringify(chats));
+export function saveSherpaChats(accountId: string, chats: SherpaChat[]) {
+  window.localStorage.setItem(storageKey(accountId), JSON.stringify(chats));
 }

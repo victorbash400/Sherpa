@@ -5,9 +5,9 @@ import { streamChat } from "../chat/chatStream";
 import { generateChatTitle } from "../chat/chatTitle";
 import type { ChatMessage, SherpaChat, VoiceTranscriptEntry } from "../chat/chatTypes";
 
-export function useSherpaChat() {
+export function useSherpaChat(accountId: string) {
   const [chats, setChats] = useState<SherpaChat[]>(() => {
-    const stored = loadSherpaChats();
+    const stored = loadSherpaChats(accountId);
     return stored.length ? stored : [createSherpaChat()];
   });
   const [activeChatId, setActiveChatId] = useState(() => chats[0].id);
@@ -19,7 +19,7 @@ export function useSherpaChat() {
   chatsRef.current = chats;
   const activeChat = chats.find((chat) => chat.id === activeChatId) ?? chats[0];
 
-  useEffect(() => saveSherpaChats(chats), [chats]);
+  useEffect(() => saveSherpaChats(accountId, chats), [accountId, chats]);
   useEffect(() => () => controllerRef.current?.abort(), []);
 
   const nameChat = useCallback(async (chatId: string, userText: string, assistantText: string) => {
@@ -105,6 +105,12 @@ export function useSherpaChat() {
     setError(undefined);
   }, []);
 
+  const cancel = useCallback(() => {
+    controllerRef.current?.abort();
+    controllerRef.current = undefined;
+    setStreaming(false);
+  }, []);
+
   const selectChat = useCallback((id: string) => {
     if (streaming) return;
     setActiveChatId(id);
@@ -161,5 +167,5 @@ export function useSherpaChat() {
     }
   }, [activeChat, nameChat, streaming, updateMessages]);
 
-  return { activeChat, activeChatId, chats, completeVoiceTurn, deleteChat, error, newChat, selectChat, send, streaming, updateTranscript };
+  return { activeChat, activeChatId, cancel, chats, completeVoiceTurn, deleteChat, error, newChat, selectChat, send, streaming, updateTranscript };
 }

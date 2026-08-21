@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import type { PhotoCaptureResult } from "../hooks/useVoiceSession";
 import type { CapturedPhoto } from "./capturedPhotoTypes";
 import "./CameraOrbPreview.css";
@@ -84,7 +85,7 @@ export function CameraOrbPreview({ active, captureRequest, onCaptured, onCapture
   }, [active, captureRequest, onCaptured, onCaptureResult, ready]);
 
   useEffect(() => {
-    const shutter = new Audio("/irinairinafomicheva-camera-13695.mp3");
+    const shutter = new Audio(publicAssetUrl("irinairinafomicheva-camera-13695.mp3"));
     shutter.preload = "auto";
     shutter.volume = 0.72;
     shutter.load();

@@ -9,7 +9,7 @@ os.environ.setdefault("SHERPA_INTERNAL_SECRET", "test-secret")
 
 from fastapi import HTTPException
 
-from cloud.relay.main import Relay, authorized_desktop, desktop_token
+from cloud.relay.main import Relay, authorized_desktop, desktop_token, require_account_binding
 
 
 class FakeSocket:
@@ -24,6 +24,12 @@ class FakeSocket:
 
 
 class ToolRelayTests(unittest.IsolatedAsyncioTestCase):
+    async def test_agent_session_requires_matching_account_state(self) -> None:
+        require_account_binding("account-a", {"account_id": "account-a"})
+        with self.assertRaises(HTTPException) as raised:
+            require_account_binding("account-a", {"account_id": "account-b"})
+        self.assertEqual(raised.exception.status_code, 400)
+
     async def test_desktop_token_is_bound_to_the_installation(self) -> None:
         token = desktop_token("desktop-a")
         self.assertTrue(authorized_desktop("desktop-a", token))

@@ -1,8 +1,11 @@
 import asyncio
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from backend.agents.task_planner import TaskOperation, TaskPlan
+from backend.account_context import ActiveAccount, account_context
 from backend.sherpa_tasks import (
     SherpaSubmission,
     SherpaTask,
@@ -14,6 +17,7 @@ from backend.sherpa_tasks import (
     preview_target_for,
     tool_result_dispatched_mutation,
     tool_result_self_verifies,
+    build_worker_session_id,
 )
 
 
@@ -23,6 +27,49 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self) -> None:
         await self.manager.close()
+
+    def test_worker_session_ids_are_agent_engine_safe(self) -> None:
+        session_id = build_worker_session_id(
+            "15073c48-541c-4af1-8c6c-2e74e67a8017",
+            "task_123",
+        )
+        restart_id = build_worker_session_id(
+            "15073c48-541c-4af1-8c6c-2e74e67a8017",
+            "task_123",
+            "restart_456",
+        )
+
+        self.assertNotIn(":", session_id)
+        self.assertNotIn(":", restart_id)
+        self.assertRegex(session_id, r"^[A-Za-z0-9_-]+$")
+        self.assertRegex(restart_id, r"^[A-Za-z0-9_-]+$")
+
+    def test_tasks_are_isolated_by_active_account(self) -> None:
+        first = ActiveAccount(id="first", email="first@example.com", name="First")
+        second = ActiveAccount(id="second", email="second@example.com", name="Second")
+        self.manager._tasks["first-task"] = SherpaTask(
+            id="first-task",
+            account_id=first.id,
+            chat_id="shared-chat",
+            instruction="First task",
+        )
+        self.manager._tasks["second-task"] = SherpaTask(
+            id="second-task",
+            account_id=second.id,
+            chat_id="shared-chat",
+            instruction="Second task",
+        )
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "backend.account_context.APPLICATION_DIRECTORY",
+            Path(directory),
+        ):
+            try:
+                account_context.activate(first)
+                self.assertEqual([task.id for task in self.manager.list_for_chat("shared-chat")], ["first-task"])
+                account_context.activate(second)
+                self.assertEqual([task.id for task in self.manager.list_for_chat("shared-chat")], ["second-task"])
+            finally:
+                account_context.clear()
 
     async def test_second_task_waits_for_first(self) -> None:
         first_started = asyncio.Event()

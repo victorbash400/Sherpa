@@ -1,4 +1,5 @@
 import { AppWindow, Cloud, MousePointer2, PanelsTopLeft } from "lucide-react";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import type { PermissionSection } from "../connections/connectionTypes";
 import { GoogleConnectionSwitch } from "./GoogleConnectionSwitch";
 
@@ -42,13 +43,13 @@ export function PermissionSectionList({ sections, onConnectionError, onPermissio
 
 function PermissionIcon({ permissionId }: { permissionId: string }) {
   if (permissionId === "connection.google_workspace" || permissionId.startsWith("workspace.")) {
-    return <img src="/work-svgrepo-com.svg" alt="" aria-hidden="true" />;
+    return <img src={publicAssetUrl("work-svgrepo-com.svg")} alt="" aria-hidden="true" />;
   }
   if (permissionId === "connection.google_cloud" || permissionId.startsWith("cloud.")) return <Cloud aria-hidden="true" />;
-  if (permissionId === "browser.read") return <img src="/browser-svgrepo-com.svg" alt="" aria-hidden="true" />;
-  if (permissionId === "browser.interact") return <img src="/chrome-svgrepo-com (1).svg" alt="" aria-hidden="true" />;
+  if (permissionId === "browser.read") return <img src={publicAssetUrl("browser-svgrepo-com.svg")} alt="" aria-hidden="true" />;
+  if (permissionId === "browser.interact") return <img src={publicAssetUrl("chrome-svgrepo-com (1).svg")} alt="" aria-hidden="true" />;
   if (permissionId === "browser.tabs") return <PanelsTopLeft aria-hidden="true" />;
-  if (permissionId === "mac.screen") return <img src="/computer-svgrepo-com.svg" alt="" aria-hidden="true" />;
+  if (permissionId === "mac.screen") return <img src={publicAssetUrl("computer-svgrepo-com.svg")} alt="" aria-hidden="true" />;
   if (permissionId === "mac.control") return <MousePointer2 aria-hidden="true" />;
   if (permissionId === "google.models") return <Cloud aria-hidden="true" />;
   return <AppWindow aria-hidden="true" />;

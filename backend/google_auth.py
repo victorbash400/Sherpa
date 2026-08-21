@@ -15,6 +15,7 @@ from backend.credential_store import (
     load_keychain_secret,
     save_keychain_secret,
 )
+from backend.account_context import account_context
 
 
 GoogleConnection = Literal["workspace", "cloud"]
@@ -22,7 +23,7 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 GOOGLE_REDIRECT_URI = "http://127.0.0.1:8000/oauth/google/callback"
-KEYCHAIN_SERVICES = {
+KEYCHAIN_SERVICE_NAMES = {
     "workspace": "Sherpa Google Workspace",
     "cloud": "Sherpa Google Cloud",
 }
@@ -64,13 +65,20 @@ class GoogleAuthManager:
         self._states: dict[str, dict[str, str]] = {}
         self._records = {
             connection: self._load(connection)
-            for connection in KEYCHAIN_SERVICES
+            for connection in KEYCHAIN_SERVICE_NAMES
         }
         self._lock = asyncio.Lock()
 
     @property
     def configured(self) -> bool:
         return bool(self.client_id and self.client_secret)
+
+    def activate_account(self) -> None:
+        self._records = {
+            connection: self._load(connection)
+            for connection in KEYCHAIN_SERVICE_NAMES
+        }
+        self._states.clear()
 
     @property
     def client_id(self) -> str | None:
@@ -166,7 +174,7 @@ class GoogleAuthManager:
             "scope": tokens.get("scope", ""),
         }
         self._records[connection] = record
-        save_keychain_secret(KEYCHAIN_SERVICES[connection], json.dumps(record))
+        save_keychain_secret(self._keychain_service(connection), json.dumps(record))
         return connection  # type: ignore[return-value]
 
     async def access_token(self, connection: GoogleConnection) -> str | None:
@@ -198,15 +206,17 @@ class GoogleAuthManager:
             record["expires_at"] = (
                 datetime.now(UTC) + timedelta(seconds=int(tokens.get("expires_in", 3600)))
             ).isoformat()
-            save_keychain_secret(KEYCHAIN_SERVICES[connection], json.dumps(record))
+            save_keychain_secret(self._keychain_service(connection), json.dumps(record))
             return record["access_token"]
 
     def disconnect(self, connection: GoogleConnection) -> None:
         self._records[connection] = None
-        delete_keychain_secret(KEYCHAIN_SERVICES[connection])
+        delete_keychain_secret(self._keychain_service(connection))
 
     def _load(self, connection: GoogleConnection) -> dict[str, Any] | None:
-        value = load_keychain_secret(KEYCHAIN_SERVICES[connection])
+        if not account_context.current():
+            return None
+        value = load_keychain_secret(self._keychain_service(connection))
         if not value:
             return None
         try:
@@ -214,6 +224,10 @@ class GoogleAuthManager:
         except json.JSONDecodeError:
             return None
         return record if isinstance(record, dict) else None
+
+    @staticmethod
+    def _keychain_service(connection: GoogleConnection) -> str:
+        return f"{KEYCHAIN_SERVICE_NAMES[connection]} {account_context.require().id}"
 
 
 google_auth = GoogleAuthManager()

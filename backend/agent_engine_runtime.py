@@ -113,7 +113,7 @@ async def stream_events(
                     "installation_id": tool_relay_client.installation_id,
                     "user_id": user_id,
                     "session_id": session_id,
-                    "state": {},
+                    "state": {"account_id": user_id},
                     "message": content.model_dump(mode="json", exclude_none=True),
                 },
             ) as response:

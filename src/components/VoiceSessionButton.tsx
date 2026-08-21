@@ -1,4 +1,5 @@
 import type { VoiceStatus } from "../hooks/useVoiceSession";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import "./VoiceSessionButton.css";
 
 interface VoiceSessionButtonProps {
@@ -21,7 +22,7 @@ export function VoiceSessionButton({ hue, onStart, onStop, status }: VoiceSessio
       type="button"
     >
       {active ? (
-        <img alt="" aria-hidden="true" src="/stop-svgrepo-com.svg" />
+        <img alt="" aria-hidden="true" src={publicAssetUrl("stop-svgrepo-com.svg")} />
       ) : (
         <span
           aria-hidden="true"

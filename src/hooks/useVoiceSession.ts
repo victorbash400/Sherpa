@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import type { VoiceTranscriptEntry } from "../chat/chatTypes";
 import type { PreviewCursor, PreviewTarget } from "../types/sherpaOverlay";
 
@@ -263,7 +264,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     setStatus("connecting");
     setError(undefined);
     try {
-      const readySound = new Audio("/47313572-ui-sound-270349.mp3");
+      const readySound = new Audio(publicAssetUrl("47313572-ui-sound-270349.mp3"));
       readySound.preload = "auto";
       readySound.volume = speakerMuted ? 0 : volume / 100;
       readySoundRef.current = readySound;
@@ -275,7 +276,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       gain.gain.value = speakerMuted ? 0 : volume / 100;
       gain.connect(context.destination);
       gainRef.current = gain;
-      await context.audioWorklet.addModule("/audio-output-processor.js");
+      await context.audioWorklet.addModule(publicAssetUrl("audio-output-processor.js"));
       const outputNode = new AudioWorkletNode(context, "audio-output-processor");
       outputNode.connect(gain);
       outputNode.port.onmessage = ({ data }: MessageEvent<{ type: string }>) => {
@@ -331,7 +332,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
         audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
-      await context.audioWorklet.addModule("/audio-input-processor.js");
+      await context.audioWorklet.addModule(publicAssetUrl("audio-input-processor.js"));
 
       const source = context.createMediaStreamSource(stream);
       const inputNode = new AudioWorkletNode(context, "audio-input-processor");

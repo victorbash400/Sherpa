@@ -1,0 +1,12 @@
+.account-button { position: absolute; top: 5px; right: 66px; z-index: 35; -webkit-app-region: no-drag; }
+.account-button summary { display: grid; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: #72726e; cursor: pointer; list-style: none; place-items: center; }
+.account-button summary::-webkit-details-marker { display: none; }
+.account-button summary:hover, .account-button[open] summary { background: #f1f1ee; color: #222; }
+.account-button summary svg { width: 15px; height: 15px; }
+.account-button section { position: absolute; top: calc(100% + 8px); right: 0; width: 190px; padding: 7px; border: 1px solid #e5e5e1; border-radius: 10px; background: #fff; box-shadow: 0 12px 32px rgba(24,24,22,.1); }
+.account-button p { display: grid; margin: 0; padding: 7px 8px 9px; gap: 2px; }
+.account-button p span, .account-button p small { overflow: hidden; color: #92928d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.account-button p strong { overflow: hidden; color: #30302d; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.account-button section > button { display: flex; width: 100%; height: 31px; padding: 0 8px; align-items: center; gap: 7px; border: 0; border-radius: 7px; background: transparent; color: #666662; font: inherit; font-size: 10px; cursor: pointer; }
+.account-button section > button:hover { background: #f4f4f1; color: #1d1d1b; }
+.account-button section > button svg { width: 13px; height: 13px; }

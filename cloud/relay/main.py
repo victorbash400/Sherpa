@@ -134,6 +134,11 @@ def require_desktop(installation_id: str, authorization: str | None) -> None:
         raise HTTPException(status_code=401, detail="Desktop authentication failed")
 
 
+def require_account_binding(user_id: str, state: dict[str, Any]) -> None:
+    if not user_id or state.get("account_id") != user_id:
+        raise HTTPException(status_code=400, detail="Agent session account binding is invalid")
+
+
 def agent_engine_url(method: str) -> str:
     if not AGENT_ENGINE_RESOURCE:
         raise HTTPException(status_code=503, detail="Agent Engine is not configured")
@@ -175,6 +180,7 @@ async def desktop_agent_session(
     authorization: Annotated[str | None, Header()] = None,
 ) -> Any:
     require_desktop(body.installation_id, authorization)
+    require_account_binding(body.user_id, body.state)
     try:
         return await agent_query("async_get_session", {
             "user_id": body.user_id,
@@ -196,6 +202,7 @@ async def desktop_agent_stream(
     authorization: Annotated[str | None, Header()] = None,
 ) -> StreamingResponse:
     require_desktop(body.installation_id, authorization)
+    require_account_binding(body.user_id, body.state)
 
     async def events():
         async with httpx.AsyncClient(timeout=httpx.Timeout(3600, connect=30)) as client:

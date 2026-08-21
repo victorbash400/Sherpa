@@ -6,21 +6,22 @@ import "./PluginsView.css";
 import "./WorkspaceView.css";
 
 interface WorkspaceViewProps {
+  accountId: string;
   error?: string;
   section?: PermissionSection;
   onError: (message: string) => void;
   onPermissionChange: (permissionId: string, enabled: boolean) => void;
 }
 
-export function WorkspaceView({ error, section, onError, onPermissionChange }: WorkspaceViewProps) {
+export function WorkspaceView({ accountId, error, section, onError, onPermissionChange }: WorkspaceViewProps) {
   const account = section?.permissions.find((permission) => permission.connection === "google_workspace");
   const connected = account?.enabled ?? false;
   const [showEmail, setShowEmail] = useState(
-    () => window.localStorage.getItem("sherpa-workspace-show-email") !== "false",
+    () => window.localStorage.getItem(`sherpa-workspace-show-email:${accountId}`) !== "false",
   );
 
   const changeEmailVisibility = (visible: boolean) => {
-    window.localStorage.setItem("sherpa-workspace-show-email", String(visible));
+    window.localStorage.setItem(`sherpa-workspace-show-email:${accountId}`, String(visible));
     setShowEmail(visible);
   };
 

@@ -88,7 +88,7 @@ function createWindow() {
     stopPreviewProcess();
     closePetWindow();
     mainWindow = undefined;
-    if (process.platform !== "darwin") app.quit();
+    app.quit();
   });
   window.webContents.on("render-process-gone", stopPreviewProcess);
   window.webContents.on("will-navigate", stopPreviewProcess);
@@ -674,9 +674,7 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   stopPreviewProcess();
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on("before-quit", stopPreviewProcess);

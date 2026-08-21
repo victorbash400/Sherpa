@@ -1,4 +1,5 @@
 import "./OverlayObservationIcon.css";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 
 interface OverlayObservationIconProps {
   action?: string;
@@ -10,7 +11,7 @@ export function OverlayObservationIcon({ action }: OverlayObservationIconProps) 
   return (
     <img
       className="overlay-observation-icon"
-      src="/reading-glasses-specs-vision-svgrepo-com.svg"
+      src={publicAssetUrl("reading-glasses-specs-vision-svgrepo-com.svg")}
       alt=""
       aria-hidden="true"
     />

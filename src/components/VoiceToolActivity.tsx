@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import type { VoiceContextUsage, VoiceToolActivity as Activity } from "../hooks/useVoiceSession";
 import "./VoiceToolActivity.css";
 
@@ -23,7 +24,7 @@ export function VoiceToolActivity({ activities, context }: {
       <span className="voice-activity-copy">
         {context.compacting ? (
           <strong className="voice-activity-label" data-status="running">
-            <img src="/compress-svgrepo-com%20(1).svg" alt="" />
+            <img src={publicAssetUrl("compress-svgrepo-com (1).svg")} alt="" />
             Compacting
           </strong>
         ) : activity ? (
