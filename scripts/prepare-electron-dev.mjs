@@ -5,6 +5,13 @@ import path from "node:path";
 
 const require = createRequire(import.meta.url);
 const electronRoot = path.dirname(require.resolve("electron"));
+const electronPlist = path.join(electronRoot, "dist", "Electron.app", "Contents", "Info.plist");
+const sherpaPlist = path.join(electronRoot, "dist", "Sherpa.app", "Contents", "Info.plist");
+
+if (!existsSync(electronPlist) && !existsSync(sherpaPlist)) {
+  execFileSync(process.execPath, [path.join(electronRoot, "install.js")], { stdio: "inherit" });
+}
+
 const electronBundle = path.join(electronRoot, "dist", "Electron.app");
 const sherpaBundle = path.join(electronRoot, "dist", "Sherpa.app");
 let appBundle = existsSync(sherpaBundle) ? sherpaBundle : electronBundle;
@@ -13,7 +20,14 @@ const plistBuddy = "/usr/libexec/PlistBuddy";
 let changed = false;
 
 function read(key) {
-  return execFileSync(plistBuddy, ["-c", `Print :${key}`, plist], { encoding: "utf8" }).trim();
+  try {
+    return execFileSync(plistBuddy, ["-c", `Print :${key}`, plist], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
 }
 
 function set(key, value) {
