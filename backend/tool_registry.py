@@ -1,4 +1,5 @@
-import re
+import logging
+import time
 from dataclasses import dataclass
 
 from google.adk.agents.readonly_context import ReadonlyContext
@@ -12,6 +13,7 @@ from backend.tools.google_tools import create_google_cloud_toolsets, create_work
 
 
 LOADED_TOOLS_STATE = "loaded_tool_ids"
+logger = logging.getLogger("sherpa.tool_registry")
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,11 @@ class ToolCapability:
 
 
 CAPABILITIES = (
+    ToolCapability(
+        "computer",
+        "Operate macOS applications, windows, dialogs, menus, and controls.",
+        ("macos", "application", "window", "dialog", "menu", "computer"),
+    ),
     ToolCapability(
         "browser",
         "Navigate and operate the connected Chrome browser.",
@@ -89,24 +96,22 @@ CAPABILITIES = (
     ),
 )
 
-COMPUTER_CAPABILITIES = (
-    ToolCapability("computer.app", "List, launch, focus, hide, or quit macOS applications.", ("app", "application", "launch", "open", "focus")),
-    ToolCapability("computer.inspect_ui", "Inspect controls and text in a specific application window.", ("inspect", "observe", "find", "control", "accessibility", "ui")),
-    ToolCapability("computer.surfaces", "List applications, windows, dialogs, and sheets to select an exact target.", ("surface", "window", "dialog", "sheet", "target", "list")),
-    ToolCapability("computer.window", "List, focus, move, resize, minimize, maximize, or close windows.", ("window", "focus", "move", "resize", "minimize", "maximize", "close")),
-    ToolCapability("computer.dialog", "Select a file or submit text through a native macOS dialog.", ("dialog", "file", "attach", "upload", "picker", "open panel", "save panel")),
-    ToolCapability("computer.click", "Click an inspected macOS interface element.", ("click", "select", "press", "button", "control")),
-    ToolCapability("computer.type", "Type or replace text in a macOS interface element.", ("type", "text", "enter", "fill", "replace")),
-    ToolCapability("computer.press", "Press a keyboard key or shortcut in a macOS application.", ("key", "keyboard", "shortcut", "press", "enter", "escape")),
-    ToolCapability("computer.scroll", "Scroll within a macOS window or control.", ("scroll", "up", "down", "left", "right")),
-    ToolCapability("computer.menu", "Inspect or select a macOS application menu item.", ("menu", "menu item", "command")),
-    ToolCapability("computer.drag", "Drag between coordinates or inspected macOS elements.", ("drag", "drop", "move")),
-    ToolCapability("computer.set_value", "Set the value of a supported macOS accessibility control.", ("set", "value", "slider", "field")),
-    ToolCapability("computer.action", "Run an advertised accessibility action on an inspected element.", ("accessibility", "action", "element")),
-    ToolCapability("computer.permissions", "Inspect macOS permissions required for computer control.", ("permission", "accessibility", "screen recording")),
-)
+SEARCHABLE_CAPABILITIES = CAPABILITIES
 
-SEARCHABLE_CAPABILITIES = (*COMPUTER_CAPABILITIES, *CAPABILITIES)
+SKILL_NAMESPACES = {
+    "chrome-web-workflows": ("browser",),
+    "google-cloud-operations": ("cloud.resources", "cloud.cli"),
+    "native-macos-apps": ("computer",),
+    "native-whatsapp": ("computer",),
+    "workspace-documents": ("workspace.drive", "workspace.docs"),
+    "workspace-email": ("workspace.gmail", "workspace.drive"),
+    "workspace-forms": ("workspace.forms", "workspace.drive"),
+    "workspace-meet": ("workspace.meet", "workspace.drive"),
+    "workspace-presentations": ("workspace.slides", "workspace.drive"),
+    "workspace-scheduling": ("workspace.calendar", "workspace.people"),
+    "workspace-spreadsheets": ("workspace.sheets", "workspace.drive"),
+    "workspace-tasks": ("workspace.tasks",),
+}
 
 computer_tools = create_peekaboo_toolset()
 browser_tools = create_playwright_toolset()
@@ -118,45 +123,35 @@ def capability_catalog() -> list[dict[str, str]]:
     return [{"id": item.id, "description": item.description} for item in SEARCHABLE_CAPABILITIES]
 
 
-def _terms(value: str) -> set[str]:
-    return set(re.findall(r"[a-z0-9]+", value.casefold()))
+def capability_catalog_prompt() -> str:
+    return "\n".join(
+        f"- `{item.id}`: {item.description}"
+        for item in SEARCHABLE_CAPABILITIES
+    )
+
+
+def namespaces_for_skills(skill_ids: list[str] | None) -> list[str]:
+    namespaces: list[str] = []
+    for skill_id in skill_ids or []:
+        for namespace in SKILL_NAMESPACES.get(skill_id, ()):
+            if namespace not in namespaces:
+                namespaces.append(namespace)
+    return namespaces
 
 
 class DynamicToolRegistry(BaseToolset):
-    """Expose compact discovery first, then session-selected tool namespaces."""
+    """Load additional tool namespaces that were not preloaded for this task."""
 
-    def __init__(self) -> None:
+    def __init__(self, initial_namespace_ids: list[str] | None = None) -> None:
         super().__init__()
         self._use_invocation_cache = False
-        self._search_tool = FunctionTool(self.search_tools)
         self._load_tool = FunctionTool(self.load_tools)
+        self._initial_namespace_ids = tuple(initial_namespace_ids or ())
         self._toolsets = {
+            "computer": computer_tools,
             "browser": browser_tools,
             **{toolset.permission_id: toolset for toolset in workspace_tools},
             **{toolset.permission_id: toolset for toolset in cloud_tools},
-        }
-
-    async def search_tools(self, query: str) -> dict[str, object]:
-        """Search the compact tool registry for capabilities matching an intended action."""
-        query_terms = _terms(query)
-        ranked: list[tuple[int, int, ToolCapability]] = []
-        for index, capability in enumerate(SEARCHABLE_CAPABILITIES):
-            searchable = _terms(
-                " ".join((capability.id, capability.description, *capability.terms))
-            )
-            score = len(query_terms & searchable)
-            if score:
-                ranked.append((score, index, capability))
-        ranked.sort(key=lambda item: (-item[0], item[1]))
-        matches = [item for _, _, item in ranked[:8]]
-        if not matches:
-            matches = list(SEARCHABLE_CAPABILITIES)
-        return {
-            "matches": [
-                {"id": item.id, "description": item.description}
-                for item in matches
-            ],
-            "next": "Call load_tools once with the IDs needed for the task.",
         }
 
     async def load_tools(
@@ -164,26 +159,23 @@ class DynamicToolRegistry(BaseToolset):
         tool_ids: list[str],
         tool_context: ToolContext,
     ) -> dict[str, object]:
-        """Load exact tool or namespace IDs returned by search_tools into this session."""
-        known_ids = {
-            *(item.id for item in COMPUTER_CAPABILITIES),
-            *self._toolsets,
-        }
+        """Load exact namespace IDs from the namespace directory in your instructions."""
+        known_ids = set(self._toolsets)
         unknown = [tool_id for tool_id in tool_ids if tool_id not in known_ids]
         if unknown:
             return {
                 "status": "not_found",
                 "unknown_ids": unknown,
-                "guidance": "Call search_tools and use only exact returned IDs.",
+                "guidance": "Use only exact IDs from the namespace directory in your instructions.",
             }
         loaded = list(tool_context.state.get(LOADED_TOOLS_STATE, []))
         for tool_id in tool_ids:
-            if tool_id not in loaded:
+            if tool_id not in self._initial_namespace_ids and tool_id not in loaded:
                 loaded.append(tool_id)
         tool_context.state[LOADED_TOOLS_STATE] = loaded
         return {
             "status": "loaded",
-            "loaded_tool_ids": loaded,
+            "loaded_tool_ids": [*self._initial_namespace_ids, *loaded],
             "next": "The selected tools are available on the next model step.",
         }
 
@@ -191,25 +183,40 @@ class DynamicToolRegistry(BaseToolset):
         self,
         readonly_context: ReadonlyContext | None = None,
     ) -> list[BaseTool]:
-        tools: list[BaseTool] = [self._search_tool, self._load_tool]
+        started_at = time.perf_counter()
+        tools: list[BaseTool] = [self._load_tool]
         loaded = (
             readonly_context.state.get(LOADED_TOOLS_STATE, [])
             if readonly_context
             else []
         )
-        computer_names = {
-            tool_id.replace("computer.", "computer_", 1)
-            for tool_id in loaded
-            if tool_id.startswith("computer.")
-        }
-        if computer_names:
-            computer_catalog = await computer_tools.get_tools_with_prefix(readonly_context)
-            tools.extend(tool for tool in computer_catalog if tool.name in computer_names)
         for tool_id in loaded:
             toolset = self._toolsets.get(tool_id)
             if toolset:
-                tools.extend(await toolset.get_tools_with_prefix(readonly_context))
+                namespace_started_at = time.perf_counter()
+                namespace_tools = await toolset.get_tools_with_prefix(readonly_context)
+                tools.extend(namespace_tools)
+                logger.info(
+                    "namespace.ready id=%s duration_ms=%d tools=%d names=%s",
+                    tool_id,
+                    round((time.perf_counter() - namespace_started_at) * 1000),
+                    len(namespace_tools),
+                    ",".join(tool.name for tool in namespace_tools),
+                )
+        logger.info(
+            "catalog.ready loaded=%s duration_ms=%d tools=%d",
+            ",".join(loaded) or "none",
+            round((time.perf_counter() - started_at) * 1000),
+            len(tools),
+        )
         return tools
+
+    def initial_toolsets(self) -> list[BaseToolset]:
+        return [
+            self._toolsets[namespace]
+            for namespace in self._initial_namespace_ids
+            if namespace in self._toolsets
+        ]
 
 
 tool_registry = DynamicToolRegistry()

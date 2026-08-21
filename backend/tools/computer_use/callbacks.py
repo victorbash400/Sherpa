@@ -1,4 +1,5 @@
 import logging
+import json
 import re
 import time
 from pathlib import Path
@@ -31,21 +32,23 @@ async def before_computer_tool(
     validation_error = normalize_tool_args(tool.name, args)
     if validation_error:
         logger.warning(
-            "tool.rejected session=%s call=%s name=%s error=%s",
+            "tool.rejected session=%s call=%s name=%s error=%s args=%s",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
             validation_error,
+            json.dumps(args, ensure_ascii=False, default=str),
         )
         return {"status": "failed", "error": validation_error}
     key = tool_call_key(tool, tool_context)
     tool_started_at[key] = time.perf_counter()
     logger.info(
-        "tool.start session=%s call=%s name=%s target=%s",
+        "tool.start session=%s call=%s name=%s target=%s args=%s",
         tool_context.session.id,
         tool_context.function_call_id,
         tool.name,
         tool_target(args),
+        json.dumps(args, ensure_ascii=False, default=str),
     )
     required_permission = tool_permission(tool.name)
     if required_permission and not permission_store.enabled(required_permission):
@@ -98,20 +101,22 @@ async def after_computer_tool(
         or safe_response.get("status") == "failed"
     ):
         logger.warning(
-            "tool.failed session=%s call=%s name=%s duration_ms=%d error=%s",
+            "tool.failed session=%s call=%s name=%s duration_ms=%d error=%s result=%s",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
             duration_ms,
             response_error(safe_response),
+            json.dumps(safe_response, ensure_ascii=False, default=str),
         )
     else:
         logger.info(
-            "tool.done session=%s call=%s name=%s duration_ms=%d",
+            "tool.done session=%s call=%s name=%s duration_ms=%d result=%s",
             tool_context.session.id,
             tool_context.function_call_id,
             tool.name,
             duration_ms,
+            json.dumps(safe_response, ensure_ascii=False, default=str),
         )
     return safe_response
 

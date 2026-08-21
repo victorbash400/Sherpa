@@ -28,8 +28,8 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn(
             {
-                "id": "computer.app",
-                "description": "List, launch, focus, hide, or quit macOS applications.",
+                "id": "computer",
+                "description": "Operate macOS applications, windows, dialogs, menus, and controls.",
             },
             catalog,
         )
@@ -41,10 +41,11 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
             catalog,
         )
 
-    async def test_search_finds_relevant_namespaces_without_loading_them(self) -> None:
-        result = await tool_registry.search_tools("send an email with a Drive file")
+    async def test_namespace_list_returns_exact_ids_without_a_query(self) -> None:
+        result = await tool_registry.list_tool_namespaces()
 
-        match_ids = [match["id"] for match in result["matches"]]
+        match_ids = [match["id"] for match in result["namespaces"]]
+        self.assertIn("computer", match_ids)
         self.assertIn("workspace.gmail", match_ids)
         self.assertIn("workspace.drive", match_ids)
 
@@ -52,11 +53,11 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
         context = FakeToolContext()
 
         first = await tool_registry.load_tools(
-            ["computer.app", "computer.inspect_ui", "computer.click"],
+            ["computer"],
             context,  # type: ignore[arg-type]
         )
         second = await tool_registry.load_tools(
-            ["computer.dialog", "workspace.gmail"],
+            ["workspace.gmail"],
             context,  # type: ignore[arg-type]
         )
 
@@ -65,10 +66,7 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             context.state[LOADED_TOOLS_STATE],
             [
-                "computer.app",
-                "computer.inspect_ui",
-                "computer.click",
-                "computer.dialog",
+                "computer",
                 "workspace.gmail",
             ],
         )

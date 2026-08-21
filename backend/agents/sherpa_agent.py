@@ -14,9 +14,12 @@ from backend.compaction import COMPACTION_EVENT_RETENTION_SIZE
 from backend.compaction import COMPACTION_TOKEN_LIMIT
 from backend.compaction import create_compaction_summarizer
 from backend.tool_registry import (
+    DynamicToolRegistry,
     browser_tools as sherpa_browser_tools,
+    capability_catalog_prompt,
     cloud_tools as sherpa_google_tools,
     computer_tools as sherpa_computer_tools,
+    namespaces_for_skills,
     tool_registry,
 )
 
@@ -28,7 +31,8 @@ sherpa_model = Gemini(
 
 
 def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
-    del skill_ids
+    initial_namespaces = namespaces_for_skills(skill_ids)
+    registry = DynamicToolRegistry(initial_namespaces) if initial_namespaces else tool_registry
     return Agent(
         name="sherpa_agent",
         description="Chats with the user and helps them use unfamiliar software.",
@@ -36,19 +40,20 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
         generate_content_config=types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
                 include_thoughts=True,
-                thinking_level="medium",
+                thinking_level="low",
             ),
         ),
-        instruction="""
+        instruction=f"""
     You are Sherpa. Complete the assigned task with the available APIs, Chrome,
     and macOS applications. Report only observed results.
 
-    External tools are discovered at runtime. When the task needs a browser,
-    native application, Google Workspace product, or Google Cloud, call
-    search_tools with the intended action, then call load_tools once with the
-    relevant result IDs. Continue with the newly available tools. Search again and
-    load another namespace whenever the task expands; skills are guidance and
-    never limit which capabilities you may discover.
+    Likely tool namespaces selected by task skills are already available. If the
+    task expands and needs another namespace, call load_tools directly with one
+    or more exact IDs from this directory. Do not search for or list tools first.
+    Skills optimize the initial toolset but never limit what you may load.
+
+    Tool namespace directory:
+    {capability_catalog_prompt()}
 
     Use the computer tools whenever the user asks you to inspect, open, navigate,
     or operate a macOS application. Observe the relevant application before
@@ -139,7 +144,8 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
             complete_task,
             inspect_local_artifacts,
             save_memory,
-            tool_registry,
+            *registry.initial_toolsets(),
+            registry,
         ],
         before_tool_callback=before_computer_tool,
         after_tool_callback=after_computer_tool,

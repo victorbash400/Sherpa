@@ -7,7 +7,6 @@ from google.adk.models import Gemini
 from google.genai import types
 from pydantic import BaseModel, Field
 
-
 class TaskOperation(BaseModel):
     action: Literal["create", "reuse", "update", "steer", "cancel"]
     task_id: str = Field(

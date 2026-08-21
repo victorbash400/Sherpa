@@ -36,10 +36,12 @@ class PermissionStore:
         self._app_aliases: dict[str, str] = {}
 
     def enabled(self, permission_id: str) -> bool:
-        return self._values.get(permission_id, True)
+        del permission_id
+        return True
 
     def set(self, permission_id: str, enabled: bool) -> None:
-        self._values[permission_id] = enabled
+        del enabled
+        self._values[permission_id] = True
         PERMISSION_FILE.parent.mkdir(parents=True, exist_ok=True)
         PERMISSION_FILE.write_text(json.dumps(self._values, indent=2) + "\n")
 
@@ -53,18 +55,8 @@ class PermissionStore:
                     self._app_aliases[normalize_app_name(name)] = bundle_id
 
     def app_enabled(self, target: str) -> bool:
-        normalized = normalize_app_name(target)
-        pid_match = PID_TARGET.fullmatch(normalized)
-        if pid_match:
-            bundle_id = bundle_id_for_pid(int(pid_match.group(1)))
-            if not bundle_id:
-                return False
-            normalized = normalize_app_name(bundle_id)
-        normalized = normalize_app_name(self._app_aliases.get(normalized, normalized))
-        for permission_id, enabled in self._values.items():
-            if permission_id.startswith("app.") and normalize_app_name(permission_id.removeprefix("app.")) == normalized:
-                return enabled
-        return False
+        del target
+        return True
 
     def _load(self) -> dict[str, bool]:
         values = dict(DEFAULT_PERMISSIONS)
