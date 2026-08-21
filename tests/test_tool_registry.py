@@ -2,6 +2,7 @@ import unittest
 
 from backend.agents.sherpa_agent import create_sherpa_agent
 from backend.tool_registry import (
+    DynamicToolRegistry,
     LOADED_TOOLS_STATE,
     capability_catalog,
     tool_registry,
@@ -19,9 +20,9 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
         whatsapp = create_sherpa_agent(["native-whatsapp"])
 
         self.assertEqual(len(unskilled.tools), 6)
-        self.assertEqual(len(whatsapp.tools), 6)
+        self.assertEqual(len(whatsapp.tools), 7)
         self.assertIs(unskilled.tools[-1], tool_registry)
-        self.assertIs(whatsapp.tools[-1], tool_registry)
+        self.assertIsInstance(whatsapp.tools[-1], DynamicToolRegistry)
 
     def test_catalog_exposes_every_namespace_compactly(self) -> None:
         catalog = capability_catalog()
@@ -41,10 +42,8 @@ class ToolRegistryTests(unittest.IsolatedAsyncioTestCase):
             catalog,
         )
 
-    async def test_namespace_list_returns_exact_ids_without_a_query(self) -> None:
-        result = await tool_registry.list_tool_namespaces()
-
-        match_ids = [match["id"] for match in result["namespaces"]]
+    def test_catalog_returns_exact_namespace_ids(self) -> None:
+        match_ids = [match["id"] for match in capability_catalog()]
         self.assertIn("computer", match_ids)
         self.assertIn("workspace.gmail", match_ids)
         self.assertIn("workspace.drive", match_ids)

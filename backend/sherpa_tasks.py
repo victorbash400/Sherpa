@@ -323,6 +323,9 @@ class SherpaTaskManager:
     def get(self, task_id: str) -> SherpaTask | None:
         return self._tasks.get(task_id)
 
+    def get_submission(self, submission_id: str) -> SherpaSubmission | None:
+        return self._submissions.get(submission_id)
+
     def list_for_chat(self, chat_id: str) -> list[SherpaTask]:
         return [
             task for task in self._tasks.values()
@@ -741,8 +744,9 @@ class SherpaTaskManager:
         instruction: str,
         *,
         resume: bool = False,
+        worker_session_id: str | None = None,
     ) -> None:
-        worker_session_id = f"{task.chat_id}:{task.id}"
+        worker_session_id = worker_session_id or f"{task.chat_id}:{task.id}"
         try:
             task.phase = "starting"
             task.current_step = "Starting work"
@@ -1103,8 +1107,33 @@ class SherpaTaskManager:
             )
             compaction_events.unregister_task(task.id)
         except TaskSteeringBoundary as boundary:
-            prompt = await self._directive_prompt(task, [boundary.directive])
-            await self._run_with_computer(task, prompt, resume=True)
+            directives = [boundary.directive]
+            while (queued := self._take_directive(task)) is not None:
+                directives.append(queued)
+            restart = any(
+                directive["type"] == "steer"
+                for directive in directives
+            )
+            correction = await self._directive_prompt(
+                task,
+                directives,
+                restart=restart,
+            )
+            if not restart:
+                await self._run_with_computer(task, correction, resume=True)
+                return
+            compaction_events.unregister_task(task.id)
+            await self._run_with_computer(
+                task,
+                "\n\n".join((
+                    f"Original assigned task:\n{task.request or task.instruction}",
+                    correction,
+                )),
+                resume=False,
+                worker_session_id=(
+                    f"{task.chat_id}:{task.id}:restart:{crypto_id()}"
+                ),
+            )
         except TaskQuestionBoundary:
             raise
         except asyncio.CancelledError:
@@ -1161,6 +1190,8 @@ class SherpaTaskManager:
         self,
         task: SherpaTask,
         directives: list[dict[str, Any]],
+        *,
+        restart: bool = False,
     ) -> str:
         while (queued := self._take_directive(task)) is not None:
             directives.append(queued)
@@ -1189,10 +1220,18 @@ class SherpaTaskManager:
             ",".join(directive["id"] for directive in directives),
         )
         await self._emit(task, {"type": "task_steering_applied", **self.snapshot(task)})
+        if restart:
+            return "\n".join([
+                *lines,
+                "Restart the task using this latest direction.",
+                "Do not rely on prior reasoning, research, conclusions, or assumptions.",
+                "Re-observe the current external state before planning or acting.",
+                "External side effects from the earlier attempt may still exist; inspect the "
+                "authoritative state before repeating any mutation.",
+            ])
         return "\n".join([
             *lines,
-            "Continue this same task from its current state.",
-            "Keep verified completed work and do not repeat it.",
+            "Continue the task after incorporating this answer.",
             "Observe the current interface before the next action.",
         ])
 

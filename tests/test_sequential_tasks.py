@@ -228,11 +228,12 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
 
         result = await self.manager.steer(task.id, "Find Ben's video instead")
         directive = self.manager._take_directive(task)
-        prompt = await self.manager._directive_prompt(task, [directive])
+        prompt = await self.manager._directive_prompt(task, [directive], restart=True)
 
         self.assertEqual(result["status"], "queued")
         self.assertIn("The user changed the active task: Find Ben's video instead", prompt)
-        self.assertIn("Continue this same task from its current state", prompt)
+        self.assertIn("Restart the task using this latest direction", prompt)
+        self.assertIn("Re-observe the current external state", prompt)
         self.assertEqual(task.current_step, "Applying the latest direction")
 
     async def test_dependency_handoff_includes_structured_outputs(self) -> None:

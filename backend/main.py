@@ -646,7 +646,6 @@ async def voice(
                                 round((voice_speech_ended_at - voice_turn_started_at) * 1000)
                                 if voice_turn_started_at else 0,
                             )
-                            await live.send_realtime_input(audio_stream_end=True)
                             await maybe_deliver_notification()
                     elif message.get("type") == "websocket.disconnect":
                         break
@@ -698,6 +697,7 @@ async def voice(
                                     session_id,
                                     send_function_response,
                                     request_photo_capture,
+                                    lambda: not user_speaking,
                                 )
                         content = response.server_content
                         if not content:

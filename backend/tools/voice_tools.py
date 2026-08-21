@@ -9,6 +9,7 @@ from backend.sherpa_tasks import sherpa_tasks
 logger = logging.getLogger("sherpa.voice")
 VoiceToolResponder = Callable[[str, str, dict], Awaitable[None]]
 VoicePhotoRequester = Callable[[str], Awaitable[dict]]
+VoiceSubmissionGuard = Callable[[], bool]
 
 
 VOICE_TOOLS = [
@@ -24,7 +25,14 @@ VOICE_TOOLS = [
         ),
         types.FunctionDeclaration(
             name="submit_task",
-            description="Hand one complete request to Sherpa. New work runs sequentially behind any active task.",
+            description=(
+                "After the user has finished speaking, hand one complete request to Sherpa. "
+                "Use this for every request to open, show, find, navigate, check, read, or "
+                "operate something in Chrome, Finder, a macOS app, local files, or Google "
+                "Workspace. Do not refuse or debate application access before submitting. "
+                "Never call while speech is active or the request is still being continued. "
+                "New work runs sequentially behind any active task."
+            ),
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
@@ -43,7 +51,7 @@ VOICE_TOOLS = [
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
-                properties={"task_id": types.Schema(type=types.Type.STRING)},
+                properties={"task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID.")},
                 required=["task_id"],
             ),
         ),
@@ -63,7 +71,7 @@ VOICE_TOOLS = [
             behavior=types.Behavior.BLOCKING,
             parameters=types.Schema(
                 type=types.Type.OBJECT,
-                properties={"task_id": types.Schema(type=types.Type.STRING)},
+                properties={"task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID.")},
                 required=["task_id"],
             ),
         ),
@@ -77,7 +85,7 @@ VOICE_TOOLS = [
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "task_id": types.Schema(type=types.Type.STRING),
+                    "task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID."),
                     "instruction": types.Schema(type=types.Type.STRING),
                 },
                 required=["task_id", "instruction"],
@@ -94,7 +102,7 @@ VOICE_TOOLS = [
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "task_id": types.Schema(type=types.Type.STRING),
+                    "task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID."),
                     "instruction": types.Schema(type=types.Type.STRING),
                 },
                 required=["task_id", "instruction"],
@@ -107,7 +115,7 @@ VOICE_TOOLS = [
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "task_id": types.Schema(type=types.Type.STRING),
+                    "task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID."),
                     "question_id": types.Schema(type=types.Type.STRING),
                     "answer": types.Schema(type=types.Type.STRING),
                 },
@@ -126,7 +134,7 @@ VOICE_TOOLS = [
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "task_id": types.Schema(type=types.Type.STRING),
+                    "task_id": types.Schema(type=types.Type.STRING, description="Exact task_ ID. Never use a submission_ receipt ID."),
                     "instruction": types.Schema(
                         type=types.Type.STRING,
                         description="What the user explicitly wants remembered from this task.",
@@ -144,6 +152,7 @@ async def handle_voice_tool_call(
     session_id: str,
     respond: VoiceToolResponder,
     request_photo: VoicePhotoRequester | None = None,
+    submission_allowed: VoiceSubmissionGuard | None = None,
 ) -> None:
     call_id = call.id or call.name or "unknown"
     name = call.name or "unknown"
@@ -182,6 +191,13 @@ async def handle_voice_tool_call(
         return
 
     if name == "submit_task":
+        if submission_allowed is not None and not submission_allowed():
+            await finish(voice_tool_error(
+                "user_still_speaking",
+                "The user is still speaking. Wait for the current speech to finish, then submit "
+                "one complete request containing all details they provided.",
+            ))
+            return
         instruction = str(args.get("instruction", "")).strip()
         if not instruction:
             await finish(voice_tool_error(
@@ -267,6 +283,22 @@ async def handle_voice_tool_call(
             ))
             return
         if not task or task.chat_id != session_id:
+            submission = sherpa_tasks.get_submission(task_id)
+            if submission and submission.chat_id == session_id:
+                await finish(voice_tool_error(
+                    "submission_id_not_task_id",
+                    (
+                        f"{task_id} is a submission receipt, not a task ID. Retry with the exact "
+                        f"resolved task ID: {submission.task_id}."
+                        if submission.task_id
+                        else "That submission is still being planned and has no task ID yet. "
+                        "Call list_active_tasks after it resolves."
+                    ),
+                    task_id=submission.task_id or "",
+                    session_id=session_id,
+                    retry_tool=name,
+                ))
+                return
             await finish(voice_tool_error(
                 "task_not_found",
                 "That task ID is not part of this conversation. Choose the intended task from task_choices and retry.",

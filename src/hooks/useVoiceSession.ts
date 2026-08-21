@@ -99,9 +99,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const streamRef = useRef<MediaStream | undefined>(undefined);
   const contextRef = useRef<AudioContext | undefined>(undefined);
   const inputNodeRef = useRef<AudioWorkletNode | undefined>(undefined);
+  const outputNodeRef = useRef<AudioWorkletNode | undefined>(undefined);
   const gainRef = useRef<GainNode | undefined>(undefined);
-  const sourcesRef = useRef(new Set<AudioBufferSourceNode>());
-  const playheadRef = useRef(0);
   const fadeTimerRef = useRef<number | undefined>(undefined);
   const activityTimerRef = useRef<number | undefined>(undefined);
   const readySoundRef = useRef<HTMLAudioElement | undefined>(undefined);
@@ -118,9 +117,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const clearPlayback = useCallback(() => {
     if (fadeTimerRef.current !== undefined) window.clearTimeout(fadeTimerRef.current);
     fadeTimerRef.current = undefined;
-    for (const source of sourcesRef.current) source.stop();
-    sourcesRef.current.clear();
-    playheadRef.current = contextRef.current?.currentTime ?? 0;
+    outputNodeRef.current?.port.postMessage({ type: "reset" });
     setAudioLevel(0);
   }, []);
 
@@ -136,10 +133,10 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const interruptPlayback = useCallback(() => {
     const context = contextRef.current;
     const gain = gainRef.current;
-    if (!context || !gain || !sourcesRef.current.size) {
+    const outputNode = outputNodeRef.current;
+    if (!context || !gain || !outputNode) {
       debugPlayback("interrupted", {
         contextState: context?.state || "missing",
-        queuedSources: sourcesRef.current.size,
       });
       clearPlayback();
       playbackChunkCountRef.current = 0;
@@ -148,7 +145,6 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     }
     debugPlayback("interrupted", {
       contextState: context.state,
-      queuedSources: sourcesRef.current.size,
     });
     if (fadeTimerRef.current !== undefined) window.clearTimeout(fadeTimerRef.current);
     const now = context.currentTime;
@@ -156,9 +152,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     gain.gain.setValueAtTime(gain.gain.value, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.045);
     fadeTimerRef.current = window.setTimeout(() => {
-      for (const source of sourcesRef.current) source.stop();
-      sourcesRef.current.clear();
-      playheadRef.current = context.currentTime;
+      outputNode.port.postMessage({ type: "reset" });
       playbackChunkCountRef.current = 0;
       playbackByteCountRef.current = 0;
       gain.gain.cancelScheduledValues(context.currentTime);
@@ -188,6 +182,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     socketRef.current = undefined;
     inputNodeRef.current?.disconnect();
     inputNodeRef.current = undefined;
+    outputNodeRef.current?.disconnect();
+    outputNodeRef.current = undefined;
     for (const track of streamRef.current?.getTracks() ?? []) track.stop();
     streamRef.current = undefined;
     clearPlayback();
@@ -202,7 +198,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
 
   const playAudio = useCallback((data: ArrayBuffer) => {
     const context = contextRef.current;
-    const gain = gainRef.current;
+    const outputNode = outputNodeRef.current;
     playbackChunkCountRef.current += 1;
     playbackByteCountRef.current += data.byteLength;
     if (playbackChunkCountRef.current === 1) {
@@ -213,56 +209,35 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
         volume,
       });
     }
-    if (!context || !gain) {
+    if (!context || !outputNode) {
       debugPlayback("chunk_dropped", {
         bytes: data.byteLength,
         contextState: context?.state || "missing",
-        reason: !context ? "missing_context" : "missing_gain",
+        reason: !context ? "missing_context" : "missing_output",
       });
       return;
     }
     const schedule = () => {
-      if (contextRef.current !== context || gainRef.current !== gain) return;
+      if (contextRef.current !== context || outputNodeRef.current !== outputNode) return;
       if (fadeTimerRef.current !== undefined) {
         window.clearTimeout(fadeTimerRef.current);
         fadeTimerRef.current = undefined;
-        gain.gain.cancelScheduledValues(context.currentTime);
-        gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
+        const gain = gainRef.current;
+        gain?.gain.cancelScheduledValues(context.currentTime);
+        gain?.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
       }
       const pcm = new Int16Array(data);
-      const audioBuffer = context.createBuffer(1, pcm.length, 24000);
-      const output = audioBuffer.getChannelData(0);
       let sum = 0;
       for (let index = 0; index < pcm.length; index += 1) {
         const sample = pcm[index] / 32768;
-        output[index] = sample;
         sum += sample * sample;
       }
       setAudioLevel(Math.min(1, Math.sqrt(sum / Math.max(1, pcm.length)) * 4));
-      const source = context.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(gain);
-      const startsAt = Math.max(context.currentTime, playheadRef.current);
-      playheadRef.current = startsAt + audioBuffer.duration;
-      sourcesRef.current.add(source);
-      source.addEventListener("ended", () => {
-        sourcesRef.current.delete(source);
-        if (!sourcesRef.current.size && turnCompleteRef.current) {
-          debugPlayback("drained", {
-            bytes: playbackByteCountRef.current,
-            chunks: playbackChunkCountRef.current,
-            contextState: context.state,
-          });
-          playbackChunkCountRef.current = 0;
-          playbackByteCountRef.current = 0;
-          sendControl("playback_drained");
-        }
-      }, { once: true });
-      source.start(startsAt);
+      outputNode.port.postMessage({ type: "audio", pcm: data }, [data]);
       setStatus("speaking");
     };
     if (context.state === "suspended") {
-      debugPlayback("context_resume_requested", { queuedSources: sourcesRef.current.size });
+      debugPlayback("context_resume_requested");
       void context.resume().then(schedule).catch((reason: unknown) => {
         debugPlayback("context_resume_failed", {
           error: reason instanceof Error ? reason.message : String(reason),
@@ -281,7 +256,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       return;
     }
     schedule();
-  }, [debugPlayback, sendControl, speakerMuted, volume]);
+  }, [debugPlayback, speakerMuted, volume]);
 
   const start = useCallback(async () => {
     if (status !== "idle" && status !== "error") return;
@@ -300,6 +275,26 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       gain.gain.value = speakerMuted ? 0 : volume / 100;
       gain.connect(context.destination);
       gainRef.current = gain;
+      await context.audioWorklet.addModule("/audio-output-processor.js");
+      const outputNode = new AudioWorkletNode(context, "audio-output-processor");
+      outputNode.connect(gain);
+      outputNode.port.onmessage = ({ data }: MessageEvent<{ type: string }>) => {
+        if (data.type === "underrun") {
+          debugPlayback("underrun", { contextState: context.state });
+          return;
+        }
+        if (data.type === "drained") {
+          debugPlayback("drained", {
+            bytes: playbackByteCountRef.current,
+            chunks: playbackChunkCountRef.current,
+            contextState: context.state,
+          });
+          playbackChunkCountRef.current = 0;
+          playbackByteCountRef.current = 0;
+          sendControl("playback_drained");
+        }
+      };
+      outputNodeRef.current = outputNode;
       await context.resume();
       debugPlayback("context_ready", {
         contextState: context.state,
@@ -420,15 +415,10 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
             bytes: playbackByteCountRef.current,
             chunks: playbackChunkCountRef.current,
             contextState: contextRef.current?.state || "missing",
-            queuedSources: sourcesRef.current.size,
           });
           onTurnComplete();
           turnCompleteRef.current = true;
-          if (!sourcesRef.current.size) {
-            playbackChunkCountRef.current = 0;
-            playbackByteCountRef.current = 0;
-            sendControl("playback_drained");
-          }
+          outputNodeRef.current?.port.postMessage({ type: "turn_complete" });
           setStatus("listening");
           setAudioLevel(0);
           if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);

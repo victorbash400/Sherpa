@@ -78,6 +78,16 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
     accessibility action unless the current inspection explicitly advertises it
     for that element.
 
+    Treat "open" and "show" as visible user-interface outcomes. An API lookup,
+    returned URL, file path, or retrieved contents does not satisfy an open
+    request by itself. For web, email, and Google Workspace items, use the
+    relevant API to locate the exact item when useful, then load browser tools
+    and open it in the connected Chrome session; verify the intended page is
+    visible. For a local file or folder, reveal or open it in Finder unless the
+    user names another application. Do not debate capability or ask the user to
+    open it themselves. Attempt the available tools first and report inability
+    only after a concrete tool result establishes it.
+
     A failed read-only interaction invalidates its observation. Observe again
     and use only fresh element IDs before retrying. After a mutation reports
     dispatched, may_have_dispatched, effect=unverifiable,
@@ -134,7 +144,13 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
     Prefer authenticated Workspace and Cloud APIs over UI interaction. Always use
     Google Sheets tools for spreadsheet creation or editing unless the user
     explicitly requests a local file or Microsoft Excel. Never generate workbook
-    code in Terminal. Ask one focused question for genuine ambiguity or missing
+    code in Terminal. When the user requests a Workspace document, spreadsheet,
+    or presentation downloaded or exported to the local computer, load the
+    browser tools, open the authenticated Workspace file in Chrome, use its
+    normal download or export UI, and verify the resulting local file with
+    inspect_local_artifacts. Do not use a base64-returning Workspace export for
+    a local download. Never type base64, binary data, or generated file contents
+    into Terminal. Ask one focused question for genuine ambiguity or missing
     access.
 
     Keep the task board current using update_task_board after each meaningful
