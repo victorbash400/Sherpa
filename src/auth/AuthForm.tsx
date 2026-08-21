@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { authenticateAccount, createAccount, demoAccount } from "./accountApi";
 import type { AuthenticatedSherpaAccount } from "./authTypes";
+import { publicAssetUrl } from "../assets/publicAssetUrl";
 import "./AuthForm.css";
 
 type Mode = "signin" | "create";
@@ -29,8 +30,8 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (account: Authe
     }
   }
 
-  function switchMode() {
-    setMode((current) => current === "signin" ? "create" : "signin");
+  function chooseMode(nextMode: Mode) {
+    setMode(nextMode);
     setError(undefined);
   }
 
@@ -44,19 +45,29 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (account: Authe
 
   return (
     <main className="auth-page">
-      <section className="auth-card">
-        <div className="auth-mark" aria-hidden="true"><span /></div>
-        <h1>{mode === "signin" ? "Sign in to Sherpa" : "Create your Sherpa account"}</h1>
-        <p>{mode === "signin" ? "Continue with your private workspace." : "Start with a fresh private workspace."}</p>
-        <form onSubmit={submit}>
-          {mode === "create" ? <label>Name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} /></label> : null}
-          <label>Email<input autoComplete="username" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          <label>Password<span className="auth-password"><input autoComplete={mode === "signin" ? "current-password" : "new-password"} type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} /><button aria-label={showPassword ? "Hide password" : "Show password"} type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff /> : <Eye />}</button></span></label>
-          {error ? <p className="auth-error" role="alert">{error}</p> : null}
-          <button disabled={!email || !password || (mode === "create" && !name) || submitting} type="submit">{submitting ? "Working" : mode === "signin" ? "Sign in" : "Create account"}</button>
-        </form>
-        <p className="auth-switch">{mode === "signin" ? "New to Sherpa?" : "Already have an account?"}<button type="button" onClick={switchMode}>{mode === "signin" ? "Create account" : "Sign in"}</button></p>
-        {mode === "signin" ? <button className="auth-demo" type="button" onClick={useDemoAccount}>Use demo account</button> : null}
+      <div className="auth-brand" aria-label="Sherpa">
+        <img alt="" aria-hidden="true" src={publicAssetUrl("luminous-orbit-macos-icon.svg")} />
+        <strong>Sherpa</strong>
+      </div>
+      <section className="auth-shell">
+        <div className="auth-card">
+          <h1 className="auth-title">{mode === "signin" ? "Sign in" : "Create account"}</h1>
+          <div className="auth-modes" aria-label="Account access">
+            <button aria-pressed={mode === "signin"} type="button" onClick={() => chooseMode("signin")}>Sign in</button>
+            <button aria-pressed={mode === "create"} type="button" onClick={() => chooseMode("create")}>Create account</button>
+          </div>
+          <form id="sherpa-auth-form" onSubmit={submit}>
+            <div className="auth-fields">
+              {mode === "create" ? <label>Name<input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} /></label> : null}
+              <label>Email<input autoComplete="username" type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+              <label>Password<span className="auth-password"><input autoComplete={mode === "signin" ? "current-password" : "new-password"} type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} /><button aria-label={showPassword ? "Hide password" : "Show password"} type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? <EyeOff /> : <Eye />}</button></span></label>
+            </div>
+            <div className="auth-secondary">
+              {error ? <p className="auth-error" role="alert">{error}</p> : mode === "signin" ? <button className="auth-demo" type="button" onClick={useDemoAccount}>Use demo account</button> : null}
+            </div>
+          </form>
+        </div>
+        <button className="auth-submit" disabled={!email || !password || (mode === "create" && !name) || submitting} form="sherpa-auth-form" type="submit">{submitting ? "Working" : mode === "signin" ? "Sign in" : "Create account"}</button>
       </section>
     </main>
   );
