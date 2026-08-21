@@ -6,6 +6,7 @@ import sys
 GEMINI_KEYCHAIN_SERVICE = "Sherpa Gemini API"
 PLAYWRIGHT_KEYCHAIN_SERVICE = "Sherpa Playwright MCP"
 RELAY_KEYCHAIN_SERVICE = "Sherpa Internal Relay"
+DEVICE_KEYCHAIN_SERVICE = "Sherpa Device Identity"
 
 
 def load_gemini_api_key() -> str | None:

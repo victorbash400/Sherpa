@@ -69,6 +69,7 @@ from backend.tools.voice_tools import VOICE_TOOLS, handle_voice_tool_call
 from backend.voice_notifications import task_state_notification
 from backend.tools.google_tools import run_with_google_tool_scope
 from backend.tool_relay_client import tool_relay_client
+from backend import agent_engine_runtime
 
 sessions = InMemorySessionService()
 runner = Runner(app=sherpa_app, session_service=sessions)
@@ -76,11 +77,13 @@ runner = Runner(app=sherpa_app, session_service=sessions)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     permission_store.register_apps(await asyncio.to_thread(installed_applications))
-    await asyncio.gather(
-        sherpa_browser_tools.get_tools(),
-        sherpa_computer_tools.get_tools(),
-    )
     tool_relay_client.start()
+    await asyncio.gather(
+        sherpa_computer_tools.get_tools(),
+        tool_relay_client.wait_until_connected(),
+    )
+    if os.getenv("SHERPA_PACKAGED") == "1":
+        print("SHERPA_BACKEND_READY", flush=True)
     yield
     await tool_relay_client.close()
     await memory_manager.close()
@@ -327,17 +330,27 @@ def tasks_for_chat(chat_id: str) -> dict[str, object]:
 
 @app.post("/chat")
 async def chat(body: ChatRequest) -> StreamingResponse:
-    session = await sessions.get_session(
-        app_name="sherpa",
-        user_id="local-user",
-        session_id=body.session_id,
-    )
-    if not session:
-        await sessions.create_session(
+    if agent_engine_runtime.enabled():
+        await agent_engine_runtime.ensure_session(
+            "local-user",
+            body.session_id,
+            {
+                "session_id": body.session_id,
+                "installation_id": tool_relay_client.installation_id,
+            },
+        )
+    else:
+        session = await sessions.get_session(
             app_name="sherpa",
             user_id="local-user",
             session_id=body.session_id,
         )
+        if not session:
+            await sessions.create_session(
+                app_name="sherpa",
+                user_id="local-user",
+                session_id=body.session_id,
+            )
     return StreamingResponse(
         stream_chat(body),
         media_type="text/event-stream",
@@ -391,14 +404,23 @@ async def stream_chat(body: ChatRequest):
         tool_assisted = False
         tool_calls = 0
         token_usage = {"input": 0, "output": 0, "thinking": 0, "total": 0}
-        async for event in run_with_google_tool_scope(
-            runner,
-            body.message,
-            user_id="local-user",
-            session_id=body.session_id,
-            new_message=message,
-            run_config=config,
-        ):
+        event_stream = (
+            agent_engine_runtime.stream_events(
+                user_id="local-user",
+                session_id=body.session_id,
+                content=message,
+            )
+            if agent_engine_runtime.enabled()
+            else run_with_google_tool_scope(
+                runner,
+                body.message,
+                user_id="local-user",
+                session_id=body.session_id,
+                new_message=message,
+                run_config=config,
+            )
+        )
+        async for event in event_stream:
             add_token_usage(token_usage, getattr(event, "usage_metadata", None))
             if event.error_message:
                 yield sse({"type": "error", "error": event.error_message})
@@ -448,13 +470,14 @@ async def stream_chat(body: ChatRequest):
             log_text(body.message),
             log_text(assistant_text),
         )
-        memory_manager.schedule(
-            source_type="chat",
-            source_id=body.session_id,
-            user_text=body.message,
-            assistant_text=assistant_text,
-            tool_assisted=tool_assisted,
-        )
+        if not agent_engine_runtime.enabled():
+            memory_manager.schedule(
+                source_type="chat",
+                source_id=body.session_id,
+                user_text=body.message,
+                assistant_text=assistant_text,
+                tool_assisted=tool_assisted,
+            )
     except Exception as error:
         yield sse({"type": "error", "error": str(error)})
 
@@ -934,13 +957,14 @@ async def voice(
         for task in done | pending:
             with suppress(asyncio.CancelledError, WebSocketDisconnect):
                 await task
-        memory_manager.schedule(
-            source_type="voice",
-            source_id=session_id,
-            user_text=" ".join(voice_user_text),
-            assistant_text=" ".join(voice_assistant_text),
-            tool_assisted=False,
-        )
+        if not agent_engine_runtime.enabled():
+            memory_manager.schedule(
+                source_type="voice",
+                source_id=session_id,
+                user_text=" ".join(voice_user_text),
+                assistant_text=" ".join(voice_assistant_text),
+                tool_assisted=False,
+            )
 
 
 def sse(event: dict[str, object]) -> str:

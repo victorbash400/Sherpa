@@ -1,19 +1,9 @@
-from pathlib import Path
-
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
 
+from backend.runtime_paths import peekaboo_binary
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-PEEKABOO_BINARY = (
-    PROJECT_ROOT
-    / "peekaboo-sherpa"
-    / "Apps"
-    / "CLI"
-    / ".build"
-    / "release"
-    / "peekaboo"
-)
+PEEKABOO_BINARY = peekaboo_binary()
 
 PEEKABOO_TOOL_NAMES = [
     "inspect_ui",

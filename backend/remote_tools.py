@@ -58,7 +58,9 @@ class RemoteTool(BaseTool):
             f"{REMOTE_TOOL_URL}/agent/tools/{self.name}",
             headers={"X-Sherpa-Agent-Secret": REMOTE_TOOL_SECRET},
             json={
-                "installation_id": INSTALLATION_ID,
+                "installation_id": str(
+                    tool_context.state.get("installation_id") or INSTALLATION_ID
+                ),
                 "function_call_id": tool_context.function_call_id,
                 "args": args,
                 "state": tool_context.state.to_dict(),

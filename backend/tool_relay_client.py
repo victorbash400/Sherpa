@@ -7,8 +7,13 @@ import os
 from contextlib import suppress
 
 import websockets
+import httpx
 
-from backend.credential_store import load_relay_secret
+from backend.credential_store import (
+    DEVICE_KEYCHAIN_SERVICE,
+    load_keychain_secret,
+    save_keychain_secret,
+)
 from backend.local_tool_dispatcher import local_tool_dispatcher
 
 
@@ -18,14 +23,22 @@ logger = logging.getLogger("sherpa.tool_relay")
 class ToolRelayClient:
     def __init__(self) -> None:
         self.url = os.getenv("SHERPA_TOOL_RELAY_URL", "").rstrip("/")
-        self.secret = load_relay_secret() or ""
-        self.installation_id = os.getenv("SHERPA_INSTALLATION_ID", "default")
+        self.secret = os.getenv("SHERPA_DESKTOP_TOKEN", "")
+        self.installation_id = os.getenv("SHERPA_INSTALLATION_ID", "")
+        stored = load_keychain_secret(DEVICE_KEYCHAIN_SERVICE)
+        if stored and not (self.secret and self.installation_id):
+            try:
+                identity = json.loads(stored)
+                self.secret = str(identity["token"])
+                self.installation_id = str(identity["installation_id"])
+            except (KeyError, TypeError, ValueError):
+                logger.warning("relay.identity_invalid")
         self._task: asyncio.Task[None] | None = None
         self._connected = asyncio.Event()
 
     @property
     def enabled(self) -> bool:
-        return bool(self.url and self.secret)
+        return bool(self.url)
 
     def start(self) -> None:
         if self.enabled and not self._task:
@@ -43,6 +56,7 @@ class ToolRelayClient:
         await asyncio.wait_for(self._connected.wait(), timeout=timeout)
 
     async def _run(self) -> None:
+        await self._ensure_identity()
         delay = 1
         while True:
             try:
@@ -54,6 +68,21 @@ class ToolRelayClient:
                 logger.warning("relay.disconnected error=%s reconnect_seconds=%d", error, delay)
             await asyncio.sleep(delay)
             delay = min(delay * 2, 30)
+
+    async def _ensure_identity(self) -> None:
+        if self.installation_id and self.secret:
+            return
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(f"{self.url}/desktop/register")
+            response.raise_for_status()
+            identity = response.json()
+        self.installation_id = str(identity["installation_id"])
+        self.secret = str(identity["token"])
+        await asyncio.to_thread(
+            save_keychain_secret,
+            DEVICE_KEYCHAIN_SERVICE,
+            json.dumps(identity),
+        )
 
     async def _connect(self) -> None:
         websocket_url = self.url.replace("https://", "wss://", 1).replace(

@@ -20,7 +20,7 @@ gcloud run deploy sherpa-relay \
   --image "$image" \
   --service-account "$service_account" \
   --set-secrets SHERPA_INTERNAL_SECRET=sherpa-internal-secret:latest \
-  --set-env-vars SHERPA_TOOL_TIMEOUT_SECONDS=900 \
+  --set-env-vars SHERPA_TOOL_TIMEOUT_SECONDS=900,SHERPA_AGENT_ENGINE_RESOURCE=projects/sherpa-20260813/locations/europe-west1/reasoningEngines/8714245376636354560,SHERPA_AGENT_ENGINE_LOCATION=europe-west1 \
   --min-instances 1 \
   --max-instances 1 \
   --concurrency 80 \

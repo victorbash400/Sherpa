@@ -11,6 +11,9 @@ dist/
 dist-electron/
 dist-native/
 release/
+build/
+artifacts/
+*.spec
 *.log
 
 backend/.venv/

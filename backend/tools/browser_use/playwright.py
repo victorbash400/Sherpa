@@ -1,12 +1,10 @@
 import os
-from pathlib import Path
-
 from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
 from mcp import StdioServerParameters
 
+from backend.runtime_paths import playwright_mcp_binary
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-PLAYWRIGHT_MCP_BINARY = PROJECT_ROOT / "node_modules" / ".bin" / "playwright-mcp"
+PLAYWRIGHT_MCP_BINARY = playwright_mcp_binary()
 
 BROWSER_TOOL_NAMES = [
     "browser_navigate",

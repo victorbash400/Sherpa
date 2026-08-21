@@ -26,6 +26,8 @@ from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
 from backend.tools.google_tools import run_with_google_tool_scope
 from backend import agent_engine_runtime
 from backend.tool_registry import namespaces_for_skills
+from backend.tool_relay_client import tool_relay_client
+from backend.runtime_paths import peekaboo_binary
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -805,6 +807,7 @@ class SherpaTaskManager:
                     worker_session_id,
                     {
                         "session_id": worker_session_id,
+                        "installation_id": tool_relay_client.installation_id,
                         "loaded_tool_ids": namespaces_for_skills(task.skill_ids),
                     },
                 )
@@ -1118,13 +1121,14 @@ class SherpaTaskManager:
                 "message": task.summary,
                 **self.snapshot(task),
             })
-            memory_manager.schedule(
-                source_type="task",
-                source_id=task.id,
-                user_text=task.request or instruction,
-                assistant_text=task.summary,
-                tool_assisted=True,
-            )
+            if not agent_engine_runtime.enabled():
+                memory_manager.schedule(
+                    source_type="task",
+                    source_id=task.id,
+                    user_text=task.request or instruction,
+                    assistant_text=task.summary,
+                    tool_assisted=True,
+                )
             compaction_events.unregister_task(task.id)
         except TaskSteeringBoundary as boundary:
             directives = [boundary.directive]
@@ -1757,7 +1761,7 @@ def browser_overlay_target(
 async def chrome_accessibility_elements() -> list[dict[str, Any]]:
     """Read Chrome once so all overlay coordinates share macOS screen space."""
     process = await asyncio.create_subprocess_exec(
-        str((Path(__file__).resolve().parents[1] / "node_modules/.bin/peekaboo")),
+        str(peekaboo_binary()),
         "see",
         "--app",
         "Google Chrome",

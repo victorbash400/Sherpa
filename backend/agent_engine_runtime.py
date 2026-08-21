@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Any, AsyncIterator
 
 import vertexai
+import httpx
 from google.adk.events import Event
 from google.genai import types
 from vertexai import agent_engines
@@ -15,6 +16,7 @@ from vertexai import agent_engines
 PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "sherpa-20260813")
 LOCATION = os.getenv("SHERPA_AGENT_ENGINE_LOCATION", "europe-west1")
 RESOURCE = os.getenv("SHERPA_AGENT_ENGINE_RESOURCE", "").strip()
+API_URL = os.getenv("SHERPA_AGENT_API_URL", "").rstrip("/")
 
 
 def enabled() -> bool:
@@ -30,6 +32,8 @@ def remote_app() -> Any:
 
 
 async def get_session(user_id: str, session_id: str) -> dict[str, Any] | None:
+    if API_URL:
+        return None
     try:
         return await asyncio.to_thread(
             remote_app().get_session,
@@ -47,6 +51,22 @@ async def ensure_session(
     session_id: str,
     state: dict[str, Any],
 ) -> dict[str, Any]:
+    if API_URL:
+        from backend.tool_relay_client import tool_relay_client
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{API_URL}/desktop/agent/session",
+                headers={"Authorization": f"Bearer {tool_relay_client.secret}"},
+                json={
+                    "installation_id": tool_relay_client.installation_id,
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    "state": state,
+                },
+            )
+        response.raise_for_status()
+        return response.json()
     current = await get_session(user_id, session_id)
     if current:
         return current
@@ -79,6 +99,35 @@ async def stream_events(
     session_id: str,
     content: types.Content,
 ) -> AsyncIterator[Event]:
+    if API_URL:
+        from backend.tool_relay_client import tool_relay_client
+
+        buffer = ""
+        received = False
+        async with httpx.AsyncClient(timeout=httpx.Timeout(3600, connect=30)) as client:
+            async with client.stream(
+                "POST",
+                f"{API_URL}/desktop/agent/stream",
+                headers={"Authorization": f"Bearer {tool_relay_client.secret}"},
+                json={
+                    "installation_id": tool_relay_client.installation_id,
+                    "user_id": user_id,
+                    "session_id": session_id,
+                    "state": {},
+                    "message": content.model_dump(mode="json", exclude_none=True),
+                },
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    buffer, payloads = parse_stream_json(buffer, chunk)
+                    for payload in payloads:
+                        received = True
+                        yield Event.model_validate(payload)
+        if buffer.strip():
+            raise RuntimeError("Agent Engine ended with an incomplete event")
+        if not received:
+            raise RuntimeError("Agent Engine returned no events")
+        return
     app = remote_app()
     loop = asyncio.get_running_loop()
     queue: asyncio.Queue[object] = asyncio.Queue()

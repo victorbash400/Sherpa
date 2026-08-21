@@ -1,6 +1,7 @@
 {
   "name": "sherpa",
   "productName": "Sherpa",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,28 +9,80 @@
     "prepare:electron": "node scripts/prepare-electron-dev.mjs",
     "dev": "pnpm build:native && pnpm prepare:electron && tsc -p electron/tsconfig.json && concurrently -k \"vite\" \"wait-on tcp:5173 && SHERPA_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "build": "pnpm build:native && tsc && vite build && tsc -p electron/tsconfig.json",
+    "build:backend:release": "bash scripts/build-sidecar.sh",
+    "build:node-runtime": "rm -rf artifacts/node-runtime && pnpm --filter sherpa --prod deploy --legacy artifacts/node-runtime",
+    "package:mac": "pnpm build && pnpm build:backend:release && pnpm build:node-runtime && electron-builder --mac dmg --arm64",
     "typecheck": "tsc --noEmit && tsc -p electron/tsconfig.json --noEmit"
   },
   "main": "dist-electron/main.js",
   "dependencies": {
     "@playwright/mcp": "^0.0.79",
-    "@steipete/peekaboo": "^4.0.0",
-    "@vitejs/plugin-react": "latest",
-    "concurrently": "latest",
-    "electron": "latest",
     "lucide-react": "^1.31.0",
     "ogl": "^1.0.11",
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1",
-    "typescript": "latest",
-    "vite": "latest",
-    "wait-on": "latest"
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "latest",
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "^6.1.0",
+    "concurrently": "^10.0.5",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "com.sherpa.desktop",
+    "productName": "Sherpa",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "artifacts/backend/sherpa-backend",
+        "to": "backend"
+      },
+      {
+        "from": "artifacts/node-runtime/node_modules",
+        "to": "node_modules"
+      },
+      {
+        "from": "peekaboo-sherpa/Apps/CLI/.build/release/peekaboo",
+        "to": "peekaboo"
+      },
+      {
+        "from": "dist-native/window-capture",
+        "to": "window-capture"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "public/sherpa-dock-icon.png",
+      "identity": null,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64"]
+        }
+      ],
+      "extendInfo": {
+        "NSCameraUsageDescription": "Sherpa uses the camera when you ask it to capture a photo.",
+        "NSMicrophoneUsageDescription": "Sherpa uses the microphone for voice conversations."
+      }
+    },
+    "dmg": {
+      "artifactName": "Sherpa-${version}-arm64.${ext}"
+    }
   }
 }

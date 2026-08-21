@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, screen, shell } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,6 +22,8 @@ let petWorking = false;
 let petTranscript: PetTranscriptPayload = { entries: [], hue: 0, status: "idle" };
 let lastOverlayPoint: { x: number; y: number } | undefined;
 let previewProcess: ChildProcessWithoutNullStreams | undefined;
+let backendProcess: ChildProcessWithoutNullStreams | undefined;
+let backendStopTimer: ReturnType<typeof setTimeout> | undefined;
 let previewTaskId: string | undefined;
 let previewTarget: string | undefined;
 let previewBuffer = Buffer.alloc(0);
@@ -97,6 +99,64 @@ function createWindow() {
   }
 
   void window.loadFile(path.join(currentDirectory, "../dist/index.html"));
+}
+
+function startBackend() {
+  if (isDevelopment) return Promise.resolve();
+  const binary = path.join(process.resourcesPath, "backend", "sherpa-backend");
+  const child = spawn(binary, [], {
+    env: {
+      ...process.env,
+      SHERPA_PACKAGED: "1",
+      SHERPA_RESOURCE_ROOT: process.resourcesPath,
+      SHERPA_TOOL_RELAY_URL: "https://sherpa-relay-zjani637rq-bq.a.run.app",
+      SHERPA_AGENT_API_URL: "https://sherpa-relay-zjani637rq-bq.a.run.app",
+      SHERPA_AGENT_ENGINE_RESOURCE: "projects/sherpa-20260813/locations/europe-west1/reasoningEngines/8714245376636354560",
+      SHERPA_AGENT_ENGINE_LOCATION: "europe-west1",
+      SHERPA_MODEL_LOCATION: "global",
+    },
+  });
+  backendProcess = child;
+  return new Promise<void>((resolve, reject) => {
+    let output = "";
+    let settled = false;
+    const readyTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error("Sherpa's local service did not start."));
+    }, 60_000);
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(readyTimer);
+      callback();
+    };
+    child.stdout.on("data", (chunk: Buffer) => {
+      output += chunk.toString();
+      if (output.includes("SHERPA_BACKEND_READY")) finish(resolve);
+      if (output.length > 8_192) output = output.slice(-4_096);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      console.error(chunk.toString().trim());
+    });
+    child.on("error", (error) => finish(() => reject(error)));
+    child.on("exit", (code) => {
+      if (backendStopTimer) clearTimeout(backendStopTimer);
+      backendStopTimer = undefined;
+      if (backendProcess === child) backendProcess = undefined;
+      finish(() => reject(new Error(`Sherpa's local service stopped (${code ?? "unknown"}).`)));
+    });
+  });
+}
+
+function stopBackend() {
+  const child = backendProcess;
+  backendProcess = undefined;
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  child.kill("SIGTERM");
+  backendStopTimer = setTimeout(() => {
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+  }, 2_000);
 }
 
 function desktopBounds() {
@@ -576,12 +636,22 @@ function clearPreviewExitTimers() {
   previewKillTimer = undefined;
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setName("Sherpa");
   const dock = app.dock;
   if (process.platform === "darwin" && dock) {
     dock.show();
     dock.setIcon(dockIconPath);
+  }
+  try {
+    await startBackend();
+  } catch (error) {
+    dialog.showErrorBox(
+      "Sherpa could not start",
+      error instanceof Error ? error.message : "The local service could not start.",
+    );
+    app.quit();
+    return;
   }
   configureSystemEvents();
   configurePhotoEvents();
@@ -611,3 +681,4 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", stopPreviewProcess);
 app.on("before-quit", closePetWindow);
+app.on("before-quit", stopBackend);
