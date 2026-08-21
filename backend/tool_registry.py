@@ -10,6 +10,7 @@ from google.adk.tools.base_toolset import BaseToolset
 from backend.tools.browser_use import create_playwright_toolset
 from backend.tools.computer_use import create_peekaboo_toolset
 from backend.tools.google_tools import create_google_cloud_toolsets, create_workspace_toolsets
+from backend.remote_tools import remote_tools_enabled, remote_toolset
 
 
 LOADED_TOOLS_STATE = "loaded_tool_ids"
@@ -113,10 +114,20 @@ SKILL_NAMESPACES = {
     "workspace-tasks": ("workspace.tasks",),
 }
 
-computer_tools = create_peekaboo_toolset()
-browser_tools = create_playwright_toolset()
-workspace_tools = create_workspace_toolsets()
-cloud_tools = create_google_cloud_toolsets()
+if remote_tools_enabled():
+    computer_tools = remote_toolset("computer")
+    browser_tools = remote_toolset("browser")
+    workspace_tools = [
+        remote_toolset(capability.id)
+        for capability in CAPABILITIES
+        if capability.id.startswith("workspace.")
+    ]
+    cloud_tools = [remote_toolset("cloud.resources"), remote_toolset("cloud.cli")]
+else:
+    computer_tools = create_peekaboo_toolset()
+    browser_tools = create_playwright_toolset()
+    workspace_tools = create_workspace_toolsets()
+    cloud_tools = create_google_cloud_toolsets()
 
 
 def capability_catalog() -> list[dict[str, str]]:

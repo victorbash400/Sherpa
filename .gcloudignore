@@ -1,0 +1,8 @@
+**
+!cloud/
+!cloud/relay/
+!cloud/relay/**
+!infra/
+!infra/cloudbuild.relay.yaml
+cloud/relay/__pycache__/
+*.pyc

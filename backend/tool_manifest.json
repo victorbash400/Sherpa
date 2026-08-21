@@ -1,0 +1,3739 @@
+{
+  "browser": [
+    {
+      "description": "Perform click on a web page",
+      "name": "browser_click",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "button": {
+            "description": "Button to click, defaults to left",
+            "enum": [
+              "left",
+              "right",
+              "middle"
+            ],
+            "type": "string"
+          },
+          "doubleClick": {
+            "description": "Whether to perform a double click instead of a single click",
+            "type": "boolean"
+          },
+          "element": {
+            "description": "Human-readable element description used to obtain permission to interact with the element",
+            "type": "string"
+          },
+          "modifiers": {
+            "description": "Modifier keys to press",
+            "items": {
+              "enum": [
+                "Alt",
+                "Control",
+                "ControlOrMeta",
+                "Meta",
+                "Shift"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Perform drag and drop between two elements",
+      "name": "browser_drag",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "endElement": {
+            "description": "Human-readable target element description used to obtain the permission to interact with the element",
+            "type": "string"
+          },
+          "endTarget": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          },
+          "startElement": {
+            "description": "Human-readable source element description used to obtain the permission to interact with the element",
+            "type": "string"
+          },
+          "startTarget": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startTarget",
+          "endTarget"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Evaluate JavaScript expression on page or element",
+      "name": "browser_evaluate",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "element": {
+            "description": "Human-readable element description used to obtain permission to interact with the element",
+            "type": "string"
+          },
+          "filename": {
+            "description": "Filename to save the result to. If not provided, result is returned as text.",
+            "type": "string"
+          },
+          "function": {
+            "description": "() => { /* code */ } or (element) => { /* code */ } when element is provided",
+            "type": "string"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "function"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Upload one or multiple files",
+      "name": "browser_file_upload",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "paths": {
+            "description": "The absolute paths to the files to upload. Can be single file or multiple files. If omitted, file chooser is cancelled.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Fill multiple form fields",
+      "name": "browser_fill_form",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fields": {
+            "description": "Fields to fill in",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "element": {
+                  "description": "Human-readable element description used to obtain permission to interact with the element",
+                  "type": "string"
+                },
+                "name": {
+                  "description": "Human-readable field name",
+                  "type": "string"
+                },
+                "target": {
+                  "description": "Exact target element reference from the page snapshot, or a unique element selector",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Type of the field",
+                  "enum": [
+                    "textbox",
+                    "checkbox",
+                    "radio",
+                    "combobox",
+                    "slider"
+                  ],
+                  "type": "string"
+                },
+                "value": {
+                  "description": "Value to fill in the field. If the field is a checkbox, the value should be `true` or `false`. If the field is a combobox, the value should be the text of the option.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "target",
+                "name",
+                "type",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "fields"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Search the accessibility snapshot of the current page for text or a regular expression. Returns matching snapshot nodes with a few lines of surrounding context (like search snippets), each shown under its path from the root of the tree, which is cheaper than capturing the whole snapshot when you only need to locate an element and its ref.",
+      "name": "browser_find",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "regex": {
+            "description": "Regular expression to search for in the page snapshot. Matching is case-sensitive by default; wrap the pattern in slashes to add flags, e.g. \"/error/i\" for case-insensitive. Provide either text or regex, not both.",
+            "type": "string"
+          },
+          "text": {
+            "description": "Plain text to search for in the page snapshot (case-insensitive substring match). Provide either text or regex, not both.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Handle a dialog",
+      "name": "browser_handle_dialog",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "accept": {
+            "description": "Whether to accept the dialog.",
+            "type": "boolean"
+          },
+          "promptText": {
+            "description": "The text of the prompt in case of a prompt dialog.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accept"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Hover over element on page",
+      "name": "browser_hover",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "element": {
+            "description": "Human-readable element description used to obtain permission to interact with the element",
+            "type": "string"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Navigate to a URL",
+      "name": "browser_navigate",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "The URL to navigate to",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Go back to the previous page in the history",
+      "name": "browser_navigate_back",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "description": "Press a key on the keyboard",
+      "name": "browser_press_key",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "description": "Name of the key to press or a character to generate, such as `ArrowLeft` or `a`",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Select an option in a dropdown",
+      "name": "browser_select_option",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "element": {
+            "description": "Human-readable element description used to obtain permission to interact with the element",
+            "type": "string"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          },
+          "values": {
+            "description": "Array of values to select in the dropdown. This can be a single value or multiple values.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "target",
+          "values"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Capture accessibility snapshot of the current page, this is better than screenshot",
+      "name": "browser_snapshot",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "boxes": {
+            "description": "Include each element's bounding box as [box=x,y,width,height] in the snapshot. Coordinates are viewport-relative, in CSS pixels (Element.getBoundingClientRect)",
+            "type": "boolean"
+          },
+          "depth": {
+            "description": "Limit the depth of the snapshot tree",
+            "type": "number"
+          },
+          "filename": {
+            "description": "Save snapshot to markdown file instead of returning it in the response.",
+            "type": "string"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "List, create, close, or select a browser tab.",
+      "name": "browser_tabs",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Operation to perform",
+            "enum": [
+              "list",
+              "new",
+              "close",
+              "select"
+            ],
+            "type": "string"
+          },
+          "index": {
+            "description": "Tab index, used for close/select. If omitted for close, current tab is closed.",
+            "type": "number"
+          },
+          "url": {
+            "description": "URL to navigate to in the new tab, used for new.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Type text into editable element",
+      "name": "browser_type",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "element": {
+            "description": "Human-readable element description used to obtain permission to interact with the element",
+            "type": "string"
+          },
+          "slowly": {
+            "description": "Whether to type one character at a time. Useful for triggering key handlers in the page. By default entire text is filled in at once.",
+            "type": "boolean"
+          },
+          "submit": {
+            "description": "Whether to submit entered text (press Enter after)",
+            "type": "boolean"
+          },
+          "target": {
+            "description": "Exact target element reference from the page snapshot, or a unique element selector",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text to type into the element",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "text"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Wait for text to appear or disappear or a specified time to pass",
+      "name": "browser_wait_for",
+      "parameters_json_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "description": "The text to wait for",
+            "type": "string"
+          },
+          "textGone": {
+            "description": "The text to wait for to disappear",
+            "type": "string"
+          },
+          "time": {
+            "description": "The time to wait in seconds",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "cloud.cli": [],
+  "cloud.resources": [],
+  "computer": [
+    {
+      "description": "Invokes a named accessibility action on an element, such as AXPress or AXShowMenu.\nUse with element IDs from `see` or `inspect_ui` when a semantic action is available.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_action",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Accessibility action name to invoke, e.g. AXPress, AXShowMenu, AXIncrement.",
+            "type": "string"
+          },
+          "on": {
+            "description": "Opaque element ID from current `see` or `inspect_ui` output, or a query string.",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Optional snapshot ID from `see` or `inspect_ui`; latest is used when omitted.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Control applications - verify an already-running app in the background, or explicitly launch/open/relaunch,\nunhide, focus, switch, quit, hide, and list apps. Cold launch, open, new-instance, relaunch, and unhide require\nforeground=true because macOS cannot guarantee those operations will preserve the user's foreground work.\nProcess-generation chaining must use `target_identity.process_start_identity_decimal`; the numeric\n`process_start_identity` field remains compatibility-only and can lose precision above 2^53.\n\nAlways include the `action` field in your JSON payload. Examples:\n- { \"action\": \"launch\", \"name\": \"Finder\" }\n- { \"action\": \"launch\", \"name\": \"TextEdit\", \"newInstance\": true, \"foreground\": true }\n- { \"action\": \"open\", \"name\": \"Safari\", \"openTargets\": [\"https://example.com\"], \"foreground\": true }\n- { \"action\": \"launch\", \"name\": \"Calendar\", \"foreground\": true }\n- { \"action\": \"switch\", \"to\": \"Safari\" }\n- { \"action\": \"focus\", \"name\": \"Google Chrome\" }\n- { \"action\": \"quit\", \"name\": \"Slack\", \"force\": false }",
+      "name": "computer_app",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action to perform",
+            "enum": [
+              "launch",
+              "open",
+              "quit",
+              "relaunch",
+              "focus",
+              "hide",
+              "unhide",
+              "switch",
+              "list"
+            ],
+            "type": "string"
+          },
+          "all": {
+            "default": false,
+            "description": "Quit all applications",
+            "type": "boolean"
+          },
+          "bundleId": {
+            "description": "Bundle identifier when launching",
+            "type": "string"
+          },
+          "cycle": {
+            "default": false,
+            "description": "Cycle to the next application (like Cmd+Tab)",
+            "type": "boolean"
+          },
+          "except": {
+            "description": "Comma-separated list of apps to exclude when quitting all",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Force quit application",
+            "type": "boolean"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Required for cold launch, open, new-instance, relaunch, and unhide",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "App name/bundle ID/PID (e.g., 'Safari', 'com.apple.Safari', 'PID:663')",
+            "type": "string"
+          },
+          "newInstance": {
+            "default": false,
+            "description": "Launch a distinct process even if the app is already running",
+            "type": "boolean"
+          },
+          "openTargets": {
+            "description": "URL or file paths to open; required for open, optional for launch",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": false
+          },
+          "to": {
+            "description": "Target application when switching",
+            "type": "string"
+          },
+          "wait": {
+            "default": 2,
+            "description": "Wait time (seconds) between quit/launch for relaunch",
+            "type": "number"
+          },
+          "waitForWindow": {
+            "default": false,
+            "description": "Wait until the launched app exposes an exact WindowServer window",
+            "type": "boolean"
+          },
+          "waitUntilReady": {
+            "default": false,
+            "description": "Wait until LaunchServices reports startup complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Clicks on UI elements or coordinates.\nSupports element queries, specific IDs from `see` or `inspect_ui`, or raw coordinates.\nBackground delivery is the default. Background coordinates require a nonempty snapshot or coordinate_reference\nfrom a fresh exact-window `see`; pid alone is never a safe coordinate target. Set `foreground` to true only for\nintentional shared-pointer input, which may omit the capture reference.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_click",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "query"
+                  ]
+                },
+                {
+                  "required": [
+                    "coords"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "on"
+            ]
+          },
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "on"
+                  ]
+                },
+                {
+                  "required": [
+                    "coords"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "query"
+            ]
+          },
+          {
+            "anyOf": [
+              {
+                "properties": {
+                  "foreground": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "foreground"
+                ]
+              },
+              {
+                "properties": {
+                  "background": {
+                    "const": false
+                  }
+                },
+                "required": [
+                  "background"
+                ]
+              },
+              {
+                "required": [
+                  "snapshot"
+                ]
+              },
+              {
+                "required": [
+                  "coordinate_reference"
+                ]
+              }
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "on"
+                  ]
+                },
+                {
+                  "required": [
+                    "query"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "coords"
+            ]
+          }
+        ],
+        "properties": {
+          "background": {
+            "default": true,
+            "description": "Deprecated inverse alias. false explicitly selects foreground shared-pointer delivery.",
+            "type": "boolean"
+          },
+          "coordinate_reference": {
+            "description": "Nonempty snapshot reference_id returned by a fresh exact-window see. Provide this or snapshot for\nevery background coordinate click; required for image_pixels and normalized coords.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "coordinate_space": {
+            "description": "Optional. Coordinate basis for coords. image_pixels and normalized require coordinate_reference.",
+            "enum": [
+              "global_display_points",
+              "image_pixels",
+              "normalized"
+            ],
+            "type": "string"
+          },
+          "coords": {
+            "description": "Coordinates in 'x,y' format, exclusive with on and query. Background delivery requires a nonempty\nsnapshot or coordinate_reference from a fresh exact-window see. Without a reference, set\nforeground=true for intentional shared-pointer global logical points.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "double": {
+            "default": false,
+            "description": "Optional. Double-click instead of single click.",
+            "type": "boolean"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Use foreground/shared-pointer delivery. Background delivery is the default.",
+            "type": "boolean"
+          },
+          "on": {
+            "description": "Opaque element ID copied exactly from current `see` or `inspect_ui` output. Exclusive with query\nand coords; may use the latest UI snapshot.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "pid": {
+            "description": "Optional process consistency check. It never replaces the exact-window capture receipt.",
+            "maximum": 2147483647,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "description": "Element text or query to click. Exclusive with on and coords; may use the latest UI snapshot.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "right": {
+            "default": false,
+            "description": "Optional. Right-click (secondary click) instead of left-click.",
+            "type": "boolean"
+          },
+          "snapshot": {
+            "description": "Snapshot ID from `see` or `inspect_ui`. Element/query clicks may omit it to use the latest snapshot.\nBackground coordinate clicks must provide a nonempty ID from a fresh exact-window see.",
+            "minLength": 1,
+            "type": "string"
+          },
+          "wait_for": {
+            "default": 5000,
+            "description": "Optional. Maximum milliseconds to wait for element to become actionable. Default: 5000.",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Interact with system dialogs and alerts (alerts, sheets, NSSavePanel/NSOpenPanel).\n\nActions:\n- list: inspect dialog structure (buttons, text fields, static text)\n- click: press a dialog button\n- input: type into a dialog text field\n- file: drive NSOpenPanel/NSSavePanel dialogs (path/name/select/verify)\n- dismiss: close the active dialog\n\nTargeting:\n- click and non-forced dismiss require app/pid or an exact window_id target.\n- targeted input defaults to background AXValue delivery; targetless input requires foreground=true.\n- file interaction always requires foreground=true.\n- list may be targetless; targeted list remains read-only and must resolve exactly one dialog.\n- app and pid are alternatives. Provide at most one window selector; title/index require app or pid.\n- Set foreground=true only for explicit keyboard/file interaction or a global fallback.\n\nExamples:\n- Click OK: { \"action\": \"click\", \"button\": \"OK\", \"app\": \"TextEdit\" }\n- Default action: { \"action\": \"click\", \"button\": \"default\", \"app\": \"TextEdit\" }\n- Background input: { \"action\": \"input\", \"text\": \"hello\", \"field\": \"Name\", \"app\": \"TextEdit\" }\n- Save file (OKButton): { \"action\": \"file\", \"path\": \"/tmp\", \"name\": \"poem.rtf\",\n  \"select\": \"default\", \"ensure_expanded\": true, \"app\": \"TextEdit\", \"foreground\": true }",
+      "name": "computer_dialog",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action to perform",
+            "enum": [
+              "list",
+              "click",
+              "input",
+              "file",
+              "dismiss"
+            ],
+            "type": "string"
+          },
+          "app": {
+            "description": "Target app name/bundle ID, or 'PID:<n>'.",
+            "type": "string"
+          },
+          "button": {
+            "description": "Button text to click. Use 'default' to click OKButton.",
+            "type": "string"
+          },
+          "clear": {
+            "default": false,
+            "description": "Clear existing text first.",
+            "type": "boolean"
+          },
+          "ensure_expanded": {
+            "default": false,
+            "description": "Ensure file dialogs are expanded (Show Details) before applying path navigation.",
+            "type": "boolean"
+          },
+          "field": {
+            "description": "Field label/placeholder to target (for input action).",
+            "type": "string"
+          },
+          "field_index": {
+            "description": "Field index (0-based) to target (for input action).",
+            "type": "integer"
+          },
+          "force": {
+            "default": false,
+            "description": "Force dismiss (sends Escape).",
+            "type": "boolean"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Allow focus/global input. Required for targetless input, file, and forced dismiss.",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Filename to enter (for save dialogs).",
+            "type": "string"
+          },
+          "path": {
+            "description": "Directory (or full path) to navigate to (for file action).",
+            "type": "string"
+          },
+          "pid": {
+            "description": "Target process ID (alternative to app).",
+            "type": "integer"
+          },
+          "select": {
+            "description": "Button to click after setting path/name. Omit (or pass 'default') to click OKButton.",
+            "type": "string"
+          },
+          "text": {
+            "description": "Text to input (for input action).",
+            "type": "string"
+          },
+          "window_id": {
+            "description": "Window ID (preferred stable selector).",
+            "type": "integer"
+          },
+          "window_index": {
+            "description": "Window index (0-based); requires app/pid.",
+            "type": "integer"
+          },
+          "window_title": {
+            "description": "Window title (substring match).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Perform drag and drop operations between UI elements or coordinates.\nSupports element queries, specific IDs, or raw coordinates for both start and end points.\nThis always changes the shared physical cursor and requires foreground=true.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_drag",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "button": {
+            "default": "left",
+            "description": "Optional. Mouse button to hold during drag.",
+            "enum": [
+              "left",
+              "right"
+            ],
+            "type": "string"
+          },
+          "duration": {
+            "default": 500,
+            "description": "Optional. Duration in milliseconds (default: 500)",
+            "type": "integer"
+          },
+          "foreground": {
+            "description": "Required. Confirm foreground use of the shared physical cursor.",
+            "type": "boolean"
+          },
+          "from": {
+            "description": "Optional. Start element ID or query",
+            "type": "string"
+          },
+          "from_coords": {
+            "description": "Optional. Start coordinates in format 'x,y' (e.g., '100,200')",
+            "type": "string"
+          },
+          "modifiers": {
+            "description": "Optional. Comma-separated modifiers (cmd, shift, alt, ctrl)",
+            "type": "string"
+          },
+          "profile": {
+            "default": "linear",
+            "description": "Optional. Movement profile. Use 'linear' (default) or 'human'.",
+            "enum": [
+              "linear",
+              "human"
+            ],
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Optional. Snapshot ID from `see` or `inspect_ui`. Uses latest snapshot if not specified",
+            "type": "string"
+          },
+          "steps": {
+            "default": 10,
+            "description": "Optional. Number of intermediate steps (default: 10)",
+            "type": "integer"
+          },
+          "to": {
+            "description": "Optional. End element ID or query",
+            "type": "string"
+          },
+          "to_app": {
+            "description": "Optional. Target application name when dragging between apps",
+            "type": "string"
+          },
+          "to_coords": {
+            "description": "Optional. End coordinates in format 'x,y' (e.g., '300,400')",
+            "type": "string"
+          }
+        },
+        "required": [
+          "foreground"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Inspects the accessibility tree of the active UI and returns visible text, labels,\nbuttons, text fields, and control state. No screenshot is captured.\n\nUse this when you only need to read UI text or discover interactive elements and do not\nneed a visual screenshot. Inspection does not focus the target by default. For visual layout\nor when AX text is incomplete, use `see`. The CLI equivalent is `peekaboo see --tree --no-screenshot`.",
+      "name": "computer_inspect_ui",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "app_target": {
+            "description": "Optional. Specifies the app/window to inspect via Accessibility.\nOmit, use an empty string, or use 'frontmost' for the current foreground application.\nUse 'AppName' (e.g., 'Safari') for a specific application.\nUse 'PID:PROCESS_ID' to target a specific process.\nUse 'AppName:WindowTitle' or 'PID:PROCESS_ID:WindowTitle' for a specific window title.\nScreen and menu bar targets require screenshots; use `see` for those.",
+            "type": "string"
+          },
+          "max_children": {
+            "description": "Optional. Maximum AX children per node. Env fallback: PEEKABOO_AX_MAX_CHILDREN.\nIncrease this for flat Qt/Electron panels with many sibling controls.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_depth": {
+            "description": "Optional. Maximum AX traversal depth. Env fallback: PEEKABOO_AX_MAX_DEPTH.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_elements": {
+            "description": "Optional. Maximum AX elements to collect. Env fallback: PEEKABOO_AX_MAX_ELEMENTS.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_results": {
+            "description": "Optional number of matching elements to render. Ancestors are included separately.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "query": {
+            "description": "Optional semantic query. Returns matching elements with their AX ancestors.",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Optional. Snapshot ID for UI automation tracking. A new snapshot is created when absent.",
+            "type": "string"
+          },
+          "web_focus": {
+            "default": false,
+            "description": "Optional. Allow an AXPress retry on sparse Chromium/Tauri web content.",
+            "type": "boolean"
+          },
+          "window_id": {
+            "description": "Optional. Exact CoreGraphics window ID. Requires an application or PID app_target; Peekaboo\nverifies the window belongs to that owner. Numeric app_target suffixes remain window indexes.",
+            "maximum": 4294967295,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Interact with application menu bars - list available menus and menu items\nfor an application, or click on a specific menu item using path notation.\n\nActions:\n- list: Discover all available menus and menu items for an application\n- click: Click on a specific menu item using path notation\n\nTarget applications by name (e.g., \"Safari\"), bundle ID (e.g., \"com.apple.Safari\"),\nor process ID (e.g., \"PID:663\"). Fuzzy matching is supported for names.\n\nExamples:\n- List Chrome menus: { \"action\": \"list\", \"app\": \"Google Chrome\" }\n- Save document: { \"action\": \"click\", \"app\": \"TextEdit\", \"path\": \"File > Save\" }\n- Copy selection: { \"action\": \"click\", \"app\": \"Safari\", \"path\": \"Edit > Copy\" }\nPeekaboo MCP 4.2.0 using openai/gpt-5.6\nand anthropic/claude-opus-5",
+      "name": "computer_menu",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action to perform. Use 'list' to discover menus or 'click' to\ninteract with menu items.",
+            "enum": [
+              "list",
+              "click"
+            ],
+            "type": "string"
+          },
+          "app": {
+            "description": "Target application name, bundle ID, or process ID (required for list and click actions)",
+            "type": "string"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Focus the target before list/click. Defaults to background AX access.",
+            "type": "boolean"
+          },
+          "item": {
+            "description": "Simple menu item to click (for non-nested items)",
+            "type": "string"
+          },
+          "path": {
+            "description": "Menu path for nested items (e.g., 'File > Save As...' or 'Edit > Copy')",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Presses one or more raw keyboard chords. Use `keys` for an xdotool-style chord sequence such as\n[\"cmd+c\", \"Return\"], or use `key` plus `modifiers` for a single chord. The two input shapes are\nmutually exclusive. Raw chords require foreground=true or an exact window/snapshot receipt whose focused\nelement can be pinned through native background dispatch. App/PID-only and targetless background press are\nrefused. Raw chords cannot prove semantic intent or effect; observe the target after unverified delivery.\napp and pid are alternatives; provide at most one window selector; pair title/index with app or pid.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_press",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "app": {
+            "description": "Optional target app name/bundle ID, or 'PID:<n>'.",
+            "type": "string"
+          },
+          "count": {
+            "default": 1,
+            "description": "Optional repeat count for the complete chord sequence. Default: 1.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "delay": {
+            "default": 100,
+            "description": "Optional delay between chord presses in milliseconds. Default: 100.",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Required true for targetless, app-only, or PID-only raw input; false is allowed only with an exact window or fresh snapshot receipt.",
+            "type": "boolean"
+          },
+          "hold": {
+            "default": 50,
+            "description": "Optional duration to hold each chord in milliseconds. Default: 50.",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "key": {
+            "description": "Optional single primary key, used with modifiers instead of keys.",
+            "type": "string"
+          },
+          "keys": {
+            "description": "Optional chord sequence using xdotool key syntax, e.g. ['cmd+c', 'Return'].",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": false
+          },
+          "modifiers": {
+            "description": "Optional modifiers for the single key form.",
+            "items": {
+              "enum": [
+                "cmd",
+                "command",
+                "shift",
+                "option",
+                "alt",
+                "ctrl",
+                "control",
+                "fn"
+              ],
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": false
+          },
+          "pid": {
+            "description": "Optional process to focus before foreground raw input.",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "snapshot": {
+            "description": "Optional fresh exact-window snapshot for receipt-pinned background press.",
+            "type": "string"
+          },
+          "window_id": {
+            "description": "Optional window ID to focus before raw input.",
+            "type": "integer"
+          },
+          "window_index": {
+            "description": "Optional window index (0-based); requires app/pid.",
+            "type": "integer"
+          },
+          "window_title": {
+            "description": "Optional window title (substring match) to focus before raw input.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Scrolls a fresh UI target in the background without interrupting the user. Peekaboo prefers\nAccessibility, then may use exact-window PID-routed wheel events for an opaque visible WebKit target.\nSet foreground=true to focus the target and allow global wheel events at the pointer.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6\nand anthropic/claude-opus-5",
+      "name": "computer_scroll",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "default": 3,
+            "description": "Optional. Number of scroll ticks/lines. Default: 3.",
+            "type": "integer"
+          },
+          "delay": {
+            "default": 0,
+            "description": "Optional. Foreground-only delay between scroll ticks in milliseconds. Default: 0.",
+            "type": "integer"
+          },
+          "direction": {
+            "description": "Scroll direction: up (content moves up), down (content moves down), left, or right.",
+            "enum": [
+              "up",
+              "down",
+              "left",
+              "right"
+            ],
+            "type": "string"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Optional. Focus the target and allow global wheel events. Default: false.",
+            "type": "boolean"
+          },
+          "on": {
+            "description": "Element ID from `see` or `inspect_ui`. Required in background mode; omit only with foreground=true to scroll at the current physical pointer.",
+            "type": "string"
+          },
+          "smooth": {
+            "default": false,
+            "description": "Optional. Use smooth synthetic scrolling; requires foreground=true.",
+            "type": "boolean"
+          },
+          "snapshot": {
+            "description": "Optional. Snapshot ID from `see` or `inspect_ui`. Uses latest snapshot if not specified.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Sets an accessibility element value directly without synthesizing keystrokes.\nUse for forms and controls after `see` or `inspect_ui` returns an element ID. Requires a settable AX value.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_set_value",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "on": {
+            "description": "Opaque element ID copied exactly from current `see` or `inspect_ui` output, or a query string.",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Optional. Snapshot ID from `see` or `inspect_ui`. Uses latest snapshot if not specified.",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Value to set. Supported types: string, boolean, integer, or number."
+          }
+        },
+        "required": [
+          "on",
+          "value"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "description": "Discovers visible macOS windows, dialogs, and sheets without reading their full UI trees.\n\nUse this before observing a multi-window application or choosing between several active\napplications. Each result has an opaque surface ID plus the exact PID and CoreGraphics\nwindow ID accepted by `see`, `inspect_ui`, and interaction tools.",
+      "name": "computer_surfaces",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "apps": {
+            "description": "Optional app names, bundle IDs, or PID selectors. Omit to inspect windowed apps.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": false
+          },
+          "include_hidden": {
+            "default": false,
+            "description": "Include hidden applications and off-screen windows.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "Types text into UI elements, a targeted app process, or one exact background window.\nSupports human typing (--wpm) or fixed-delay (--delay) pacing. Use `press` for key presses and chords.\nBackground delivery requires an element/snapshot/app/pid target. Set `foreground=true` for intentional input\nat the current keyboard focus or when the app must be focused first. app and pid are alternatives; provide at\nmost one window selector, and pair window_title/window_index with app or pid. A process target with one\neligible window is upgraded to exact-window delivery; multiple eligible windows are refused.\nPeekaboo MCP 4.2.0 using openai/gpt-5.6\nand anthropic/claude-opus-5",
+      "name": "computer_type",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "app": {
+            "description": "Optional. Target app name/bundle ID, or 'PID:<n>' for background typing.",
+            "type": "string"
+          },
+          "clear": {
+            "default": false,
+            "description": "Optional. Clear the field before typing (Cmd+A, Delete).",
+            "type": "boolean"
+          },
+          "delay": {
+            "default": 0,
+            "description": "Optional. Delay between keystrokes in milliseconds (linear profile). Default: 0.",
+            "type": "integer"
+          },
+          "foreground": {
+            "default": false,
+            "description": "Optional. Focus a supplied target or intentionally send global keyboard input.",
+            "type": "boolean"
+          },
+          "on": {
+            "description": "Optional. Element ID to type into (from `see` or `inspect_ui`). If omitted, provide snapshot/app/pid for background delivery or set foreground=true.",
+            "type": "string"
+          },
+          "pid": {
+            "description": "Optional. Target process ID for background typing when no element snapshot is used.",
+            "type": "integer"
+          },
+          "profile": {
+            "description": "Optional. Typing profile: linear (default) or human.",
+            "type": "string"
+          },
+          "snapshot": {
+            "description": "Optional. Snapshot ID from `see` or `inspect_ui`. When `on` is omitted, the snapshot process is the background typing target.",
+            "type": "string"
+          },
+          "text": {
+            "description": "The text to type.",
+            "type": "string"
+          },
+          "window_id": {
+            "description": "Optional. Exact background window ID; foreground=true focuses it instead.",
+            "type": "integer"
+          },
+          "window_index": {
+            "description": "Optional. Window index (0-based); requires app/pid.",
+            "type": "integer"
+          },
+          "window_title": {
+            "description": "Optional. Exact window title substring; must resolve uniquely.",
+            "type": "string"
+          },
+          "wpm": {
+            "description": "Optional. Human typing speed (80-220 WPM). Overrides delay when set.",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "description": "List and manipulate application windows.\n\nActions:\n- list: List an application's windows with IDs, bounds, and off-screen state\n- close: Close a window\n- minimize: Minimize a window\n- restore: Restore a minimized window without activating or focusing its application\n- maximize: Maximize a window\n- move: Move a window to specific coordinates (requires x, y)\n- resize: Resize a window to specific dimensions (requires width, height)\n- set-bounds: Set both position and size (requires x, y, width, height)\n- focus: Bring a window to the foreground\n\nTarget windows by application name and optionally by window title or index.\nFor deterministic targeting, prefer `window_id` (from `peekaboo window list`).\nSupports partial title matching for convenience.\n\nJSON Examples (ALWAYS include `action`):\n- { \"action\": \"list\", \"app\": \"Safari\" }\n- { \"action\": \"focus\", \"app\": \"Google Chrome\" }\n- { \"action\": \"move\", \"app\": \"TextEdit\", \"x\": 100, \"y\": 100 }\n- { \"action\": \"restore\", \"app\": \"PID:1234\", \"window_id\": 5678 }\n- { \"action\": \"set-bounds\", \"app\": \"Terminal\", \"x\": 0, \"y\": 0, \"width\": 1280, \"height\": 720 }\n- { \"action\": \"close\", \"app\": \"Safari\", \"title\": \"Grindr Web\" }\nPeekaboo MCP 4.2.0 using openai/gpt-5.6, anthropic/claude-opus-5",
+      "name": "computer_window",
+      "parameters_json_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "The action to perform on the window",
+            "enum": [
+              "list",
+              "close",
+              "minimize",
+              "restore",
+              "maximize",
+              "move",
+              "resize",
+              "set-bounds",
+              "focus"
+            ],
+            "type": "string"
+          },
+          "app": {
+            "description": "Target application name, bundle ID, or process ID",
+            "type": "string"
+          },
+          "foreground": {
+            "default": false,
+            "description": "For close only: allow focused/global fallback after AX close fails.",
+            "type": "boolean"
+          },
+          "height": {
+            "description": "Height for resize or set-bounds action",
+            "type": "number"
+          },
+          "include_window_details": {
+            "description": "Details for list results. Defaults to ids, bounds, and off_screen.",
+            "items": {
+              "enum": [
+                "ids",
+                "bounds",
+                "off_screen"
+              ],
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": false
+          },
+          "index": {
+            "description": "Window index (0-based) for multi-window applications",
+            "type": "integer"
+          },
+          "title": {
+            "description": "Window title to target (partial matching supported)",
+            "type": "string"
+          },
+          "width": {
+            "description": "Width for resize or set-bounds action",
+            "type": "number"
+          },
+          "window_id": {
+            "description": "Window ID (from window list); preferred stable selector",
+            "type": "integer"
+          },
+          "x": {
+            "description": "X coordinate for move or set-bounds action",
+            "type": "number"
+          },
+          "y": {
+            "description": "Y coordinate for move or set-bounds action",
+            "type": "number"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "local": [
+    {
+      "description": "Inspect matching files in one local directory without opening an app.\n\nUse this after a browser or macOS application creates or downloads a file.\nThe result verifies only files that currently exist on disk.\n\nArgs:\n    directory: Absolute directory to inspect, such as /Users/name/Downloads.\n    name_contains: Optional case-insensitive text that must occur in the filename.\n    suffix: Optional filename suffix such as .xlsx or .pdf.",
+      "name": "inspect_local_artifacts",
+      "parameters_json_schema": {
+        "properties": {
+          "directory": {
+            "title": "Directory",
+            "type": "string"
+          },
+          "name_contains": {
+            "default": "",
+            "title": "Name Contains",
+            "type": "string"
+          },
+          "suffix": {
+            "default": "",
+            "title": "Suffix",
+            "type": "string"
+          }
+        },
+        "required": [
+          "directory"
+        ],
+        "title": "inspect_local_artifactsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Save one explicit, durable fact or reusable method for future tasks.",
+      "name": "save_memory",
+      "parameters_json_schema": {
+        "properties": {
+          "category": {
+            "enum": [
+              "identity",
+              "preference",
+              "project",
+              "workflow"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "content"
+        ],
+        "title": "save_memoryParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.calendar": [
+    {
+      "description": "List Google Calendar events within an RFC3339 time range.",
+      "name": "workspace_calendar_list_events",
+      "parameters_json_schema": {
+        "properties": {
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 50,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "time_max": {
+            "title": "Time Max",
+            "type": "string"
+          },
+          "time_min": {
+            "title": "Time Min",
+            "type": "string"
+          }
+        },
+        "required": [
+          "time_min",
+          "time_max"
+        ],
+        "title": "workspace_calendar_list_eventsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Calendar event with optional guests, recurrence, location, and Google Meet link.",
+      "name": "workspace_calendar_create_event",
+      "parameters_json_schema": {
+        "properties": {
+          "all_day": {
+            "default": false,
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "attendees": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attendees"
+          },
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "create_meet_link": {
+            "default": false,
+            "title": "Create Meet Link",
+            "type": "boolean"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "end": {
+            "title": "End",
+            "type": "string"
+          },
+          "location": {
+            "default": "",
+            "title": "Location",
+            "type": "string"
+          },
+          "recurrence": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recurrence"
+          },
+          "start": {
+            "title": "Start",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "time_zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Zone"
+          }
+        },
+        "required": [
+          "summary",
+          "start",
+          "end"
+        ],
+        "title": "workspace_calendar_create_eventParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Update selected fields on a Google Calendar event.",
+      "name": "workspace_calendar_update_event",
+      "parameters_json_schema": {
+        "properties": {
+          "all_day": {
+            "default": false,
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "attendees": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attendees"
+          },
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "create_meet_link": {
+            "default": false,
+            "title": "Create Meet Link",
+            "type": "boolean"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Description"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location"
+          },
+          "recurrence": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recurrence"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Summary"
+          },
+          "time_zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Zone"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "workspace_calendar_update_eventParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a Google Calendar event.",
+      "name": "workspace_calendar_delete_event",
+      "parameters_json_schema": {
+        "properties": {
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "workspace_calendar_delete_eventParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List calendars available to the connected user.",
+      "name": "workspace_calendar_list_calendars",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          }
+        },
+        "title": "workspace_calendar_list_calendarsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read full event details, including attendees, attachments, and meeting links.",
+      "name": "workspace_calendar_get_event",
+      "parameters_json_schema": {
+        "properties": {
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "workspace_calendar_get_eventParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Return busy intervals for calendars within an RFC3339 time window.",
+      "name": "workspace_calendar_find_free_time",
+      "parameters_json_schema": {
+        "properties": {
+          "calendar_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Calendar Ids"
+          },
+          "time_max": {
+            "title": "Time Max",
+            "type": "string"
+          },
+          "time_min": {
+            "title": "Time Min",
+            "type": "string"
+          },
+          "time_zone": {
+            "default": "UTC",
+            "title": "Time Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "time_min",
+          "time_max"
+        ],
+        "title": "workspace_calendar_find_free_timeParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Accept, decline, or tentatively accept an event invitation.",
+      "name": "workspace_calendar_respond_to_event",
+      "parameters_json_schema": {
+        "properties": {
+          "calendar_id": {
+            "default": "primary",
+            "title": "Calendar Id",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "response_status": {
+            "title": "Response Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "response_status"
+        ],
+        "title": "workspace_calendar_respond_to_eventParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.docs": [
+    {
+      "description": "Read a Google Doc by document ID or Docs URL.",
+      "name": "workspace_docs_read_doc",
+      "parameters_json_schema": {
+        "properties": {
+          "document": {
+            "title": "Document",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document"
+        ],
+        "title": "workspace_docs_read_docParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google Doc and optionally insert its initial plain-text content.",
+      "name": "workspace_docs_create_doc",
+      "parameters_json_schema": {
+        "properties": {
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_docs_create_docParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Append plain text to the end of a Google Doc.",
+      "name": "workspace_docs_append_text",
+      "parameters_json_schema": {
+        "properties": {
+          "document": {
+            "title": "Document",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document",
+          "text"
+        ],
+        "title": "workspace_docs_append_textParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Apply Google Docs API batchUpdate requests for formatting, tables, text, and structure.",
+      "name": "workspace_docs_batch_update",
+      "parameters_json_schema": {
+        "properties": {
+          "document": {
+            "title": "Document",
+            "type": "string"
+          },
+          "requests": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "document",
+          "requests"
+        ],
+        "title": "workspace_docs_batch_updateParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.drive": [
+    {
+      "description": "Search Google Drive by name or Drive query syntax.\n\nArgs:\n    query: A filename phrase or a Drive API query containing operators.\n    max_results: Maximum files to return, from 1 through 100.",
+      "name": "workspace_drive_search_files",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 20,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "workspace_drive_search_filesParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read metadata for one Google Drive file by ID or URL.",
+      "name": "workspace_drive_get_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_get_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google Drive folder, optionally inside another folder.",
+      "name": "workspace_drive_create_folder",
+      "parameters_json_schema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "workspace_drive_create_folderParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Rename or move an app-accessible Drive file to or from trash.",
+      "name": "workspace_drive_update_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "trashed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trashed"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_update_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List files directly inside a Drive folder.",
+      "name": "workspace_drive_list_folder",
+      "parameters_json_schema": {
+        "properties": {
+          "folder": {
+            "default": "root",
+            "title": "Folder",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          }
+        },
+        "title": "workspace_drive_list_folderParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Upload a base64-encoded file to Google Drive.",
+      "name": "workspace_drive_upload_file",
+      "parameters_json_schema": {
+        "properties": {
+          "data_base64": {
+            "title": "Data Base64",
+            "type": "string"
+          },
+          "mime_type": {
+            "default": "application/octet-stream",
+            "title": "Mime Type",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "name",
+          "data_base64"
+        ],
+        "title": "workspace_drive_upload_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Download a binary Drive file as base64 data.",
+      "name": "workspace_drive_download_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_download_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Export a Google Doc, Sheet, or Slides file as base64 data.",
+      "name": "workspace_drive_export_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "mime_type": {
+            "title": "Mime Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "mime_type"
+        ],
+        "title": "workspace_drive_export_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Copy a Drive file, optionally renaming or placing it in a folder.",
+      "name": "workspace_drive_copy_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_copy_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Move a Drive file into a different folder.",
+      "name": "workspace_drive_move_file",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "folder": {
+            "title": "Folder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "folder"
+        ],
+        "title": "workspace_drive_move_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List sharing permissions for a Drive file.",
+      "name": "workspace_drive_list_permissions",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_list_permissionsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Share a Drive file with a user, group, domain, or anyone.",
+      "name": "workspace_drive_share_file",
+      "parameters_json_schema": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Email"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "permission_type": {
+            "default": "user",
+            "title": "Permission Type",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "send_notification": {
+            "default": true,
+            "title": "Send Notification",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "file",
+          "role"
+        ],
+        "title": "workspace_drive_share_fileParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List comments and replies on a Drive file.",
+      "name": "workspace_drive_list_comments",
+      "parameters_json_schema": {
+        "properties": {
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "workspace_drive_list_commentsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a comment on a Drive file.",
+      "name": "workspace_drive_create_comment",
+      "parameters_json_schema": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "content"
+        ],
+        "title": "workspace_drive_create_commentParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Reply to a Drive file comment.",
+      "name": "workspace_drive_reply_to_comment",
+      "parameters_json_schema": {
+        "properties": {
+          "comment_id": {
+            "title": "Comment Id",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "comment_id",
+          "content"
+        ],
+        "title": "workspace_drive_reply_to_commentParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.forms": [
+    {
+      "description": "Create a Google Form.",
+      "name": "workspace_forms_create_form",
+      "parameters_json_schema": {
+        "properties": {
+          "document_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Document Title"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_forms_create_formParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read a Google Form's questions, settings, and responder URL.",
+      "name": "workspace_forms_get_form",
+      "parameters_json_schema": {
+        "properties": {
+          "form": {
+            "title": "Form",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form"
+        ],
+        "title": "workspace_forms_get_formParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Add or update Google Form questions, quiz settings, and form structure.",
+      "name": "workspace_forms_batch_update",
+      "parameters_json_schema": {
+        "properties": {
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "requests": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "form",
+          "requests"
+        ],
+        "title": "workspace_forms_batch_updateParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Publish or unpublish a Google Form and control whether it accepts responses.",
+      "name": "workspace_forms_set_published",
+      "parameters_json_schema": {
+        "properties": {
+          "accepting_responses": {
+            "default": true,
+            "title": "Accepting Responses",
+            "type": "boolean"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "published": {
+            "default": true,
+            "title": "Published",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "form"
+        ],
+        "title": "workspace_forms_set_publishedParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List responses submitted to a Google Form.",
+      "name": "workspace_forms_list_responses",
+      "parameters_json_schema": {
+        "properties": {
+          "filter_query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Filter Query"
+          },
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "form"
+        ],
+        "title": "workspace_forms_list_responsesParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one Google Form response.",
+      "name": "workspace_forms_get_response",
+      "parameters_json_schema": {
+        "properties": {
+          "form": {
+            "title": "Form",
+            "type": "string"
+          },
+          "response_id": {
+            "title": "Response Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form",
+          "response_id"
+        ],
+        "title": "workspace_forms_get_responseParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.gmail": [
+    {
+      "description": "Search Gmail and return matching threads with recent message metadata.\n\nArgs:\n    query: Gmail search syntax, such as `from:devpost newer_than:1y`.\n    max_results: Maximum number of threads to return, from 1 through 25.",
+      "name": "workspace_gmail_search_threads",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 10,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "workspace_gmail_search_threadsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one Gmail thread, including message headers and text bodies.",
+      "name": "workspace_gmail_get_thread",
+      "parameters_json_schema": {
+        "properties": {
+          "thread_id": {
+            "title": "Thread Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "thread_id"
+        ],
+        "title": "workspace_gmail_get_threadParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read one Gmail message, including headers and text body.",
+      "name": "workspace_gmail_get_message",
+      "parameters_json_schema": {
+        "properties": {
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "title": "workspace_gmail_get_messageParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Gmail draft without sending it.\n\nArgs:\n    to: Recipient email addresses.\n    subject: Draft subject.\n    body: Plain-text message body.\n    cc: Optional CC recipients.\n    bcc: Optional BCC recipients.",
+      "name": "workspace_gmail_create_draft",
+      "parameters_json_schema": {
+        "properties": {
+          "bcc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bcc"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cc"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "title": "workspace_gmail_create_draftParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Send an existing Gmail draft.",
+      "name": "workspace_gmail_send_draft",
+      "parameters_json_schema": {
+        "properties": {
+          "draft_id": {
+            "title": "Draft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "draft_id"
+        ],
+        "title": "workspace_gmail_send_draftParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Send a plain-text email through Gmail.",
+      "name": "workspace_gmail_send_message",
+      "parameters_json_schema": {
+        "properties": {
+          "bcc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bcc"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cc"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "title": "workspace_gmail_send_messageParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List Gmail system and user labels.",
+      "name": "workspace_gmail_list_labels"
+    },
+    {
+      "description": "Send an email with optional HTML and base64-encoded file attachments.",
+      "name": "workspace_gmail_send_rich_message",
+      "parameters_json_schema": {
+        "properties": {
+          "attachments": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attachments"
+          },
+          "bcc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bcc"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cc"
+          },
+          "html_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Html Body"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "title": "workspace_gmail_send_rich_messageParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Gmail draft with optional HTML and base64-encoded attachments.",
+      "name": "workspace_gmail_create_rich_draft",
+      "parameters_json_schema": {
+        "properties": {
+          "attachments": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attachments"
+          },
+          "bcc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Bcc"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "cc": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cc"
+          },
+          "html_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Html Body"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "to",
+          "subject",
+          "body"
+        ],
+        "title": "workspace_gmail_create_rich_draftParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Reply to a Gmail message while preserving its thread.",
+      "name": "workspace_gmail_reply",
+      "parameters_json_schema": {
+        "properties": {
+          "attachments": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attachments"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "html_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Html Body"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "reply_all": {
+            "default": false,
+            "title": "Reply All",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id",
+          "body"
+        ],
+        "title": "workspace_gmail_replyParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Forward a Gmail message and its file attachments to new recipients.",
+      "name": "workspace_gmail_forward",
+      "parameters_json_schema": {
+        "properties": {
+          "body_intro": {
+            "default": "",
+            "title": "Body Intro",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "To",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message_id",
+          "to"
+        ],
+        "title": "workspace_gmail_forwardParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Apply Gmail labels or state changes such as read, unread, starred, or archived.",
+      "name": "workspace_gmail_modify_message",
+      "parameters_json_schema": {
+        "properties": {
+          "add_label_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Add Label Ids"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "remove_label_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Remove Label Ids"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "title": "workspace_gmail_modify_messageParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Move a Gmail message to trash or restore it from trash.",
+      "name": "workspace_gmail_trash_message",
+      "parameters_json_schema": {
+        "properties": {
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "trashed": {
+            "default": true,
+            "title": "Trashed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "message_id"
+        ],
+        "title": "workspace_gmail_trash_messageParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Gmail label.",
+      "name": "workspace_gmail_create_label",
+      "parameters_json_schema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "workspace_gmail_create_labelParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Download one Gmail attachment as URL-safe base64 data.",
+      "name": "workspace_gmail_get_attachment",
+      "parameters_json_schema": {
+        "properties": {
+          "attachment_id": {
+            "title": "Attachment Id",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "attachment_id"
+        ],
+        "title": "workspace_gmail_get_attachmentParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.meet": [
+    {
+      "description": "Create a Google Meet space and return its joining link.",
+      "name": "workspace_meet_create_space",
+      "parameters_json_schema": {
+        "properties": {
+          "access_type": {
+            "default": "OPEN",
+            "title": "Access Type",
+            "type": "string"
+          }
+        },
+        "title": "workspace_meet_create_spaceParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read a Meet space by resource name, meeting code, or meeting URI.",
+      "name": "workspace_meet_get_space",
+      "parameters_json_schema": {
+        "properties": {
+          "space": {
+            "title": "Space",
+            "type": "string"
+          }
+        },
+        "required": [
+          "space"
+        ],
+        "title": "workspace_meet_get_spaceParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "End the active conference in a Meet space.",
+      "name": "workspace_meet_end_active_conference",
+      "parameters_json_schema": {
+        "properties": {
+          "space": {
+            "title": "Space",
+            "type": "string"
+          }
+        },
+        "required": [
+          "space"
+        ],
+        "title": "workspace_meet_end_active_conferenceParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List Meet conference records, optionally filtered by meeting code or active state.",
+      "name": "workspace_meet_list_conferences",
+      "parameters_json_schema": {
+        "properties": {
+          "active_only": {
+            "default": false,
+            "title": "Active Only",
+            "type": "boolean"
+          },
+          "meeting_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Meeting Code"
+          },
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "title": "workspace_meet_list_conferencesParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List participants and their joining identities for a Meet conference.",
+      "name": "workspace_meet_list_participants",
+      "parameters_json_schema": {
+        "properties": {
+          "conference_record": {
+            "title": "Conference Record",
+            "type": "string"
+          },
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "conference_record"
+        ],
+        "title": "workspace_meet_list_participantsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List a Meet participant's join and leave sessions for attendance timing.",
+      "name": "workspace_meet_list_participant_sessions",
+      "parameters_json_schema": {
+        "properties": {
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "participant": {
+            "title": "Participant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "participant"
+        ],
+        "title": "workspace_meet_list_participant_sessionsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List recordings generated for a Meet conference.",
+      "name": "workspace_meet_list_recordings",
+      "parameters_json_schema": {
+        "properties": {
+          "conference_record": {
+            "title": "Conference Record",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conference_record"
+        ],
+        "title": "workspace_meet_list_recordingsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List transcripts generated for a Meet conference.",
+      "name": "workspace_meet_list_transcripts",
+      "parameters_json_schema": {
+        "properties": {
+          "conference_record": {
+            "title": "Conference Record",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conference_record"
+        ],
+        "title": "workspace_meet_list_transcriptsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Read timestamped speaker entries from a Meet transcript.",
+      "name": "workspace_meet_list_transcript_entries",
+      "parameters_json_schema": {
+        "properties": {
+          "page_size": {
+            "default": 100,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "transcript": {
+            "title": "Transcript",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transcript"
+        ],
+        "title": "workspace_meet_list_transcript_entriesParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.people": [
+    {
+      "description": "Search the connected Google account's contacts.",
+      "name": "workspace_people_search_contacts",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 10,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "workspace_people_search_contactsParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.sheets": [
+    {
+      "description": "Read values from a Google Sheets range.",
+      "name": "workspace_sheets_read_range",
+      "parameters_json_schema": {
+        "properties": {
+          "range_name": {
+            "title": "Range Name",
+            "type": "string"
+          },
+          "spreadsheet": {
+            "title": "Spreadsheet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spreadsheet",
+          "range_name"
+        ],
+        "title": "workspace_sheets_read_rangeParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Write rows of values to a Google Sheets range.",
+      "name": "workspace_sheets_update_range",
+      "parameters_json_schema": {
+        "properties": {
+          "range_name": {
+            "title": "Range Name",
+            "type": "string"
+          },
+          "spreadsheet": {
+            "title": "Spreadsheet",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "spreadsheet",
+          "range_name",
+          "values"
+        ],
+        "title": "workspace_sheets_update_rangeParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google spreadsheet with optional named sheets.",
+      "name": "workspace_sheets_create_spreadsheet",
+      "parameters_json_schema": {
+        "properties": {
+          "sheet_titles": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sheet Titles"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_sheets_create_spreadsheetParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Append rows after the current table in a Google Sheets range.",
+      "name": "workspace_sheets_append_rows",
+      "parameters_json_schema": {
+        "properties": {
+          "range_name": {
+            "title": "Range Name",
+            "type": "string"
+          },
+          "spreadsheet": {
+            "title": "Spreadsheet",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "spreadsheet",
+          "range_name",
+          "values"
+        ],
+        "title": "workspace_sheets_append_rowsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Apply Google Sheets API batchUpdate requests for formatting, sheets, charts, and structure.",
+      "name": "workspace_sheets_batch_update",
+      "parameters_json_schema": {
+        "properties": {
+          "requests": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Requests",
+            "type": "array"
+          },
+          "spreadsheet": {
+            "title": "Spreadsheet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spreadsheet",
+          "requests"
+        ],
+        "title": "workspace_sheets_batch_updateParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.slides": [
+    {
+      "description": "Read presentation metadata and slide element text from Google Slides.",
+      "name": "workspace_slides_get_presentation",
+      "parameters_json_schema": {
+        "properties": {
+          "presentation": {
+            "title": "Presentation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentation"
+        ],
+        "title": "workspace_slides_get_presentationParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google Slides presentation.",
+      "name": "workspace_slides_create_presentation",
+      "parameters_json_schema": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_slides_create_presentationParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Apply Google Slides API batchUpdate requests for slides, text, shapes, images, and styling.",
+      "name": "workspace_slides_batch_update",
+      "parameters_json_schema": {
+        "properties": {
+          "presentation": {
+            "title": "Presentation",
+            "type": "string"
+          },
+          "requests": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "presentation",
+          "requests"
+        ],
+        "title": "workspace_slides_batch_updateParams",
+        "type": "object"
+      }
+    }
+  ],
+  "workspace.tasks": [
+    {
+      "description": "List the connected user's Google Tasks lists.",
+      "name": "workspace_tasks_list_tasklists",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          }
+        },
+        "title": "workspace_tasks_list_tasklistsParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google Tasks list.",
+      "name": "workspace_tasks_create_tasklist",
+      "parameters_json_schema": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_tasks_create_tasklistParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Rename a Google Tasks list.",
+      "name": "workspace_tasks_update_tasklist",
+      "parameters_json_schema": {
+        "properties": {
+          "tasklist_id": {
+            "title": "Tasklist Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tasklist_id",
+          "title"
+        ],
+        "title": "workspace_tasks_update_tasklistParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a Google Tasks list.",
+      "name": "workspace_tasks_delete_tasklist",
+      "parameters_json_schema": {
+        "properties": {
+          "tasklist_id": {
+            "title": "Tasklist Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tasklist_id"
+        ],
+        "title": "workspace_tasks_delete_tasklistParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "List tasks from a Google Tasks list.",
+      "name": "workspace_tasks_list_tasks",
+      "parameters_json_schema": {
+        "properties": {
+          "max_results": {
+            "default": 100,
+            "title": "Max Results",
+            "type": "integer"
+          },
+          "show_completed": {
+            "default": false,
+            "title": "Show Completed",
+            "type": "boolean"
+          },
+          "show_hidden": {
+            "default": false,
+            "title": "Show Hidden",
+            "type": "boolean"
+          },
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          }
+        },
+        "title": "workspace_tasks_list_tasksParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Create a Google Task, optionally with notes, a due timestamp, or a parent task.",
+      "name": "workspace_tasks_create_task",
+      "parameters_json_schema": {
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "parent_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Task Id"
+          },
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "workspace_tasks_create_taskParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Update a Google Task's content, due time, or completion state.",
+      "name": "workspace_tasks_update_task",
+      "parameters_json_schema": {
+        "properties": {
+          "completed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Completed"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Notes"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "workspace_tasks_update_taskParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Delete a Google Task.",
+      "name": "workspace_tasks_delete_task",
+      "parameters_json_schema": {
+        "properties": {
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "workspace_tasks_delete_taskParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Move a task within a list or make it a subtask.",
+      "name": "workspace_tasks_move_task",
+      "parameters_json_schema": {
+        "properties": {
+          "parent_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent Task Id"
+          },
+          "previous_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Previous Task Id"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ],
+        "title": "workspace_tasks_move_taskParams",
+        "type": "object"
+      }
+    },
+    {
+      "description": "Remove completed tasks from a Google Tasks list.",
+      "name": "workspace_tasks_clear_completed",
+      "parameters_json_schema": {
+        "properties": {
+          "tasklist_id": {
+            "default": "@default",
+            "title": "Tasklist Id",
+            "type": "string"
+          }
+        },
+        "title": "workspace_tasks_clear_completedParams",
+        "type": "object"
+      }
+    }
+  ]
+}

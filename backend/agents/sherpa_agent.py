@@ -1,3 +1,5 @@
+import os
+
 from google.adk.agents import Agent
 from google.adk.apps import App
 from google.adk.apps.app import EventsCompactionConfig
@@ -22,10 +24,16 @@ from backend.tool_registry import (
     namespaces_for_skills,
     tool_registry,
 )
+from backend.remote_tools import remote_local_tools, remote_tools_enabled
 
 SHERPA_MODEL = "gemini-3.6-flash"
 sherpa_model = Gemini(
     model=SHERPA_MODEL,
+    client_kwargs={
+        "vertexai": True,
+        "project": os.getenv("GOOGLE_CLOUD_PROJECT", "sherpa-20260813"),
+        "location": os.getenv("SHERPA_MODEL_LOCATION", "global"),
+    },
     retry_options=types.HttpRetryOptions(attempts=3),
 )
 
@@ -33,6 +41,11 @@ sherpa_model = Gemini(
 def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
     initial_namespaces = namespaces_for_skills(skill_ids)
     registry = DynamicToolRegistry(initial_namespaces) if initial_namespaces else tool_registry
+    local_tools = remote_local_tools() if remote_tools_enabled() else [
+        inspect_local_artifacts,
+        save_memory,
+    ]
+    callbacks = not remote_tools_enabled()
     return Agent(
         name="sherpa_agent",
         description="Chats with the user and helps them use unfamiliar software.",
@@ -175,14 +188,13 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
             update_task_board,
             ask_task_question,
             complete_task,
-            inspect_local_artifacts,
-            save_memory,
+            *local_tools,
             *registry.initial_toolsets(),
             registry,
         ],
-        before_tool_callback=before_computer_tool,
-        after_tool_callback=after_computer_tool,
-        on_tool_error_callback=on_computer_tool_error,
+        before_tool_callback=before_computer_tool if callbacks else None,
+        after_tool_callback=after_computer_tool if callbacks else None,
+        on_tool_error_callback=on_computer_tool_error if callbacks else None,
     )
 
 

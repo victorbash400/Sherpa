@@ -5,6 +5,7 @@ import sys
 
 GEMINI_KEYCHAIN_SERVICE = "Sherpa Gemini API"
 PLAYWRIGHT_KEYCHAIN_SERVICE = "Sherpa Playwright MCP"
+RELAY_KEYCHAIN_SERVICE = "Sherpa Internal Relay"
 
 
 def load_gemini_api_key() -> str | None:
@@ -19,6 +20,13 @@ def load_playwright_extension_token() -> str | None:
     if configured:
         return configured
     return load_keychain_secret(PLAYWRIGHT_KEYCHAIN_SERVICE)
+
+
+def load_relay_secret() -> str | None:
+    configured = os.getenv("SHERPA_INTERNAL_SECRET")
+    if configured:
+        return configured
+    return load_keychain_secret(RELAY_KEYCHAIN_SERVICE)
 
 
 def load_keychain_secret(service: str) -> str | None:

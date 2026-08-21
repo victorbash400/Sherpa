@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 from backend.permission_store import permission_store
 
 load_dotenv(Path(__file__).with_name(".env"))
+load_dotenv(Path(__file__).with_name(".env.cloud"))
 
 os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "true")
 os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "sherpa-20260813")
@@ -67,6 +68,7 @@ from backend.sherpa_tasks import sherpa_tasks
 from backend.tools.voice_tools import VOICE_TOOLS, handle_voice_tool_call
 from backend.voice_notifications import task_state_notification
 from backend.tools.google_tools import run_with_google_tool_scope
+from backend.tool_relay_client import tool_relay_client
 
 sessions = InMemorySessionService()
 runner = Runner(app=sherpa_app, session_service=sessions)
@@ -78,7 +80,9 @@ async def lifespan(_: FastAPI):
         sherpa_browser_tools.get_tools(),
         sherpa_computer_tools.get_tools(),
     )
+    tool_relay_client.start()
     yield
+    await tool_relay_client.close()
     await memory_manager.close()
     await sherpa_tasks.close()
     await sherpa_browser_tools.close()

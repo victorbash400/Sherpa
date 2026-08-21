@@ -1,0 +1,16 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - cloud/relay/Dockerfile
+      - -t
+      - africa-south1-docker.pkg.dev/$PROJECT_ID/sherpa/relay:$BUILD_ID
+      - -t
+      - africa-south1-docker.pkg.dev/$PROJECT_ID/sherpa/relay:latest
+      - .
+images:
+  - africa-south1-docker.pkg.dev/$PROJECT_ID/sherpa/relay:$BUILD_ID
+  - africa-south1-docker.pkg.dev/$PROJECT_ID/sherpa/relay:latest
+options:
+  logging: CLOUD_LOGGING_ONLY

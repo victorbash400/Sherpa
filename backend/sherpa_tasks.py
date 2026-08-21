@@ -24,6 +24,8 @@ from backend.permission_store import permission_store
 from backend.skill_store import skill_store
 from backend.tools.computer_use.runtime import ComputerTarget, interaction_mode
 from backend.tools.google_tools import run_with_google_tool_scope
+from backend import agent_engine_runtime
+from backend.tool_registry import namespaces_for_skills
 
 
 logger = logging.getLogger("sherpa.tasks")
@@ -751,7 +753,7 @@ class SherpaTaskManager:
             task.phase = "starting"
             task.current_step = "Starting work"
             await self._emit(task, {"type": "task_updated", **self.snapshot(task)})
-            if not resume:
+            if not resume and not agent_engine_runtime.enabled():
                 await self._sessions.create_session(
                     app_name="sherpa",
                     user_id="local-user",
@@ -797,7 +799,16 @@ class SherpaTaskManager:
                 emit_compaction,
             )
 
-            worker_runner = Runner(
+            if agent_engine_runtime.enabled() and not resume:
+                await agent_engine_runtime.ensure_session(
+                    "local-user",
+                    worker_session_id,
+                    {
+                        "session_id": worker_session_id,
+                        "loaded_tool_ids": namespaces_for_skills(task.skill_ids),
+                    },
+                )
+            worker_runner = None if agent_engine_runtime.enabled() else Runner(
                 app=create_sherpa_app(task.skill_ids),
                 session_service=self._sessions,
             )
@@ -807,14 +818,23 @@ class SherpaTaskManager:
                 ",".join(task.skill_ids) or "none",
             )
 
-            async for event in run_with_google_tool_scope(
-                worker_runner,
-                instruction,
-                user_id="local-user",
-                session_id=worker_session_id,
-                new_message=message,
-                run_config=RunConfig(streaming_mode=StreamingMode.SSE),
-            ):
+            event_stream = (
+                agent_engine_runtime.stream_events(
+                    user_id="local-user",
+                    session_id=worker_session_id,
+                    content=message,
+                )
+                if agent_engine_runtime.enabled()
+                else run_with_google_tool_scope(
+                    worker_runner,
+                    instruction,
+                    user_id="local-user",
+                    session_id=worker_session_id,
+                    new_message=message,
+                    run_config=RunConfig(streaming_mode=StreamingMode.SSE),
+                )
+            )
+            async for event in event_stream:
                 add_token_usage(token_usage, getattr(event, "usage_metadata", None))
                 compaction_events.register(
                     getattr(event, "invocation_id", None),
