@@ -26,8 +26,7 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
 
   useEffect(() => {
     const bridge = window.sherpaPreview;
-    if (!shouldCapture || !bridge || !target) return;
-    setError(undefined);
+    if (!shouldCapture || !bridge) return;
     const removeFrame = bridge.onFrame((frameTaskId, nextFrame) => {
       if (frameTaskId !== taskId) return;
       const bytes = new Uint8Array(nextFrame);
@@ -43,19 +42,26 @@ export function WindowTaskPreview({ active, cursor, revision, target, taskId }: 
     const removeMetadata = bridge.onMetadata((metadataTaskId, nextBounds) => {
       if (metadataTaskId === taskId) setBounds(nextBounds);
     });
-    void bridge.start(taskId, target).then((started) => {
-      if (!started) {
-        retryPending.current = true;
-        setError("This window cannot be previewed.");
-      }
-    });
+
     return () => {
       bridge.stop(taskId);
       removeFrame();
       removeError();
       removeMetadata();
     };
-  }, [shouldCapture, targetKey, target?.app, target?.pid, target?.window_id, target?.window_title, taskId]);
+  }, [shouldCapture, taskId]);
+
+  useEffect(() => {
+    const bridge = window.sherpaPreview;
+    if (!shouldCapture || !bridge || !target) return;
+    setError(undefined);
+    void bridge.start(taskId, target).then((started) => {
+      if (!started) {
+        retryPending.current = true;
+        setError("This window cannot be previewed.");
+      }
+    });
+  }, [shouldCapture, targetKey, taskId]);
 
   useEffect(() => {
     if (!shouldCapture || !revision || !target || !retryPending.current) return;

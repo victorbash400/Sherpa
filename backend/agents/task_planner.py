@@ -44,7 +44,7 @@ task_planner = Agent(
     name="task_planner",
     description="Maintains Sherpa's ordered task queue without running work itself.",
     model=Gemini(
-        model="gemini-3.7-flash",
+        model="gemini-3.6-flash",
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     mode="chat",

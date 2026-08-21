@@ -18,7 +18,7 @@ class MemoryCandidates(BaseModel):
 memory_agent = Agent(
     name="memory_agent",
     description="Extracts durable, user-relevant memory candidates.",
-    model=Gemini(model="gemini-3.7-flash"),
+    model=Gemini(model="gemini-3.6-flash"),
     mode="chat",
     output_schema=MemoryCandidates,
     instruction="""

@@ -63,6 +63,7 @@ declare global {
     };
     sherpaSystem?: {
       openExternal: (url: string) => Promise<boolean>;
+      debugVoice: (payload: Record<string, unknown>) => void;
       onWindowFocusChanged: (callback: (focused: boolean) => void) => () => void;
     };
     sherpaPhotos?: {

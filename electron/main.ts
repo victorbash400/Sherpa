@@ -14,12 +14,12 @@ const dockIconPath = !isDevelopment
   ? path.join(currentDirectory, "../dist/sherpa-dock-icon.png")
   : path.join(app.getAppPath(), "public/sherpa-dock-icon.png");
 let mainWindow: BrowserWindow | undefined;
-let overlayWindow: BrowserWindow | undefined;
+const overlayWindows = new Map<number, BrowserWindow>();
+const readyOverlayDisplays = new Set<number>();
+const pendingOverlays = new Map<number, OverlayPayload>();
 let petWindow: BrowserWindow | undefined;
 let petWorking = false;
 let petTranscript: PetTranscriptPayload = { entries: [], hue: 0, status: "idle" };
-let overlayReady = false;
-let pendingOverlay: OverlayPayload | undefined;
 let lastOverlayPoint: { x: number; y: number } | undefined;
 let previewProcess: ChildProcessWithoutNullStreams | undefined;
 let previewTaskId: string | undefined;
@@ -108,10 +108,8 @@ function desktopBounds() {
   return { x: left, y: top, width: right - left, height: bottom - top };
 }
 
-function createOverlayWindow() {
-  const bounds = desktopBounds();
-  overlayReady = false;
-  overlayWindow = new BrowserWindow({
+function createOverlayWindow(displayId: number, bounds: Electron.Rectangle) {
+  const window = new BrowserWindow({
     ...bounds,
     transparent: true,
     frame: false,
@@ -128,24 +126,46 @@ function createOverlayWindow() {
       preload: preloadPath,
     },
   });
-  overlayWindow.setAlwaysOnTop(true, "screen-saver");
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  overlayWindow.on("closed", () => {
-    overlayWindow = undefined;
-    overlayReady = false;
+  overlayWindows.set(displayId, window);
+  window.setAlwaysOnTop(true, "screen-saver");
+  window.setIgnoreMouseEvents(true, { forward: true });
+  window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  window.on("closed", () => {
+    if (overlayWindows.get(displayId) === window) overlayWindows.delete(displayId);
+    readyOverlayDisplays.delete(displayId);
+    pendingOverlays.delete(displayId);
   });
-  overlayWindow.webContents.on("did-fail-load", (_, code, description) => {
-    console.error("Sherpa overlay failed to load", { code, description });
+  window.webContents.on("did-fail-load", (_, code, description) => {
+    console.error("Sherpa overlay failed to load", { displayId, code, description });
   });
-  overlayWindow.webContents.on("render-process-gone", (_, details) => {
-    console.error("Sherpa overlay renderer stopped", { reason: details.reason });
+  window.webContents.on("render-process-gone", (_, details) => {
+    console.error("Sherpa overlay renderer stopped", { displayId, reason: details.reason });
   });
 
   if (developmentServerUrl) {
-    void overlayWindow.loadURL(`${developmentServerUrl}/overlay.html`);
+    void window.loadURL(`${developmentServerUrl}/overlay.html`);
   } else {
-    void overlayWindow.loadFile(path.join(currentDirectory, "../dist/overlay.html"));
+    void window.loadFile(path.join(currentDirectory, "../dist/overlay.html"));
+  }
+}
+
+function syncOverlayWindows() {
+  const displays = screen.getAllDisplays();
+  const displayIds = new Set(displays.map((display) => display.id));
+  for (const [displayId, window] of overlayWindows) {
+    if (displayIds.has(displayId)) continue;
+    overlayWindows.delete(displayId);
+    readyOverlayDisplays.delete(displayId);
+    pendingOverlays.delete(displayId);
+    if (!window.isDestroyed()) window.destroy();
+  }
+  for (const display of displays) {
+    const existing = overlayWindows.get(display.id);
+    if (existing && !existing.isDestroyed()) {
+      existing.setBounds(display.bounds);
+    } else {
+      createOverlayWindow(display.id, display.bounds);
+    }
   }
 }
 
@@ -252,16 +272,21 @@ function overlayPoint(args: Record<string, unknown>) {
 
 function configureOverlayEvents() {
   const showOverlay = (payload: OverlayPayload) => {
-    const target = overlayWindow;
-    if (!target || target.isDestroyed() || !overlayReady) {
-      pendingOverlay = payload;
+    const point = overlayPoint(payload.args);
+    const display = screen.getDisplayNearestPoint({ x: Math.round(point.x), y: Math.round(point.y) });
+    const target = overlayWindows.get(display.id);
+    for (const [displayId, window] of overlayWindows) {
+      if (displayId !== display.id && !window.isDestroyed()) window.hide();
+      if (displayId !== display.id) pendingOverlays.delete(displayId);
+    }
+    if (!target || target.isDestroyed() || !readyOverlayDisplays.has(display.id)) {
+      pendingOverlays.set(display.id, payload);
       return;
     }
     if (!target.isVisible()) {
       target.showInactive();
     }
     const bounds = target.getBounds();
-    const point = overlayPoint(payload.args);
     const x = point.x - bounds.x;
     const y = point.y - bounds.y;
     if (payload.action.endsWith("_click")) {
@@ -276,22 +301,25 @@ function configureOverlayEvents() {
     });
   };
   const hideOverlay = (id: string) => {
-    pendingOverlay = undefined;
-    const target = overlayWindow;
-    if (!target || target.isDestroyed() || !overlayReady) return;
-    target.webContents.send("overlay:hide", id);
-    target.hide();
+    pendingOverlays.clear();
+    for (const [displayId, target] of overlayWindows) {
+      if (target.isDestroyed() || !readyOverlayDisplays.has(displayId)) continue;
+      target.webContents.send("overlay:hide", id);
+      target.hide();
+    }
   };
 
   ipcMain.on("overlay:ready", (event) => {
-    if (event.sender !== overlayWindow?.webContents) return;
-    overlayReady = true;
-    if (pendingOverlay) {
-      const payload = pendingOverlay;
-      pendingOverlay = undefined;
+    const entry = [...overlayWindows.entries()].find(([, window]) => event.sender === window.webContents);
+    if (!entry) return;
+    const [displayId, window] = entry;
+    readyOverlayDisplays.add(displayId);
+    const payload = pendingOverlays.get(displayId);
+    if (payload) {
+      pendingOverlays.delete(displayId);
       showOverlay(payload);
     } else {
-      overlayWindow.hide();
+      window.hide();
     }
   });
   ipcMain.on("overlay:show", (event, payload: OverlayPayload) => {
@@ -300,12 +328,15 @@ function configureOverlayEvents() {
   });
   ipcMain.on("overlay:hide", (event, id: string) => {
     if (event.sender !== mainWindow?.webContents) return;
-    if (pendingOverlay?.id === id) pendingOverlay = undefined;
     hideOverlay(id);
   });
 }
 
 function configureSystemEvents() {
+  ipcMain.on("voice:debug", (event, payload: Record<string, unknown>) => {
+    if (event.sender !== mainWindow?.webContents || !payload) return;
+    console.info("voice.playback", payload);
+  });
   ipcMain.removeHandler("system:open-external");
   ipcMain.handle("system:open-external", async (event, url: string) => {
     if (event.sender !== mainWindow?.webContents) return false;
@@ -557,12 +588,12 @@ app.whenReady().then(() => {
   configurePetEvents();
   configurePreviewEvents();
   createWindow();
-  createOverlayWindow();
   configureOverlayEvents();
+  syncOverlayWindows();
 
-  screen.on("display-added", () => overlayWindow?.setBounds(desktopBounds()));
-  screen.on("display-removed", () => overlayWindow?.setBounds(desktopBounds()));
-  screen.on("display-metrics-changed", () => overlayWindow?.setBounds(desktopBounds()));
+  screen.on("display-added", syncOverlayWindows);
+  screen.on("display-removed", syncOverlayWindows);
+  screen.on("display-metrics-changed", syncOverlayWindows);
 
   app.on("activate", () => {
     if (!mainWindow) {

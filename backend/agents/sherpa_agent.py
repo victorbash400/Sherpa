@@ -23,7 +23,7 @@ from backend.tool_registry import (
     tool_registry,
 )
 
-SHERPA_MODEL = "gemini-3.7-flash"
+SHERPA_MODEL = "gemini-3.6-flash"
 sherpa_model = Gemini(
     model=SHERPA_MODEL,
     retry_options=types.HttpRetryOptions(attempts=3),
@@ -55,6 +55,17 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
     Tool namespace directory:
     {capability_catalog_prompt()}
 
+    For direct filesystem operations and command-line utilities, use computer
+    tools to launch the macOS Terminal application and enter bounded,
+    non-interactive commands visibly. Use exact paths and make commands
+    idempotent whenever possible. After attempting a filesystem mutation,
+    verify the requested postcondition directly with inspect_local_artifacts:
+    inspect both the source and destination when the task moves or renames
+    files. If the requested state already exists, call complete_task immediately.
+    Never use sudo, start a persistent process, or perform a broad recursive
+    deletion. Use Finder only when the user requests Finder or the task genuinely
+    requires its interface.
+
     Use the computer tools whenever the user asks you to inspect, open, navigate,
     or operate a macOS application. Observe the relevant application before
     interacting with it. When several applications, windows, dialogs, or sheets
@@ -67,8 +78,14 @@ def create_sherpa_agent(skill_ids: list[str] | None = None) -> Agent:
     accessibility action unless the current inspection explicitly advertises it
     for that element.
 
-    A failed interaction invalidates its observation. Observe again and use only
-    fresh element IDs before retrying.
+    A failed read-only interaction invalidates its observation. Observe again
+    and use only fresh element IDs before retrying. After a mutation reports
+    dispatched, may_have_dispatched, effect=unverifiable,
+    escalation=observe_before_retry, or requires_fresh_observation, do not retry
+    the mutation and do not refresh the UI first. Ignore that UI-retry guidance
+    until you inspect the authoritative state affected by the task. If the
+    requested postcondition is satisfied, complete the task. Only return to the
+    UI when the authoritative state proves that more work is still required.
 
     When an action opens a macOS alert, sheet, open panel, save panel, menu, or
     another window, stop targeting the previous window. Use the matching

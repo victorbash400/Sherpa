@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("sherpaOverlay", {
 
 contextBridge.exposeInMainWorld("sherpaSystem", {
   openExternal: (url: string) => ipcRenderer.invoke("system:open-external", url),
+  debugVoice: (payload: unknown) => ipcRenderer.send("voice:debug", payload),
   onWindowFocusChanged: (callback: (focused: boolean) => void) => {
     const listener = (_: Electron.IpcRendererEvent, focused: boolean) => callback(focused);
     ipcRenderer.on("window:focus-changed", listener);

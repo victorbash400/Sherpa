@@ -356,7 +356,7 @@ async def chat_title(body: ChatTitleRequest) -> dict[str, str]:
         project=os.environ["GOOGLE_CLOUD_PROJECT"],
         location=os.environ["GOOGLE_CLOUD_LOCATION"],
     ).aio.models.generate_content(
-        model="gemini-3.7-flash",
+        model="gemini-3.6-flash",
         contents=prompt,
         config=types.GenerateContentConfig(
             max_output_tokens=128,
@@ -500,7 +500,7 @@ async def voice(
                 start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_HIGH,
                 prefix_padding_ms=20,
                 end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_LOW,
-                silence_duration_ms=1000,
+                silence_duration_ms=800,
             ),
         ),
         speech_config=types.SpeechConfig(
@@ -547,6 +547,12 @@ async def voice(
         output_transcript_sequence = 0
         input_transcript_text = ""
         output_transcript_text = ""
+        voice_turn_started_at: float | None = None
+        voice_speech_ended_at: float | None = None
+        voice_first_output_at: float | None = None
+        voice_first_audio_at: float | None = None
+        voice_audio_chunks = 0
+        voice_audio_bytes = 0
         pending_photo_captures: dict[str, asyncio.Future[dict]] = {}
 
         await websocket.send_json({"type": "ready"})
@@ -592,6 +598,7 @@ async def voice(
 
         async def receive_input() -> None:
             nonlocal playback_drained, user_speaking
+            nonlocal voice_turn_started_at, voice_speech_ended_at
             try:
                 while True:
                     message = await websocket.receive()
@@ -625,9 +632,21 @@ async def voice(
                             playback_drained = True
                             await maybe_deliver_notification()
                         elif payload.get("type") == "speech_started":
+                            if not user_speaking:
+                                voice_turn_started_at = time.perf_counter()
+                                voice_speech_ended_at = None
+                                logger.info("audio.input_started session=%s", session_id)
                             user_speaking = True
                         elif payload.get("type") == "speech_ended":
                             user_speaking = False
+                            voice_speech_ended_at = time.perf_counter()
+                            logger.info(
+                                "audio.input_ended session=%s speech_ms=%d",
+                                session_id,
+                                round((voice_speech_ended_at - voice_turn_started_at) * 1000)
+                                if voice_turn_started_at else 0,
+                            )
+                            await live.send_realtime_input(audio_stream_end=True)
                             await maybe_deliver_notification()
                     elif message.get("type") == "websocket.disconnect":
                         break
@@ -666,6 +685,9 @@ async def voice(
             nonlocal input_transcript_id, output_transcript_id
             nonlocal input_transcript_sequence, output_transcript_sequence
             nonlocal input_transcript_text, output_transcript_text
+            nonlocal voice_turn_started_at, voice_speech_ended_at
+            nonlocal voice_first_output_at, voice_first_audio_at
+            nonlocal voice_audio_chunks, voice_audio_bytes
             try:
                 while True:
                     async for response in live.receive():
@@ -681,6 +703,12 @@ async def voice(
                         if not content:
                             continue
                         if content.interrupted:
+                            logger.info(
+                                "audio.output_interrupted session=%s chunks=%d bytes=%d",
+                                session_id,
+                                voice_audio_chunks,
+                                voice_audio_bytes,
+                            )
                             if notification_in_flight:
                                 pending_notifications[:0] = in_flight_notifications
                                 in_flight_notifications = []
@@ -726,6 +754,14 @@ async def voice(
                                 input_transcript_text = ""
                         transcription = content.output_transcription
                         if transcription and transcription.text:
+                            if voice_first_output_at is None:
+                                voice_first_output_at = time.perf_counter()
+                                logger.info(
+                                    "audio.output_transcript_started session=%s after_speech_end_ms=%d",
+                                    session_id,
+                                    round((voice_first_output_at - voice_speech_ended_at) * 1000)
+                                    if voice_speech_ended_at else 0,
+                                )
                             if output_transcript_id is None:
                                 transcript_sequence += 1
                                 output_transcript_sequence = transcript_sequence
@@ -751,9 +787,31 @@ async def voice(
                             model_idle = False
                             for part in content.model_turn.parts or []:
                                 if part.inline_data and part.inline_data.data:
+                                    if voice_first_audio_at is None:
+                                        voice_first_audio_at = time.perf_counter()
+                                        logger.info(
+                                            "audio.output_first_chunk session=%s after_speech_end_ms=%d bytes=%d",
+                                            session_id,
+                                            round((voice_first_audio_at - voice_speech_ended_at) * 1000)
+                                            if voice_speech_ended_at else 0,
+                                            len(part.inline_data.data),
+                                        )
+                                    voice_audio_chunks += 1
+                                    voice_audio_bytes += len(part.inline_data.data)
                                     playback_drained = False
                                     await websocket.send_bytes(part.inline_data.data)
                         if content.turn_complete:
+                            completed_at = time.perf_counter()
+                            logger.info(
+                                "audio.output_complete session=%s turn_ms=%d after_speech_end_ms=%d chunks=%d bytes=%d",
+                                session_id,
+                                round((completed_at - voice_turn_started_at) * 1000)
+                                if voice_turn_started_at else 0,
+                                round((completed_at - voice_speech_ended_at) * 1000)
+                                if voice_speech_ended_at else 0,
+                                voice_audio_chunks,
+                                voice_audio_bytes,
+                            )
                             input_event = final_transcript_event(
                                 input_transcript_id,
                                 "user",
@@ -786,6 +844,12 @@ async def voice(
                             )
                             turn_user_text.clear()
                             turn_assistant_text.clear()
+                            voice_turn_started_at = None
+                            voice_speech_ended_at = None
+                            voice_first_output_at = None
+                            voice_first_audio_at = None
+                            voice_audio_chunks = 0
+                            voice_audio_bytes = 0
                             model_idle = True
                             notification_in_flight = False
                             in_flight_notifications = []

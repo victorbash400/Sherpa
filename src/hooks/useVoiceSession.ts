@@ -110,6 +110,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const turnCompleteRef = useRef(true);
   const mutedRef = useRef(microphoneMuted);
   const runningTaskIdsRef = useRef(new Set<string>());
+  const playbackChunkCountRef = useRef(0);
+  const playbackByteCountRef = useRef(0);
 
   mutedRef.current = microphoneMuted;
 
@@ -122,6 +124,10 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     setAudioLevel(0);
   }, []);
 
+  const debugPlayback = useCallback((event: string, details: Record<string, unknown> = {}) => {
+    window.sherpaSystem?.debugVoice({ event, sessionId, ...details });
+  }, [sessionId]);
+
   const sendControl = useCallback((type: "playback_drained" | "speech_started" | "speech_ended") => {
     const socket = socketRef.current;
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type }));
@@ -131,9 +137,19 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     const context = contextRef.current;
     const gain = gainRef.current;
     if (!context || !gain || !sourcesRef.current.size) {
+      debugPlayback("interrupted", {
+        contextState: context?.state || "missing",
+        queuedSources: sourcesRef.current.size,
+      });
       clearPlayback();
+      playbackChunkCountRef.current = 0;
+      playbackByteCountRef.current = 0;
       return;
     }
+    debugPlayback("interrupted", {
+      contextState: context.state,
+      queuedSources: sourcesRef.current.size,
+    });
     if (fadeTimerRef.current !== undefined) window.clearTimeout(fadeTimerRef.current);
     const now = context.currentTime;
     gain.gain.cancelScheduledValues(now);
@@ -143,12 +159,14 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       for (const source of sourcesRef.current) source.stop();
       sourcesRef.current.clear();
       playheadRef.current = context.currentTime;
+      playbackChunkCountRef.current = 0;
+      playbackByteCountRef.current = 0;
       gain.gain.cancelScheduledValues(context.currentTime);
       gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
       fadeTimerRef.current = undefined;
       setAudioLevel(0);
     }, 45);
-  }, [clearPlayback, speakerMuted, volume]);
+  }, [clearPlayback, debugPlayback, speakerMuted, volume]);
 
   const stop = useCallback(() => {
     window.sherpaPreview?.stopAll();
@@ -160,6 +178,8 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
     turnCompleteRef.current = true;
     readySoundRef.current?.pause();
     readySoundRef.current = undefined;
+    playbackChunkCountRef.current = 0;
+    playbackByteCountRef.current = 0;
     if (!runningTaskIdsRef.current.size) {
       window.sherpaOverlay?.hide("voice-session");
       setComputerActive(false);
@@ -183,36 +203,85 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
   const playAudio = useCallback((data: ArrayBuffer) => {
     const context = contextRef.current;
     const gain = gainRef.current;
-    if (!context || !gain) return;
-    if (fadeTimerRef.current !== undefined) {
-      window.clearTimeout(fadeTimerRef.current);
-      fadeTimerRef.current = undefined;
-      gain.gain.cancelScheduledValues(context.currentTime);
-      gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
+    playbackChunkCountRef.current += 1;
+    playbackByteCountRef.current += data.byteLength;
+    if (playbackChunkCountRef.current === 1) {
+      debugPlayback("first_chunk_received", {
+        bytes: data.byteLength,
+        contextState: context?.state || "missing",
+        speakerMuted,
+        volume,
+      });
     }
-    const pcm = new Int16Array(data);
-    const audioBuffer = context.createBuffer(1, pcm.length, 24000);
-    const output = audioBuffer.getChannelData(0);
-    let sum = 0;
-    for (let index = 0; index < pcm.length; index += 1) {
-      const sample = pcm[index] / 32768;
-      output[index] = sample;
-      sum += sample * sample;
+    if (!context || !gain) {
+      debugPlayback("chunk_dropped", {
+        bytes: data.byteLength,
+        contextState: context?.state || "missing",
+        reason: !context ? "missing_context" : "missing_gain",
+      });
+      return;
     }
-    setAudioLevel(Math.min(1, Math.sqrt(sum / Math.max(1, pcm.length)) * 4));
-    const source = context.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(gain);
-    const startsAt = Math.max(context.currentTime, playheadRef.current);
-    playheadRef.current = startsAt + audioBuffer.duration;
-    sourcesRef.current.add(source);
-    source.addEventListener("ended", () => {
-      sourcesRef.current.delete(source);
-      if (!sourcesRef.current.size && turnCompleteRef.current) sendControl("playback_drained");
-    }, { once: true });
-    source.start(startsAt);
-    setStatus("speaking");
-  }, [sendControl, speakerMuted, volume]);
+    const schedule = () => {
+      if (contextRef.current !== context || gainRef.current !== gain) return;
+      if (fadeTimerRef.current !== undefined) {
+        window.clearTimeout(fadeTimerRef.current);
+        fadeTimerRef.current = undefined;
+        gain.gain.cancelScheduledValues(context.currentTime);
+        gain.gain.setValueAtTime(speakerMuted ? 0 : volume / 100, context.currentTime);
+      }
+      const pcm = new Int16Array(data);
+      const audioBuffer = context.createBuffer(1, pcm.length, 24000);
+      const output = audioBuffer.getChannelData(0);
+      let sum = 0;
+      for (let index = 0; index < pcm.length; index += 1) {
+        const sample = pcm[index] / 32768;
+        output[index] = sample;
+        sum += sample * sample;
+      }
+      setAudioLevel(Math.min(1, Math.sqrt(sum / Math.max(1, pcm.length)) * 4));
+      const source = context.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(gain);
+      const startsAt = Math.max(context.currentTime, playheadRef.current);
+      playheadRef.current = startsAt + audioBuffer.duration;
+      sourcesRef.current.add(source);
+      source.addEventListener("ended", () => {
+        sourcesRef.current.delete(source);
+        if (!sourcesRef.current.size && turnCompleteRef.current) {
+          debugPlayback("drained", {
+            bytes: playbackByteCountRef.current,
+            chunks: playbackChunkCountRef.current,
+            contextState: context.state,
+          });
+          playbackChunkCountRef.current = 0;
+          playbackByteCountRef.current = 0;
+          sendControl("playback_drained");
+        }
+      }, { once: true });
+      source.start(startsAt);
+      setStatus("speaking");
+    };
+    if (context.state === "suspended") {
+      debugPlayback("context_resume_requested", { queuedSources: sourcesRef.current.size });
+      void context.resume().then(schedule).catch((reason: unknown) => {
+        debugPlayback("context_resume_failed", {
+          error: reason instanceof Error ? reason.message : String(reason),
+        });
+        setError(reason instanceof Error ? reason.message : "Sherpa audio playback could not resume.");
+      });
+      return;
+    }
+    if (context.state !== "running") {
+      debugPlayback("chunk_dropped", {
+        bytes: data.byteLength,
+        contextState: context.state,
+        reason: "context_not_running",
+      });
+      setError(`Sherpa audio playback is ${context.state}.`);
+      return;
+    }
+    schedule();
+  }, [debugPlayback, sendControl, speakerMuted, volume]);
 
   const start = useCallback(async () => {
     if (status !== "idle" && status !== "error") return;
@@ -224,6 +293,23 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       readySound.volume = speakerMuted ? 0 : volume / 100;
       readySoundRef.current = readySound;
       readySound.load();
+
+      const context = new AudioContext();
+      contextRef.current = context;
+      const gain = context.createGain();
+      gain.gain.value = speakerMuted ? 0 : volume / 100;
+      gain.connect(context.destination);
+      gainRef.current = gain;
+      await context.resume();
+      debugPlayback("context_ready", {
+        contextState: context.state,
+        sampleRate: context.sampleRate,
+        speakerMuted,
+        volume,
+      });
+      context.addEventListener("statechange", () => {
+        debugPlayback("context_state_changed", { contextState: context.state });
+      });
 
       const query = new URLSearchParams({ voice: voiceName, language: spokenLanguage });
       const socket = new WebSocket(`ws://127.0.0.1:8000/voice/${sessionId}?${query}`);
@@ -250,12 +336,6 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
         audio: { autoGainControl: true, echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
-      const context = new AudioContext();
-      contextRef.current = context;
-      const gain = context.createGain();
-      gain.gain.value = speakerMuted ? 0 : volume / 100;
-      gain.connect(context.destination);
-      gainRef.current = gain;
       await context.audioWorklet.addModule("/audio-input-processor.js");
 
       const source = context.createMediaStreamSource(stream);
@@ -282,7 +362,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
             speechActiveRef.current = false;
             speechEndTimerRef.current = undefined;
             sendControl("speech_ended");
-          }, 1000);
+          }, 500);
         }
         socket.send(event.data);
       };
@@ -336,9 +416,19 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
           interruptPlayback();
           setStatus("listening");
         } else if (message.type === "turn_complete") {
+          debugPlayback("turn_complete", {
+            bytes: playbackByteCountRef.current,
+            chunks: playbackChunkCountRef.current,
+            contextState: contextRef.current?.state || "missing",
+            queuedSources: sourcesRef.current.size,
+          });
           onTurnComplete();
           turnCompleteRef.current = true;
-          if (!sourcesRef.current.size) sendControl("playback_drained");
+          if (!sourcesRef.current.size) {
+            playbackChunkCountRef.current = 0;
+            playbackByteCountRef.current = 0;
+            sendControl("playback_drained");
+          }
           setStatus("listening");
           setAudioLevel(0);
           if (activityTimerRef.current !== undefined) window.clearTimeout(activityTimerRef.current);
@@ -516,7 +606,7 @@ export function useVoiceSession({ microphoneMuted, onTranscript, onTurnComplete,
       setError(reason instanceof Error ? reason.message : "Sherpa voice failed.");
       setStatus("error");
     }
-  }, [clearPlayback, interruptPlayback, onTranscript, onTurnComplete, playAudio, sendControl, sessionId, speakerMuted, spokenLanguage, status, stop, voiceName, volume]);
+  }, [clearPlayback, debugPlayback, interruptPlayback, onTranscript, onTurnComplete, playAudio, sendControl, sessionId, speakerMuted, spokenLanguage, status, stop, voiceName, volume]);
 
   const sendVideoFrame = useCallback((data: string, mimeType: string) => {
     const socket = socketRef.current;

@@ -17,7 +17,6 @@ PEEKABOO_BINARY = (
 
 PEEKABOO_TOOL_NAMES = [
     "inspect_ui",
-    "permissions",
     "app",
     "surfaces",
     "window",

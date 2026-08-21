@@ -15,9 +15,9 @@ type TaskPreviewProps = {
 };
 
 export function TaskPreview({ active, apiActivity, cursor, revision, target, taskId }: TaskPreviewProps) {
-  if (apiActivity) return <TaskApiActivityPreview activity={apiActivity} />;
   if (target?.kind === "workspace" && target.resource_id) {
     return <WorkspaceTaskPreview key={`${target.resource_id}:${target.revision || ""}`} target={target} />;
   }
+  if (!target && apiActivity) return <TaskApiActivityPreview activity={apiActivity} />;
   return <WindowTaskPreview active={active} cursor={cursor} revision={revision} target={target} taskId={taskId} />;
 }

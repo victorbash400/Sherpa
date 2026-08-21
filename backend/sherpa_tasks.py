@@ -34,6 +34,12 @@ PEEKABOO_ELEMENT_LINE = re.compile(
     r'size\s+(?P<width>\d+(?:\.\d+)?)\s*[×x]\s*(?P<height>\d+(?:\.\d+)?)',
     re.MULTILINE,
 )
+PEEKABOO_TEXT_INPUT_LINE = re.compile(
+    r'^\s*(?P<id>\S+)\s+-\s+\[(?P<role>textField|textArea|comboBox)\]\s+-\s+.*?\s+-\s+at\s+'
+    r'\((?P<x>-?\d+(?:\.\d+)?),\s*(?P<y>-?\d+(?:\.\d+)?)\)\s+'
+    r'size\s+(?P<width>\d+(?:\.\d+)?)\s*[×x]\s*(?P<height>\d+(?:\.\d+)?)',
+    re.MULTILINE | re.IGNORECASE,
+)
 BROWSER_BOX = re.compile(
     r'\[ref=(?P<ref>[^\]]+)\].*?\[box=(?P<x>-?\d+(?:\.\d+)?),'
     r'(?P<y>-?\d+(?:\.\d+)?),(?P<width>\d+(?:\.\d+)?),'
@@ -763,6 +769,7 @@ class SherpaTaskManager:
             seen_responses: set[str] = set()
             tool_call_args: dict[str, dict[str, Any]] = {}
             element_targets: dict[str, tuple[float, float]] = {}
+            text_input_target: tuple[float, float] | None = None
             browser_targets: dict[str, tuple[float, float]] = {}
             browser_elements: list[dict[str, Any]] = []
             result_sequence = 0
@@ -853,7 +860,12 @@ class SherpaTaskManager:
                             browser_elements,
                         )
                     else:
-                        target = overlay_target(event_args, element_targets)
+                        target = overlay_target(
+                            call.name,
+                            event_args,
+                            element_targets,
+                            text_input_target,
+                        )
                     if target:
                         event_args["overlay_x"], event_args["overlay_y"] = target
                         logger.info(
@@ -932,6 +944,7 @@ class SherpaTaskManager:
                         completion = dict(response.response or {})
                     if response.name in {"computer_see", "computer_inspect_ui"}:
                         element_targets = extract_element_targets(response.response)
+                        text_input_target = extract_text_input_target(response.response)
                     if response.name.startswith("computer_"):
                         transitioned_target = extract_computer_target(response.response)
                         if transitioned_target:
@@ -1475,12 +1488,16 @@ def is_observation_tool(
 
 
 def overlay_target(
+    tool_name: str,
     args: dict[str, Any],
     elements: dict[str, tuple[float, float]],
+    text_input_target: tuple[float, float] | None,
 ) -> tuple[float, float] | None:
     element_id = args.get("on")
     if isinstance(element_id, str) and element_id in elements:
         return elements[element_id]
+    if tool_name == "computer_type" and text_input_target:
+        return text_input_target
     return None
 
 
@@ -1520,6 +1537,53 @@ def extract_element_targets(response: Any) -> dict[str, tuple[float, float]]:
 
     visit(response)
     return targets
+
+
+def extract_text_input_target(response: Any) -> tuple[float, float] | None:
+    candidates: list[tuple[tuple[float, float], bool]] = []
+
+    def add(bounds: dict[str, Any], focused: bool = False) -> None:
+        x = bounds.get("x")
+        y = bounds.get("y")
+        width = bounds.get("width")
+        height = bounds.get("height")
+        if all(isinstance(number, (int, float)) for number in (x, y, width, height)):
+            candidates.append(((x + width / 2, y + height / 2), focused))
+
+    def visit(value: Any) -> None:
+        if isinstance(value, str):
+            for match in PEEKABOO_TEXT_INPUT_LINE.finditer(value):
+                add({
+                    "x": float(match.group("x")),
+                    "y": float(match.group("y")),
+                    "width": float(match.group("width")),
+                    "height": float(match.group("height")),
+                })
+            try:
+                visit(json.loads(value))
+            except (json.JSONDecodeError, TypeError):
+                return
+            return
+        if isinstance(value, list):
+            for item in value:
+                visit(item)
+            return
+        if not isinstance(value, dict):
+            return
+        role = str(value.get("role") or value.get("type") or "").lower()
+        bounds = value.get("bounds")
+        if role in {"textfield", "textarea", "combobox"} and isinstance(bounds, dict):
+            add(bounds, value.get("focused") is True or value.get("isFocused") is True)
+        for nested in value.values():
+            visit(nested)
+
+    visit(response)
+    focused = [point for point, is_focused in candidates if is_focused]
+    if focused:
+        return focused[0]
+    if len(candidates) == 1:
+        return candidates[0][0]
+    return None
 
 
 def extract_computer_target(response: Any) -> dict[str, str | int | None] | None:
