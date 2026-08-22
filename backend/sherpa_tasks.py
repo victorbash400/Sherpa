@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -50,14 +51,12 @@ BROWSER_BOX = re.compile(
     r'(?P<y>-?\d+(?:\.\d+)?),(?P<width>\d+(?:\.\d+)?),'
     r'(?P<height>\d+(?:\.\d+)?)\]'
 )
-AGENT_ENGINE_SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
+AGENT_ENGINE_SESSION_ID = re.compile(r"^[a-z][a-z0-9-]{0,61}[a-z0-9]$")
 
 
 def build_worker_session_id(chat_id: str, task_id: str, restart_id: str | None = None) -> str:
-    session_id = "-".join(
-        part for part in (chat_id, task_id, "restart" if restart_id else "", restart_id or "")
-        if part
-    )
+    logical_id = "\0".join((chat_id, task_id, restart_id or ""))
+    session_id = f"s-{hashlib.sha256(logical_id.encode()).hexdigest()[:48]}"
     if not AGENT_ENGINE_SESSION_ID.fullmatch(session_id):
         raise ValueError(f"Invalid Agent Engine worker session ID: {session_id}")
     return session_id

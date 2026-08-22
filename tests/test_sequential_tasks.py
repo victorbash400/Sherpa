@@ -39,10 +39,18 @@ class SequentialTaskTests(unittest.IsolatedAsyncioTestCase):
             "restart_456",
         )
 
-        self.assertNotIn(":", session_id)
-        self.assertNotIn(":", restart_id)
-        self.assertRegex(session_id, r"^[A-Za-z0-9_-]+$")
-        self.assertRegex(restart_id, r"^[A-Za-z0-9_-]+$")
+        self.assertEqual(
+            session_id,
+            build_worker_session_id(
+                "15073c48-541c-4af1-8c6c-2e74e67a8017",
+                "task_123",
+            ),
+        )
+        self.assertNotEqual(session_id, restart_id)
+        self.assertLessEqual(len(session_id), 63)
+        self.assertLessEqual(len(restart_id), 63)
+        self.assertRegex(session_id, r"^[a-z][a-z0-9-]*[a-z0-9]$")
+        self.assertRegex(restart_id, r"^[a-z][a-z0-9-]*[a-z0-9]$")
 
     def test_tasks_are_isolated_by_active_account(self) -> None:
         first = ActiveAccount(id="first", email="first@example.com", name="First")

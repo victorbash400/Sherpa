@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { authenticateAccount, createAccount, demoAccount } from "./accountApi";
 import type { AuthenticatedSherpaAccount } from "./authTypes";
-import { publicAssetUrl } from "../assets/publicAssetUrl";
 import "./AuthForm.css";
 
 type Mode = "signin" | "create";
@@ -45,10 +44,7 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (account: Authe
 
   return (
     <main className="auth-page">
-      <div className="auth-brand" aria-label="Sherpa">
-        <img alt="" aria-hidden="true" src={publicAssetUrl("luminous-orbit-macos-icon.svg")} />
-        <strong>Sherpa</strong>
-      </div>
+      <strong className="auth-brand">Sherpa</strong>
       <section className="auth-shell">
         <div className="auth-card">
           <h1 className="auth-title">{mode === "signin" ? "Sign in" : "Create account"}</h1>
