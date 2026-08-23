@@ -1,13 +1,12 @@
-[![Electron — native macOS desktop application](https://img.shields.io/badge/Electron-Native_macOS_application-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Gemini Live — realtime voice and camera conversation](https://img.shields.io/badge/Gemini_Live-Realtime_voice_%26_camera-8E75B2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/gemini-api/docs/live)
-[![Google ADK — planning and task execution](https://img.shields.io/badge/Google_ADK-Planning_%26_task_execution-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://google.github.io/adk-docs/)
-[![Vertex AI — managed agent runtime](https://img.shields.io/badge/Vertex_AI-Managed_agent_runtime-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/vertex-ai/generative-ai/docs/agent-engine/overview)
-[![Cloud Run — secure connection to tools on the Mac](https://img.shields.io/badge/Cloud_Run-Secure_device_tool_relay-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](https://cloud.google.com/run)
-[![Peekaboo — installed macOS application control](https://img.shields.io/badge/Peekaboo-Native_macOS_app_control-6C5CE7?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/steipete/Peekaboo)
-[![Playwright — operates the user's connected Chrome session](https://img.shields.io/badge/Playwright-Connected_Chrome_workflows-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)](https://playwright.dev/)
-[![Google Workspace — direct work across Gmail, Drive, Docs, Sheets, and more](https://img.shields.io/badge/Google_Workspace-Gmail%2C_Drive%2C_Docs_%26_more-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://workspace.google.com/)
-[![FastAPI — local voice, task, account, and tool sidecar](https://img.shields.io/badge/FastAPI-Local_voice_%26_task_sidecar-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React — desktop task and conversation interface](https://img.shields.io/badge/React-Conversation_%26_task_interface-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
+<p>
+  <a href="https://www.electronjs.org/"><img height="22" alt="Electron" src="https://img.shields.io/badge/Electron-47848F?logo=electron&amp;logoColor=white"></a>
+  <a href="https://react.dev/"><img height="22" alt="React" src="https://img.shields.io/badge/React-20232A?logo=react&amp;logoColor=61DAFB"></a>
+  <a href="https://fastapi.tiangolo.com/"><img height="22" alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&amp;logoColor=white"></a>
+  <a href="https://google.github.io/adk-docs/"><img height="22" alt="Google ADK" src="https://img.shields.io/badge/Google_ADK-4285F4?logo=google&amp;logoColor=white"></a>
+  <a href="https://ai.google.dev/gemini-api/docs/live"><img height="22" alt="Gemini 3.1 Flash Live" src="https://img.shields.io/badge/Gemini_3.1_Flash_Live-8E75B2?logo=googlegemini&amp;logoColor=white"></a>
+  <a href="https://ai.google.dev/gemini-api/docs/models"><img height="22" alt="Gemini 3.6 Flash" src="https://img.shields.io/badge/Gemini_3.6_Flash-8E75B2?logo=googlegemini&amp;logoColor=white"></a>
+  <a href="https://cloud.google.com/"><img height="22" alt="Google Cloud" src="https://img.shields.io/badge/Google_Cloud-4285F4?logo=googlecloud&amp;logoColor=white"></a>
+</p>
 
 # Sherpa
 
